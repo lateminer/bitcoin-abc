@@ -128,7 +128,7 @@ bool AppInit(int argc, char *argv[]) {
         bool fCommandLine = false;
         for (int i = 1; i < argc; i++)
             if (!IsSwitchChar(argv[i][0]) &&
-                !boost::algorithm::istarts_with(argv[i], "bitcoin:"))
+                !boost::algorithm::istarts_with(argv[i], "blackcoin:"))
                 fCommandLine = true;
 
         if (fCommandLine) {
