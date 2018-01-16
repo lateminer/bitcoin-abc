@@ -87,8 +87,8 @@
 #include <openssl/conf.h>
 #include <openssl/rand.h>
 
-const char *const BITCOIN_CONF_FILENAME = "bitcoin.conf";
-const char *const BITCOIN_PID_FILENAME = "bitcoind.pid";
+const char *const BITCOIN_CONF_FILENAME = "lore.conf";
+const char *const BITCOIN_PID_FILENAME = "lored.pid";
 
 ArgsManager gArgs;
 bool fPrintToConsole = false;
@@ -481,7 +481,7 @@ static std::string FormatException(const std::exception *pex,
     char pszModule[MAX_PATH] = "";
     GetModuleFileNameA(nullptr, pszModule, sizeof(pszModule));
 #else
-    const char *pszModule = "bitcoin";
+    const char *pszModule = "lore";
 #endif
     if (pex)
         return strprintf("EXCEPTION: %s       \n%s       \n%s in %s       \n",
@@ -499,13 +499,13 @@ void PrintExceptionContinue(const std::exception *pex, const char *pszThread) {
 }
 
 fs::path GetDefaultDataDir() {
-// Windows < Vista: C:\Documents and Settings\Username\Application Data\Bitcoin
-// Windows >= Vista: C:\Users\Username\AppData\Roaming\Bitcoin
-// Mac: ~/Library/Application Support/Bitcoin
-// Unix: ~/.bitcoin
+// Windows < Vista: C:\Documents and Settings\Username\Application Data\Lore
+// Windows >= Vista: C:\Users\Username\AppData\Roaming\Lore
+// Mac: ~/Library/Application Support/Lore
+// Unix: ~/.lore
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "Bitcoin";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "Lore";
 #else
     fs::path pathRet;
     char *pszHome = getenv("HOME");
@@ -515,10 +515,10 @@ fs::path GetDefaultDataDir() {
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/Bitcoin";
+    return pathRet / "Library/Application Support/Lore";
 #else
     // Unix
-    return pathRet / ".bitcoin";
+    return pathRet / ".lore";
 #endif
 #endif
 }
