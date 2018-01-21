@@ -3013,7 +3013,7 @@
     </message>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>Bitcoin ABC</translation>
+        <translation>黑币新知识版</translation>
     </message>
     <message>
         <source>The %s developers</source>

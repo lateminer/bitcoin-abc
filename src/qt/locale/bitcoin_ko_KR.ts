@@ -977,7 +977,7 @@
     </message>
     <message>
         <source>Automatically open the Bitcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>라우터에서 Bitcoin 클라이언트 포트를 자동적으로 엽니다. 라우터에서 UPnP를 지원하고 활성화 했을 경우에만 동작합니다.</translation>
+        <translation>라우터에서 Blackcoin 클라이언트 포트를 자동적으로 엽니다. 라우터에서 UPnP를 지원하고 활성화 했을 경우에만 동작합니다.</translation>
     </message>
     <message>
         <source>Map port using &amp;UPnP</source>
@@ -2299,7 +2299,7 @@
     </message>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>비트코인 코어</translation>
+        <translation>Blackcoin Lore</translation>
     </message>
     <message>
         <source>The %s developers</source>

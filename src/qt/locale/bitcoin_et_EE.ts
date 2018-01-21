@@ -131,7 +131,7 @@
     </message>
     <message>
         <source>Bitcoin</source>
-        <translation>Bitcoin</translation>
+        <translation>Blackcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -761,7 +761,7 @@
     </message>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>Bitcoin ABC</translation>
+        <translation>Blackcoin Lore</translation>
     </message>
     <message>
         <source>Information</source>

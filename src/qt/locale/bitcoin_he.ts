@@ -243,7 +243,7 @@
     </message>
     <message>
         <source>Bitcoin</source>
-        <translation>ביטקוין</translation>
+        <translation>Blackcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -1649,7 +1649,7 @@
     </message>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>ליבת ביטקוין</translation>
+        <translation>Blackcoin Lore</translation>
     </message>
     <message>
         <source>The %s developers</source>

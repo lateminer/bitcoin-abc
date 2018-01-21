@@ -127,7 +127,7 @@
     </message>
     <message>
         <source>Send coins to a Bitcoin address</source>
-        <translation>Enviando monedas a una dirección de Bitcoin</translation>
+        <translation>Enviando monedas a una dirección de Blackcoin</translation>
     </message>
     <message>
         <source>Change the passphrase used for wallet encryption</source>
@@ -147,7 +147,7 @@
     </message>
     <message>
         <source>Bitcoin</source>
-        <translation>Bitcoin</translation>
+        <translation>Blackcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -297,7 +297,7 @@
     <name>bitcoin-abc</name>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>Bitcoin ABC</translation>
+        <translation>Blackcoin Lore</translation>
     </message>
     <message>
         <source>Insufficient funds</source>

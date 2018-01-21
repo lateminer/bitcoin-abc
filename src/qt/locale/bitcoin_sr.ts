@@ -131,7 +131,7 @@
     </message>
     <message>
         <source>Send coins to a Bitcoin address</source>
-        <translation>Пошаљите новац на bitcoin адресу</translation>
+        <translation>Пошаљите новац на Blackcoin адресу</translation>
     </message>
     <message>
         <source>Change the passphrase used for wallet encryption</source>
