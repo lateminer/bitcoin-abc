@@ -159,7 +159,7 @@ public:
         netMagic[1] = 0xe1;
         netMagic[2] = 0xf3;
         netMagic[3] = 0xe8;
-        nDefaultPort = 8333;
+        nDefaultPort = 15714;
         nPruneAfterHeight = 100000;
 
         genesis = CreateGenesisBlock(1231006505, 2083236893, 0x1d00ffff, 1,
@@ -172,26 +172,8 @@ public:
                uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab212"
                         "7b7afdeda33b"));
 
-        // Note that of those with the service bits flag, most only support a
-        // subset of possible options.
-        // Bitcoin ABC seeder
-        vSeeds.push_back(
-            CDNSSeedData("bitcoinabc.org", "seed.bitcoinabc.org", true));
-        // bitcoinforks seeders
-        vSeeds.push_back(CDNSSeedData("bitcoinforks.org",
-                                      "seed-abc.bitcoinforks.org", true));
-        // BU backed seeder
-        vSeeds.push_back(CDNSSeedData("bitcoinunlimited.info",
-                                      "btccash-seeder.bitcoinunlimited.info",
-                                      true));
-        // Bitprim
-        vSeeds.push_back(CDNSSeedData("bitprim.org", "seed.bitprim.org", true));
-        // Amaury SÉCHET
-        vSeeds.push_back(
-            CDNSSeedData("deadalnix.me", "seed.deadalnix.me", true));
-        // criptolayer.net
-        vSeeds.push_back(
-            CDNSSeedData("criptolayer.net", "seeder.criptolayer.net", true));
+        vSeeds.push_back(CDNSSeedData("vasin.nl", "dnsseed.vasin.nl", true));
+        vSeeds.push_back(CDNSSeedData("vps.joshuajbouw.com", "dnsseed.joshuajbouw.com", true));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<uint8_t>(1, 0);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<uint8_t>(1, 5);
@@ -210,57 +192,31 @@ public:
 
         checkpointData = {
             .mapCheckpoints = {
-                {11111, uint256S("0x0000000069e244f73d78e8fd29ba2fd2ed618bd6fa2"
-                                 "ee92559f542fdb26e7c1d")},
-                {33333, uint256S("0x000000002dd5588a74784eaa7ab0507a18ad16a236e"
-                                 "7b1ce69f00d7ddfb5d0a6")},
-                {74000, uint256S("0x0000000000573993a3c9e41ce34471c079dcf5f52a0"
-                                 "e824a81e7f953b8661a20")},
-                {105000, uint256S("0x00000000000291ce28027faea320c8d2b054b2e0fe"
-                                  "44a773f3eefb151d6bdc97")},
-                {134444, uint256S("0x00000000000005b12ffd4cd315cd34ffd4a594f430"
-                                  "ac814c91184a0d42d2b0fe")},
-                {168000, uint256S("0x000000000000099e61ea72015e79632f216fe6cb33"
-                                  "d7899acb35b75c8303b763")},
-                {193000, uint256S("0x000000000000059f452a5f7340de6682a977387c17"
-                                  "010ff6e6c3bd83ca8b1317")},
-                {210000, uint256S("0x000000000000048b95347e83192f69cf0366076336"
-                                  "c639f9b7228e9ba171342e")},
-                {216116, uint256S("0x00000000000001b4f4b433e81ee46494af945cf960"
-                                  "14816a4e2370f11b23df4e")},
-                {225430, uint256S("0x00000000000001c108384350f74090433e7fcf79a6"
-                                  "06b8e797f065b130575932")},
-                {250000, uint256S("0x000000000000003887df1f29024b06fc2200b55f8a"
-                                  "f8f35453d7be294df2d214")},
-                {279000, uint256S("0x0000000000000001ae8c72a0b0c301f67e3afca10e"
-                                  "819efa9041e458e9bd7e40")},
-                {295000, uint256S("0x00000000000000004d9b4ef50f0f9d686fd69db2e0"
-                                  "3af35a100370c64632a983")},
-                // UAHF fork block.
-                {478559, uint256S("0x000000000000000000651ef99cb9fcbe0dadde1d42"
-                                  "4bd9f15ff20136191a5eec")},
-                // Nov, 13 DAA activation block.
-                {504031, uint256S("0x0000000000000000011ebf65b60d0a3de80b8175be"
-                                  "709d653b4c1a1beeb6ab9c")},
+                {  5001, uint256S("0x2fac9021be0c311e7b6dc0933a72047c70f817e2eb1e01bede011193ad1b28bc")},  // hardfork
+                { 10000, uint256S("0x0000000000827e4dc601f7310a91c45af8df0dfc1b6fa1dfa5b896cb00c8767c")},  // last pow block
+                { 38425, uint256S("0x62bf2e9701226d2f88d9fa99d650bd81f3faf2e56f305b7d71ccd1e7aa9c3075")},  // hardfork
+                {254348, uint256S("0x9bf8d9bd757d3ef23d5906d70567e5f0da93f1e0376588c8d421a95e2421838b")},  // minor network split
+                {319002, uint256S("0x0011494d03b2cdf1ecfc8b0818f1e0ef7ee1d9e9b3d1279c10d35456bc3899ef")},  // hardfork
+                {872456, uint256S("0xe4fd321ced1de06213d2e246b150b4bfd8c4aa0989965dce88f2a58668c64860")}, // hardfork
             }};
 
         // Data as of block
-        // 00000000000000000166d612d5595e2b1cd88d71d695fc580af64d8da8658c23
-        // (height 446482).
+        // ?
+        // (height ?).
         chainTxData = ChainTxData{
             // UNIX timestamp of last known number of transactions.
-            1483472411,
+            1444028528,
             // Total number of transactions between genesis and that timestamp
             // (the tx=... number in the SetBestChain debug.log lines)
-            184495391,
+            2774767,
             // Estimated number of transactions per second after that timestamp.
-            3.2};
+            0.1};
     }
 };
 static CMainParams mainParams;
 
 /**
- * Testnet (v3)
+ * Testnet
  */
 class CTestNetParams : public CChainParams {
 public:
@@ -328,7 +284,7 @@ public:
         netMagic[1] = 0xe5;
         netMagic[2] = 0xf3;
         netMagic[3] = 0xf4;
-        nDefaultPort = 18333;
+        nDefaultPort = 25714;
         nPruneAfterHeight = 1000;
 
         genesis =
@@ -343,22 +299,6 @@ public:
 
         vFixedSeeds.clear();
         vSeeds.clear();
-        // nodes with support for servicebits filtering should be at the top
-        // Bitcoin ABC seeder
-        vSeeds.push_back(CDNSSeedData("bitcoinabc.org",
-                                      "testnet-seed.bitcoinabc.org", true));
-        // bitcoinforks seeders
-        vSeeds.push_back(CDNSSeedData(
-            "bitcoinforks.org", "testnet-seed-abc.bitcoinforks.org", true));
-        // Bitprim
-        vSeeds.push_back(
-            CDNSSeedData("bitprim.org", "testnet-seed.bitprim.org", true));
-        // Amaury SÉCHET
-        vSeeds.push_back(
-            CDNSSeedData("deadalnix.me", "testnet-seed.deadalnix.me", true));
-        // criptolayer.net
-        vSeeds.push_back(CDNSSeedData("criptolayer.net",
-                                      "testnet-seeder.criptolayer.net", true));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<uint8_t>(1, 111);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<uint8_t>(1, 196);
@@ -376,20 +316,10 @@ public:
 
         checkpointData = {
             .mapCheckpoints = {
-                {546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345"
-                               "d31b1bcebf76acb70")},
-                // UAHF fork block.
-                {1155876, uint256S("00000000000e38fef93ed9582a7df43815d5c2ba9fd"
-                                   "37ef70c9a0ea4a285b8f5")},
-                // Nov, 13. DAA activation block.
-                {1188697, uint256S("0000000000170ed0918077bde7b4d36cc4c91be69fa"
-                                   "09211f748240dabe047fb")},
+                {0, uint256S("0x0000724595fb3b9609d441cbfb9577615c292abf07d996d3edabc48de843642d")},
             }};
 
-        // Data as of block
-        // 00000000c2872f8f8a8935c8e3c5862be9038c97d4de2cf37ed496991166928a
-        // (height 1063660)
-        chainTxData = ChainTxData{1483546230, 12834668, 0.15};
+        chainTxData = ChainTxData{0, 0, 0};
     }
 };
 static CTestNetParams testNetParams;
