@@ -140,12 +140,6 @@ public:
             uint256S("0x000000000000000005e14d3f9fdfb70745308706615cfa9edca4f45"
                      "58332b201");
 
-        // Aug, 1 hard fork
-        consensus.uahfHeight = 478559;
-
-        // Nov, 13 hard fork
-        consensus.daaHeight = 504031;
-
         /**
          * The message start string is designed to be unlikely to occur in
          * normal data. The characters are rarely used upper ASCII, not valid as
@@ -261,12 +255,6 @@ public:
             uint256S("0x000000000000b41f1f2ddf130df8824e2b61c0af809ff86dd5cadb3"
                      "61d984ca7");
 
-        // Aug, 1 hard fork
-        consensus.uahfHeight = 1155876;
-
-        // Nov, 13 hard fork
-        consensus.daaHeight = 1188697;
-
         diskMagic[0] = 0xcd;
         diskMagic[1] = 0xf2;
         diskMagic[2] = 0xc0;
@@ -354,12 +342,6 @@ public:
         // By default assume that the signatures in ancestors of this block are
         // valid.
         consensus.defaultAssumeValid = uint256S("0x00");
-
-        // Hard fork is always enabled on regtest.
-        consensus.uahfHeight = 0;
-
-        // Nov, 13 hard fork is always on on regtest.
-        consensus.daaHeight = 0;
 
         diskMagic[0] = 0xfa;
         diskMagic[1] = 0xbf;
