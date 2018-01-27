@@ -596,6 +596,7 @@ public:
      * consensus-critical). */
     bool IsPushOnly(const_iterator pc) const;
     bool IsPushOnly() const;
+    bool HasCanonicalPushes() const;
 
     /**
      * Returns whether the script is guaranteed to fail at execution, regardless
