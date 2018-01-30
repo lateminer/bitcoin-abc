@@ -1127,6 +1127,8 @@ public:
     void AvailableCoinsForStaking(std::vector<COutput> &vCoins) const;
     uint64_t GetStakeWeight() const;
 
+    static const bool DEFAULT_STAKE_CACHE = true;
+
     /* Returns the wallets help message */
     static std::string GetWalletHelpString(bool showDebug);
 
@@ -1241,7 +1243,5 @@ bool CWallet::DummySignTx(CMutableTransaction &txNew,
 
     return true;
 }
-
-bool CheckKernel(CBlockIndex *pindexPrev, unsigned int nBits, int64_t nTime, const COutPoint &prevout, int64_t *pBlockTime = nullptr);
 
 #endif // BITCOIN_WALLET_WALLET_H
