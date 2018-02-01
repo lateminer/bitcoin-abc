@@ -3927,7 +3927,7 @@ std::map<CTxDestination, Amount> CWallet::GetAddressBalances() {
             continue;
         }
 
-        if ((pcoin->IsCoinBase() || pcoin->IsCoinStake()) && pcoin->GetBlocksToMaturity() > 0) {
+        if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
             continue;
         }
 
