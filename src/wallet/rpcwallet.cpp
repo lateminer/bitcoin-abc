@@ -2927,6 +2927,10 @@ static UniValue getwalletinfo(const Config &config,
                             "the total immature balance of the wallet in " +
             CURRENCY_UNIT +
             "\n"
+                            "  \"stake\": xxxxxx,              (numeric) "
+                            "the total coins staked (non-spendable until maturity) in " +
+            CURRENCY_UNIT +
+            "\n"
             "  \"txcount\": xxxxxxx,              (numeric) the total number "
             "of transactions in the wallet\n"
             "  \"keypoololdest\": xxxxxx,         (numeric) the timestamp "
@@ -2964,6 +2968,8 @@ static UniValue getwalletinfo(const Config &config,
                        ValueFromAmount(pwallet->GetUnconfirmedBalance())));
     obj.push_back(Pair("immature_balance",
                        ValueFromAmount(pwallet->GetImmatureBalance())));
+    obj.push_back(Pair("stake",
+                       ValueFromAmount(pwallet->GetStake())));
     obj.push_back(Pair("txcount", (int)pwallet->mapWallet.size()));
     obj.push_back(Pair("keypoololdest", pwallet->GetOldestKeyPoolTime()));
     obj.push_back(Pair("keypoolsize", (int64_t)kpExternalSize));
