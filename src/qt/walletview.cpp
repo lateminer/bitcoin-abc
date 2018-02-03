@@ -285,11 +285,13 @@ void WalletView::changePassphrase() {
     dlg.exec();
 }
 
-void WalletView::unlockWallet() {
+void WalletView::unlockWallet(bool fromMenu) {
     if (!walletModel) return;
     // Unlock wallet when requested by wallet model
     if (walletModel->getEncryptionStatus() == WalletModel::Locked) {
-        AskPassphraseDialog dlg(AskPassphraseDialog::Unlock, this);
+        AskPassphraseDialog::Mode mode = fromMenu ?
+        AskPassphraseDialog::UnlockStaking : AskPassphraseDialog::Unlock;
+        AskPassphraseDialog dlg(mode, this);
         dlg.setModel(walletModel);
         dlg.exec();
     }

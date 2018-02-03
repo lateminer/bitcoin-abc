@@ -147,6 +147,9 @@ void WalletFrame::changePassphrase() {
 }
 
 void WalletFrame::unlockWallet() {
+    QObject* object = sender();
+    QString objectName = object ? object->objectName() : "";
+    bool fromMenu = objectName == "unlockWalletAction";
     WalletView *walletView = currentWalletView();
     if (walletView) walletView->unlockWallet();
 }

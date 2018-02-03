@@ -464,6 +464,12 @@ static void SendMoney(CWallet *const pwallet, const CTxDestination &address,
             "Error: Peer-to-peer functionality missing or disabled");
     }
 
+    if (fWalletUnlockStakingOnly)
+    {
+            string strError = _("Error: Wallet unlocked for staking only, unable to create transaction.");
+            throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    }
+
     // Parse Bitcoin address
     CScript scriptPubKey = GetScriptForDestination(address);
 
@@ -2429,9 +2435,9 @@ static UniValue walletpassphrase(const Config &config,
         return NullUniValue;
     }
 
-    if (pwallet->IsCrypted() && (request.fHelp || request.params.size() != 2)) {
+    if (pwallet->IsCrypted() && (request.fHelp || request.params.size() < 2 || request.params.size() > 3)) {
         throw std::runtime_error(
-            "walletpassphrase \"passphrase\" timeout\n"
+            "walletpassphrase \"passphrase\" timeout staking\n"
             "\nStores the wallet decryption key in memory for 'timeout' "
             "seconds.\n"
             "This is needed prior to performing transactions related to "
@@ -2440,6 +2446,7 @@ static UniValue walletpassphrase(const Config &config,
             "1. \"passphrase\"     (string, required) The wallet passphrase\n"
             "2. timeout            (numeric, required) The time to keep the "
             "decryption key in seconds.\n"
+            "3. staking            (bool, optional, default=false) Unlock wallet for staking only.\n"
             "\nNote:\n"
             "Issuing the walletpassphrase command while the wallet is already "
             "unlocked will set a new unlock\n"
