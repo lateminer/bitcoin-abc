@@ -8,6 +8,7 @@
 
 #include "crypto/common.h"
 #include "prevector.h"
+#include "serialize.h"
 
 #include <cassert>
 #include <climits>
@@ -407,6 +408,13 @@ public:
     CScript(const uint8_t *pbegin, const uint8_t *pend)
         : CScriptBase(pbegin, pend) {}
 
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream &s, Operation ser_action) {
+        READWRITE(static_cast<CScriptBase &>(*this));
+    }
+
     CScript &operator+=(const CScript &b) {
         insert(end(), b.begin(), b.end());
         return *this;
@@ -589,7 +597,7 @@ public:
 
     bool IsPayToScriptHash() const;
     bool IsPayToPublicKey() const;
-    bool IsPayToWitnessScriptHash() const;
+
     bool IsCommitment(const std::vector<uint8_t> &data) const;
     bool IsWitnessProgram(int &version, std::vector<uint8_t> &program) const;
 

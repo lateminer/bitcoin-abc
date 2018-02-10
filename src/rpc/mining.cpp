@@ -3,6 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "rpc/mining.h"
 #include "amount.h"
 #include "chain.h"
 #include "chainparams.h"
@@ -115,10 +116,9 @@ static UniValue getnetworkhashps(const Config &config,
         request.params.size() > 1 ? request.params[1].get_int() : -1);
 }
 
-static UniValue generateBlocks(const Config &config,
-                               std::shared_ptr<CReserveScript> coinbaseScript,
-                               int nGenerate, uint64_t nMaxTries,
-                               bool keepScript) {
+UniValue generateBlocks(const Config &config,
+                        std::shared_ptr<CReserveScript> coinbaseScript,
+                        int nGenerate, uint64_t nMaxTries, bool keepScript) {
     static const int nInnerLoopCount = 0x100000;
     int nHeightStart = 0;
     int nHeightEnd = 0;
@@ -136,8 +136,8 @@ static UniValue generateBlocks(const Config &config,
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd) {
         std::unique_ptr<CBlockTemplate> pblocktemplate(
-            BlockAssembler(config, Params())
-                .CreateNewBlock(coinbaseScript->reserveScript, 0, false));
+            BlockAssembler(config).CreateNewBlock(
+                coinbaseScript->reserveScript, 0, false));
 
         if (!pblocktemplate.get()) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
@@ -182,51 +182,6 @@ static UniValue generateBlocks(const Config &config,
     }
 
     return blockHashes;
-}
-
-static UniValue generate(const Config &config, const JSONRPCRequest &request) {
-    if (request.fHelp || request.params.size() < 1 ||
-        request.params.size() > 2) {
-        throw std::runtime_error(
-            "generate nblocks ( maxtries )\n"
-            "\nMine up to nblocks blocks immediately (before the RPC call "
-            "returns)\n"
-            "\nArguments:\n"
-            "1. nblocks      (numeric, required) How many blocks are generated "
-            "immediately.\n"
-            "2. maxtries     (numeric, optional) How many iterations to try "
-            "(default = 1000000).\n"
-            "\nResult:\n"
-            "[ blockhashes ]     (array) hashes of blocks generated\n"
-            "\nExamples:\n"
-            "\nGenerate 11 blocks\n" +
-            HelpExampleCli("generate", "11"));
-    }
-
-    int nGenerate = request.params[0].get_int();
-    uint64_t nMaxTries = 1000000;
-    if (request.params.size() > 1) {
-        nMaxTries = request.params[1].get_int();
-    }
-
-    std::shared_ptr<CReserveScript> coinbaseScript;
-    GetMainSignals().ScriptForMining(coinbaseScript);
-
-    // If the keypool is exhausted, no script is returned at all. Catch this.
-    if (!coinbaseScript) {
-        throw JSONRPCError(
-            RPC_WALLET_KEYPOOL_RAN_OUT,
-            "Error: Keypool ran out, please call keypoolrefill first");
-    }
-
-    // Throw an error if no script was provided.
-    if (coinbaseScript->reserveScript.empty()) {
-        throw JSONRPCError(
-            RPC_INTERNAL_ERROR,
-            "No coinbase script available (mining requires a wallet)");
-    }
-
-    return generateBlocks(config, coinbaseScript, nGenerate, nMaxTries, true);
 }
 
 static UniValue generatetoaddress(const Config &config,
@@ -302,9 +257,10 @@ static UniValue getmininginfo(const Config &config,
     obj.push_back(Pair("currentblocksize", uint64_t(nLastBlockSize)));
     obj.push_back(Pair("currentblocktx", uint64_t(nLastBlockTx)));
     obj.push_back(Pair("difficulty", double(GetDifficulty(chainActive.Tip()))));
-    obj.push_back(Pair("blockprioritypercentage",
-                       uint8_t(GetArg("-blockprioritypercentage",
-                                      DEFAULT_BLOCK_PRIORITY_PERCENTAGE))));
+    obj.push_back(
+        Pair("blockprioritypercentage",
+             uint8_t(gArgs.GetArg("-blockprioritypercentage",
+                                  DEFAULT_BLOCK_PRIORITY_PERCENTAGE))));
     obj.push_back(Pair("errors", GetWarnings("statusbar")));
     obj.push_back(Pair("networkhashps", getnetworkhashps(config, request)));
     obj.push_back(Pair("pooledtx", uint64_t(mempool.size())));
@@ -713,8 +669,7 @@ static UniValue getblocktemplate(const Config &config,
 
         // Create new block
         CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate =
-            BlockAssembler(config, Params()).CreateNewBlock(scriptDummy, 0, false);
+        pblocktemplate = BlockAssembler(config).CreateNewBlock(scriptDummy, 0, false);
         if (!pblocktemplate) {
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
         }
@@ -1233,8 +1188,7 @@ static const CRPCCommand commands[] = {
     {"mining",     "submitblock",           submitblock,           true, {"hexdata", "parameters"}},
     {"mining",     "checkkernel",           checkkernel,           true, {}},
     {"mining",     "getstakinginfo",        getstakinginfo,        true, {}},
-    
-    {"generating", "generate",              generate,              true, {"nblocks", "maxtries"}},
+
     {"generating", "generatetoaddress",     generatetoaddress,     true, {"nblocks", "address", "maxtries"}},
 
     {"util",       "estimatefee",           estimatefee,           true, {"nblocks"}},

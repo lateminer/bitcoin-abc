@@ -3,115 +3,181 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-
-#
-# Helpful routines for regression testing
-#
-
-import os
-import sys
-
-from binascii import hexlify, unhexlify
 from base64 import b64encode
+from binascii import hexlify, unhexlify
 from decimal import Decimal, ROUND_DOWN
 import json
-import http.client
-import random
-import shutil
-import subprocess
-import time
-import re
-import errno
 import logging
+import os
+import random
+import re
+from subprocess import CalledProcessError
+import time
 
 from . import coverage
 from .authproxy import AuthServiceProxy, JSONRPCException
-from .outputchecker import OutputChecker
-
-DEFAULT_BITCOIND = 'bitcoind'
-COVERAGE_DIR = None
 
 logger = logging.getLogger("TestFramework.utils")
 
-# The maximum number of nodes a single test can spawn
-MAX_NODES = 8
-# Don't assign rpc or p2p ports lower than this
-PORT_MIN = 11000
-# The number of ports to "reserve" for p2p and rpc, each
-PORT_RANGE = 5000
-
-BITCOIND_PROC_WAIT_TIMEOUT = 60
+# Assert functions
+##################
 
 
-class PortSeed:
-    # Must be initialized with a unique integer for each process
-    n = None
+def assert_fee_amount(fee, tx_size, fee_per_kB):
+    """Assert the fee was in range"""
+    target_fee = tx_size * fee_per_kB / 1000
+    if fee < target_fee:
+        raise AssertionError(
+            "Fee of %s BTC too low! (Should be %s BTC)" % (str(fee), str(target_fee)))
+    # allow the wallet's estimation to be at most 2 bytes off
+    if fee > (tx_size + 2) * fee_per_kB / 1000:
+        raise AssertionError(
+            "Fee of %s BTC too high! (Should be %s BTC)" % (str(fee), str(target_fee)))
 
 
-# Set Mocktime default to OFF.
-# MOCKTIME is only needed for scripts that use the
-# cached version of the blockchain.  If the cached
-# version of the blockchain is used without MOCKTIME
-# then the mempools will not sync due to IBD.
-MOCKTIME = 0
+def assert_equal(thing1, thing2, *args):
+    if thing1 != thing2 or any(thing1 != arg for arg in args):
+        raise AssertionError("not(%s)" % " == ".join(str(arg)
+                                                     for arg in (thing1, thing2) + args))
 
 
-def enable_mocktime():
-    # For backwared compatibility of the python scripts
-    # with previous versions of the cache, set MOCKTIME
-    # to Jan 1, 2014 + (201 * 10 * 60)
-    global MOCKTIME
-    MOCKTIME = 1388534400 + (201 * 10 * 60)
+def assert_greater_than(thing1, thing2):
+    if thing1 <= thing2:
+        raise AssertionError("%s <= %s" % (str(thing1), str(thing2)))
 
 
-def disable_mocktime():
-    global MOCKTIME
-    MOCKTIME = 0
+def assert_greater_than_or_equal(thing1, thing2):
+    if thing1 < thing2:
+        raise AssertionError("%s < %s" % (str(thing1), str(thing2)))
 
 
-def get_mocktime():
-    return MOCKTIME
+def assert_raises(exc, fun, *args, **kwds):
+    assert_raises_message(exc, None, fun, *args, **kwds)
 
 
-def enable_coverage(dirname):
-    """Maintain a log of which RPC calls are made during testing."""
-    global COVERAGE_DIR
-    COVERAGE_DIR = dirname
+def assert_raises_message(exc, message, fun, *args, **kwds):
+    try:
+        fun(*args, **kwds)
+    except exc as e:
+        if message is not None and message not in e.error['message']:
+            raise AssertionError(
+                "Expected substring not found:" + e.error['message'])
+    except Exception as e:
+        raise AssertionError(
+            "Unexpected exception raised: " + type(e).__name__)
+    else:
+        raise AssertionError("No exception raised")
 
 
-def get_rpc_proxy(url, node_number, timeout=None):
-    """
+def assert_raises_process_error(returncode, output, fun, *args, **kwds):
+    """Execute a process and asserts the process return code and output.
+
+    Calls function `fun` with arguments `args` and `kwds`. Catches a CalledProcessError
+    and verifies that the return code and output are as expected. Throws AssertionError if
+    no CalledProcessError was raised or if the return code and output are not as expected.
+
     Args:
-        url (str): URL of the RPC server to call
-        node_number (int): the node number (or id) that this calls to
-
-    Kwargs:
-        timeout (int): HTTP timeout in seconds
-
-    Returns:
-        AuthServiceProxy. convenience object for making RPC calls.
-
+        returncode (int): the process return code.
+        output (string): [a substring of] the process output.
+        fun (function): the function to call. This should execute a process.
+        args*: positional arguments for the function.
+        kwds**: named arguments for the function.
     """
-    proxy_kwargs = {}
-    if timeout is not None:
-        proxy_kwargs['timeout'] = timeout
-
-    proxy = AuthServiceProxy(url, **proxy_kwargs)
-    proxy.url = url  # store URL on proxy for info
-
-    coverage_logfile = coverage.get_filename(
-        COVERAGE_DIR, node_number) if COVERAGE_DIR else None
-
-    return coverage.AuthServiceProxyWrapper(proxy, coverage_logfile)
+    try:
+        fun(*args, **kwds)
+    except CalledProcessError as e:
+        if returncode != e.returncode:
+            raise AssertionError("Unexpected returncode %i" % e.returncode)
+        if output not in e.output:
+            raise AssertionError("Expected substring not found:" + e.output)
+    else:
+        raise AssertionError("No exception raised")
 
 
-def p2p_port(n):
-    assert(n <= MAX_NODES)
-    return PORT_MIN + n + (MAX_NODES * PortSeed.n) % (PORT_RANGE - 1 - MAX_NODES)
+def assert_raises_jsonrpc(code, message, fun, *args, **kwds):
+    """Run an RPC and verify that a specific JSONRPC exception code and message is raised.
+
+    Calls function `fun` with arguments `args` and `kwds`. Catches a JSONRPCException
+    and verifies that the error code and message are as expected. Throws AssertionError if
+    no JSONRPCException was raised or if the error code/message are not as expected.
+
+    Args:
+        code (int), optional: the error code returned by the RPC call (defined
+            in src/rpc/protocol.h). Set to None if checking the error code is not required.
+        message (string), optional: [a substring of] the error string returned by the
+            RPC call. Set to None if checking the error string is not required.
+        fun (function): the function to call. This should be the name of an RPC.
+        args*: positional arguments for the function.
+        kwds**: named arguments for the function.
+    """
+    try:
+        fun(*args, **kwds)
+    except JSONRPCException as e:
+        # JSONRPCException was thrown as expected. Check the code and message values are correct.
+        if (code is not None) and (code != e.error["code"]):
+            raise AssertionError(
+                "Unexpected JSONRPC error code %i" % e.error["code"])
+        if (message is not None) and (message not in e.error['message']):
+            raise AssertionError(
+                "Expected substring not found:" + e.error['message'])
+    except Exception as e:
+        raise AssertionError(
+            "Unexpected exception raised: " + type(e).__name__)
+    else:
+        raise AssertionError("No exception raised")
 
 
-def rpc_port(n):
-    return PORT_MIN + PORT_RANGE + n + (MAX_NODES * PortSeed.n) % (PORT_RANGE - 1 - MAX_NODES)
+def assert_is_hex_string(string):
+    try:
+        int(string, 16)
+    except Exception as e:
+        raise AssertionError(
+            "Couldn't interpret %r as hexadecimal; raised: %s" % (string, e))
+
+
+def assert_is_hash_string(string, length=64):
+    if not isinstance(string, str):
+        raise AssertionError("Expected a string, got type %r" % type(string))
+    elif length and len(string) != length:
+        raise AssertionError(
+            "String of length %d expected; got %d" % (length, len(string)))
+    elif not re.match('[abcdef0-9]+$', string):
+        raise AssertionError(
+            "String %r contains invalid characters for a hash." % string)
+
+
+def assert_array_result(object_array, to_match, expected, should_not_find=False):
+    """
+        Pass in array of JSON objects, a dictionary with key/value pairs
+        to match against, and another dictionary with expected key/value
+        pairs.
+        If the should_not_find flag is true, to_match should not be found
+        in object_array
+        """
+    if should_not_find:
+        assert_equal(expected, {})
+    num_matched = 0
+    for item in object_array:
+        all_match = True
+        for key, value in to_match.items():
+            if item[key] != value:
+                all_match = False
+        if not all_match:
+            continue
+        elif should_not_find:
+            num_matched = num_matched + 1
+        for key, value in expected.items():
+            if item[key] != value:
+                raise AssertionError("%s : expected %s=%s" %
+                                     (str(item), str(key), str(value)))
+            num_matched = num_matched + 1
+    if num_matched == 0 and not should_not_find:
+        raise AssertionError("No objects matched %s" % (str(to_match)))
+    if num_matched > 0 and should_not_find:
+        raise AssertionError("Objects were found %s" % (str(to_match)))
+
+# Utility functions
+###################
 
 
 def check_json_precision():
@@ -136,6 +202,180 @@ def hex_str_to_bytes(hex_str):
 
 def str_to_b64str(string):
     return b64encode(string.encode('utf-8')).decode('ascii')
+
+
+def satoshi_round(amount):
+    return Decimal(amount).quantize(Decimal('0.00000001'), rounding=ROUND_DOWN)
+
+
+def wait_until(predicate, *, attempts=float('inf'), timeout=float('inf'), lock=None):
+    if attempts == float('inf') and timeout == float('inf'):
+        timeout = 60
+    attempt = 0
+    timeout += time.time()
+
+    while attempt < attempts and time.time() < timeout:
+        if lock:
+            with lock:
+                if predicate():
+                    return
+        else:
+            if predicate():
+                return
+        attempt += 1
+        time.sleep(0.05)
+
+    # Print the cause of the timeout
+    assert_greater_than(attempts, attempt)
+    assert_greater_than(timeout, time.time())
+    raise RuntimeError('Unreachable')
+
+# RPC/P2P connection constants and functions
+############################################
+
+
+# The maximum number of nodes a single test can spawn
+MAX_NODES = 8
+# Don't assign rpc or p2p ports lower than this
+PORT_MIN = 11000
+# The number of ports to "reserve" for p2p and rpc, each
+PORT_RANGE = 5000
+
+
+class PortSeed:
+    # Must be initialized with a unique integer for each process
+    n = None
+
+
+def get_rpc_proxy(url, node_number, timeout=None, coveragedir=None):
+    """
+    Args:
+        url (str): URL of the RPC server to call
+        node_number (int): the node number (or id) that this calls to
+
+    Kwargs:
+        timeout (int): HTTP timeout in seconds
+
+    Returns:
+        AuthServiceProxy. convenience object for making RPC calls.
+
+    """
+    proxy_kwargs = {}
+    if timeout is not None:
+        proxy_kwargs['timeout'] = timeout
+
+    proxy = AuthServiceProxy(url, **proxy_kwargs)
+    proxy.url = url  # store URL on proxy for info
+
+    coverage_logfile = coverage.get_filename(
+        coveragedir, node_number) if coveragedir else None
+
+    return coverage.AuthServiceProxyWrapper(proxy, coverage_logfile)
+
+
+def p2p_port(n):
+    assert(n <= MAX_NODES)
+    return PORT_MIN + n + (MAX_NODES * PortSeed.n) % (PORT_RANGE - 1 - MAX_NODES)
+
+
+def rpc_port(n):
+    return PORT_MIN + PORT_RANGE + n + (MAX_NODES * PortSeed.n) % (PORT_RANGE - 1 - MAX_NODES)
+
+
+def rpc_url(datadir, i, rpchost=None):
+    rpc_u, rpc_p = get_auth_cookie(datadir)
+    host = '127.0.0.1'
+    port = rpc_port(i)
+    if rpchost:
+        parts = rpchost.split(':')
+        if len(parts) == 2:
+            host, port = parts
+        else:
+            host = rpchost
+    return "http://%s:%s@%s:%d" % (rpc_u, rpc_p, host, int(port))
+
+# Node functions
+################
+
+
+def initialize_datadir(dirname, n):
+    datadir = os.path.join(dirname, "node" + str(n))
+    if not os.path.isdir(datadir):
+        os.makedirs(datadir)
+    with open(os.path.join(datadir, "bitcoin.conf"), 'w', encoding='utf8') as f:
+        f.write("regtest=1\n")
+        f.write("port=" + str(p2p_port(n)) + "\n")
+        f.write("rpcport=" + str(rpc_port(n)) + "\n")
+        f.write("listenonion=0\n")
+        f.write("usecashaddr=1\n")
+    return datadir
+
+
+def get_datadir_path(dirname, n):
+    return os.path.join(dirname, "node" + str(n))
+
+
+def get_auth_cookie(datadir):
+    user = None
+    password = None
+    if os.path.isfile(os.path.join(datadir, "bitcoin.conf")):
+        with open(os.path.join(datadir, "bitcoin.conf"), 'r') as f:
+            for line in f:
+                if line.startswith("rpcuser="):
+                    assert user is None  # Ensure that there is only one rpcuser line
+                    user = line.split("=")[1].strip("\n")
+                if line.startswith("rpcpassword="):
+                    assert password is None  # Ensure that there is only one rpcpassword line
+                    password = line.split("=")[1].strip("\n")
+    if os.path.isfile(os.path.join(datadir, "regtest", ".cookie")):
+        with open(os.path.join(datadir, "regtest", ".cookie"), 'r') as f:
+            userpass = f.read()
+            split_userpass = userpass.split(':')
+            user = split_userpass[0]
+            password = split_userpass[1]
+    if user is None or password is None:
+        raise ValueError("No RPC credentials")
+    return user, password
+
+
+def log_filename(dirname, n_node, logname):
+    return os.path.join(dirname, "node" + str(n_node), "regtest", logname)
+
+
+def get_bip9_status(node, key):
+    info = node.getblockchaininfo()
+    return info['bip9_softforks'][key]
+
+
+def set_node_times(nodes, t):
+    for node in nodes:
+        node.setmocktime(t)
+
+
+def disconnect_nodes(from_connection, node_num):
+    for peer_id in [peer['id'] for peer in from_connection.getpeerinfo() if "testnode%d" % node_num in peer['subver']]:
+        from_connection.disconnectnode(nodeid=peer_id)
+
+    for _ in range(50):
+        if [peer['id'] for peer in from_connection.getpeerinfo() if "testnode%d" % node_num in peer['subver']] == []:
+            break
+        time.sleep(0.1)
+    else:
+        raise AssertionError("timed out waiting for disconnect")
+
+
+def connect_nodes(from_connection, node_num):
+    ip_port = "127.0.0.1:" + str(p2p_port(node_num))
+    from_connection.addnode(ip_port, "onetry")
+    # poll until version handshake complete to avoid race conditions
+    # with transaction relaying
+    while any(peer['version'] == 0 for peer in from_connection.getpeerinfo()):
+        time.sleep(0.1)
+
+
+def connect_nodes_bi(nodes, a, b):
+    connect_nodes(nodes[a], b)
+    connect_nodes(nodes[b], a)
 
 
 def sync_blocks(rpc_connections, *, wait=1, timeout=60):
@@ -195,202 +435,8 @@ def sync_mempools(rpc_connections, *, wait=1, timeout=60):
         timeout -= wait
     raise AssertionError("Mempool sync failed")
 
-
-bitcoind_processes = {}
-
-
-def initialize_datadir(dirname, n):
-    datadir = os.path.join(dirname, "node" + str(n))
-    if not os.path.isdir(datadir):
-        os.makedirs(datadir)
-    rpc_u, rpc_p = rpc_auth_pair(n)
-    with open(os.path.join(datadir, "bitcoin.conf"), 'w', encoding='utf8') as f:
-        f.write("regtest=1\n")
-        f.write("rpcuser=" + rpc_u + "\n")
-        f.write("rpcpassword=" + rpc_p + "\n")
-        f.write("port=" + str(p2p_port(n)) + "\n")
-        f.write("rpcport=" + str(rpc_port(n)) + "\n")
-        f.write("listenonion=0\n")
-        f.write("usecashaddr=1\n")
-    return datadir
-
-
-def rpc_auth_pair(n):
-    return 'rpcuser💻' + str(n), 'rpcpass🔑' + str(n)
-
-
-def rpc_url(i, rpchost=None):
-    rpc_u, rpc_p = rpc_auth_pair(i)
-    host = '127.0.0.1'
-    port = rpc_port(i)
-    if rpchost:
-        parts = rpchost.split(':')
-        if len(parts) == 2:
-            host, port = parts
-        else:
-            host = rpchost
-    return "http://%s:%s@%s:%d" % (rpc_u, rpc_p, host, int(port))
-
-
-def wait_for_bitcoind_start(process, url, i):
-    '''
-    Wait for bitcoind to start. This means that RPC is accessible and fully initialized.
-    Raise an exception if bitcoind exits during initialization.
-    '''
-    while True:
-        if process.poll() is not None:
-            raise Exception(
-                'bitcoind exited with status %i during initialization' % process.returncode)
-        try:
-            rpc = get_rpc_proxy(url, i)
-            blocks = rpc.getblockcount()
-            break  # break out of loop on success
-        except IOError as e:
-            if e.errno != errno.ECONNREFUSED:  # Port not yet open?
-                raise  # unknown IO error
-        except JSONRPCException as e:  # Initialization phase
-            if e.error['code'] != -28:  # RPC in warmup?
-                raise  # unknown JSON RPC exception
-        time.sleep(0.25)
-
-def locate_bitcoind_binary():
-    """
-    Find bitcoind binary if possible.
-    """
-    bitcoind_binary = os.getenv("BITCOIND", DEFAULT_BITCOIND)
-    if os.path.exists(bitcoind_binary):
-        return bitcoind_binary
-
-    if os.path.exists(os.path.join('src', DEFAULT_BITCOIND)):
-        bitcoind_binary = os.path.abspath(
-            os.path.join('src', DEFAULT_BITCOIND))
-    elif bitcoind_binary == 'bitcoind' or not os.path.exists(bitcoind_binary):
-        # If BITCOIND was specified and exists, use it, otherwise look for source.
-        # get_srcdir() already returns an absolute path
-        src_dir_cand = get_srcdir(sys.argv[0])
-        if src_dir_cand and os.path.exists(
-                os.path.join(src_dir_cand, 'src', DEFAULT_BITCOIND)):
-            bitcoind_binary = os.path.join(
-                src_dir_cand, 'src', DEFAULT_BITCOIND)
-        else:
-            sys.stderr.write("Unable to locate bitcoind for this test.\n")
-            sys.exit(1)
-    return bitcoind_binary
-
-
-def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=None, stderr_checker=None):
-    """
-    Start a bitcoind and return RPC connection to it.
-    If stderr_checker is provided, it must be an OutputChecker.
-    Its output_file_obj will be connected to the stderr of the bitcoind process.
-    """
-    datadir = os.path.join(dirname, "node" + str(i))
-    if binary is None:
-        binary = locate_bitcoind_binary()
-    args = [binary, "-datadir=" + datadir, "-server", "-keypool=1",
-            "-discover=0", "-rest", "-logtimemicros", "-debug", "-debugexclude=libevent", "-debugexclude=leveldb", "-mocktime=" + str(get_mocktime()), "-uacomment=testnode%d" % i]
-    if extra_args is not None:
-        args.extend(extra_args)
-    if stderr_checker:
-        assert(isinstance(stderr_checker, OutputChecker))
-        bitcoind_processes[i] = subprocess.Popen(args,
-                                                 universal_newlines=True,
-                                                 stderr=stderr_checker.get_connector())
-    else:
-        bitcoind_processes[i] = subprocess.Popen(args)
-    logger.debug(
-        "initialize_chain: bitcoind started, waiting for RPC to come up")
-    url = rpc_url(i, rpchost)
-    wait_for_bitcoind_start(bitcoind_processes[i], url, i)
-    logger.debug("initialize_chain: RPC successfully started")
-    proxy = get_rpc_proxy(url, i, timeout=timewait)
-
-    if COVERAGE_DIR:
-        coverage.write_all_rpc_commands(COVERAGE_DIR, proxy)
-
-    return proxy
-
-
-def start_nodes(num_nodes, dirname, extra_args=None, rpchost=None, timewait=None, binary=None, stderr_checkers=None):
-    """
-    Start multiple bitcoinds, return RPC connections to them
-    stderr_checkers is a list which can contain OutputCheckers or None for each of the nodes.
-    if a test calls start_nodes and provides an OutputChecker for a node,
-    this will be connected to the stderr output of the node.
-    """
-    if extra_args is None:
-        extra_args = [None for _ in range(num_nodes)]
-    assert_equal(len(extra_args), num_nodes)
-    if stderr_checkers is None:
-        stderr_checkers = [None for _ in range(num_nodes)]
-    assert_equal(len(stderr_checkers), num_nodes)
-    if binary is None:
-        binary = [None for _ in range(num_nodes)]
-    assert_equal(len(binary), num_nodes)
-    rpcs = []
-    try:
-        for i in range(num_nodes):
-            rpcs.append(start_node(i, dirname, extra_args[i],
-                                   rpchost, timewait=timewait,
-                                   binary=binary[i],
-                                   stderr_checker=stderr_checkers[i]))
-    except:  # If one node failed to start, stop the others
-        stop_nodes(rpcs)
-        raise
-    return rpcs
-
-
-def log_filename(dirname, n_node, logname):
-    return os.path.join(dirname, "node" + str(n_node), "regtest", logname)
-
-
-def stop_node(node, i):
-    logger.debug("Stopping node %d" % i)
-    try:
-        node.stop()
-    except http.client.CannotSendRequest as e:
-        logger.exception("Unable to stop node")
-    return_code = bitcoind_processes[i].wait(
-        timeout=BITCOIND_PROC_WAIT_TIMEOUT)
-    assert_equal(return_code, 0)
-    del bitcoind_processes[i]
-
-
-def stop_nodes(nodes):
-    for i, node in enumerate(nodes):
-        stop_node(node, i)
-    assert not bitcoind_processes.values()  # All connections must be gone now
-
-
-def set_node_times(nodes, t):
-    for node in nodes:
-        node.setmocktime(t)
-
-
-def disconnect_nodes(from_connection, node_num):
-    for peer_id in [peer['id'] for peer in from_connection.getpeerinfo() if "testnode%d" % node_num in peer['subver']]:
-        from_connection.disconnectnode(nodeid=peer_id)
-
-    for _ in range(50):
-        if [peer['id'] for peer in from_connection.getpeerinfo() if "testnode%d" % node_num in peer['subver']] == []:
-            break
-        time.sleep(0.1)
-    else:
-        raise AssertionError("timed out waiting for disconnect")
-
-
-def connect_nodes(from_connection, node_num):
-    ip_port = "127.0.0.1:" + str(p2p_port(node_num))
-    from_connection.addnode(ip_port, "onetry")
-    # poll until version handshake complete to avoid race conditions
-    # with transaction relaying
-    while any(peer['version'] == 0 for peer in from_connection.getpeerinfo()):
-        time.sleep(0.1)
-
-
-def connect_nodes_bi(nodes, a, b):
-    connect_nodes(nodes[a], b)
-    connect_nodes(nodes[b], a)
+# Transaction/Block functions
+#############################
 
 
 def find_output(node, txid, amount):
@@ -402,8 +448,8 @@ def find_output(node, txid, amount):
     for i in range(len(txdata["vout"])):
         if txdata["vout"][i]["value"] == amount:
             return i
-    raise RuntimeError(
-        "find_output txid %s : %s not found" % (txid, str(amount)))
+    raise RuntimeError("find_output txid %s : %s not found" %
+                       (txid, str(amount)))
 
 
 def gather_inputs(from_node, amount_needed, confirmations_required=1):
@@ -421,8 +467,8 @@ def gather_inputs(from_node, amount_needed, confirmations_required=1):
         inputs.append(
             {"txid": t["txid"], "vout": t["vout"], "address": t["address"]})
     if total_in < amount_needed:
-        raise RuntimeError(
-            "Insufficient funds: need %d, have %d" % (amount_needed, total_in))
+        raise RuntimeError("Insufficient funds: need %d, have %d" %
+                           (amount_needed, total_in))
     return (total_in, inputs)
 
 
@@ -437,8 +483,8 @@ def make_change(from_node, amount_in, amount_out, fee):
         # Create an extra change output to break up big inputs
         change_address = from_node.getnewaddress()
         # Split change in two, being careful of rounding:
-        outputs[change_address] = Decimal(change / 2).quantize(
-            Decimal('0.00000001'), rounding=ROUND_DOWN)
+        outputs[change_address] = Decimal(
+            change / 2).quantize(Decimal('0.00000001'), rounding=ROUND_DOWN)
         change = amount_in - amount - outputs[change_address]
     if change > 0:
         outputs[from_node.getnewaddress()] = change
@@ -508,145 +554,15 @@ def random_transaction(nodes, amount, min_fee, fee_increment, fee_variants):
 
     return (txid, signresult["hex"], fee)
 
-
-def assert_fee_amount(fee, tx_size, fee_per_kB):
-    """Assert the fee was in range"""
-    target_fee = tx_size * fee_per_kB / 1000
-    if fee < target_fee:
-        raise AssertionError(
-            "Fee of %s BTC too low! (Should be %s BTC)" % (str(fee), str(target_fee)))
-    # allow the wallet's estimation to be at most 2 bytes off
-    if fee > (tx_size + 2) * fee_per_kB / 1000:
-        raise AssertionError(
-            "Fee of %s BTC too high! (Should be %s BTC)" % (str(fee), str(target_fee)))
-
-
-def assert_equal(thing1, thing2, *args):
-    if thing1 != thing2 or any(thing1 != arg for arg in args):
-        raise AssertionError("not(%s)" % " == ".join(str(arg)
-                                                     for arg in (thing1, thing2) + args))
-
-
-def assert_greater_than(thing1, thing2):
-    if thing1 <= thing2:
-        raise AssertionError("%s <= %s" % (str(thing1), str(thing2)))
-
-
-def assert_greater_than_or_equal(thing1, thing2):
-    if thing1 < thing2:
-        raise AssertionError("%s < %s" % (str(thing1), str(thing2)))
-
-
-def assert_raises(exc, fun, *args, **kwds):
-    assert_raises_message(exc, None, fun, *args, **kwds)
-
-
-def assert_raises_message(exc, message, fun, *args, **kwds):
-    try:
-        fun(*args, **kwds)
-    except exc as e:
-        if message is not None and message not in e.error['message']:
-            raise AssertionError(
-                "Expected substring not found:" + e.error['message'])
-    except Exception as e:
-        raise AssertionError(
-            "Unexpected exception raised: " + type(e).__name__)
-    else:
-        raise AssertionError("No exception raised")
-
-
-def assert_raises_jsonrpc(code, message, fun, *args, **kwds):
-    """Run an RPC and verify that a specific JSONRPC exception code and message is raised.
-
-    Calls function `fun` with arguments `args` and `kwds`. Catches a JSONRPCException
-    and verifies that the error code and message are as expected. Throws AssertionError if
-    no JSONRPCException was returned or if the error code/message are not as expected.
-
-    Args:
-        code (int), optional: the error code returned by the RPC call (defined
-            in src/rpc/protocol.h). Set to None if checking the error code is not required.
-        message (string), optional: [a substring of] the error string returned by the
-            RPC call. Set to None if checking the error string is not required
-        fun (function): the function to call. This should be the name of an RPC.
-        args*: positional arguments for the function.
-        kwds**: named arguments for the function.
-    """
-    try:
-        fun(*args, **kwds)
-    except JSONRPCException as e:
-        # JSONRPCException was thrown as expected. Check the code and message values are correct.
-        if (code is not None) and (code != e.error["code"]):
-            raise AssertionError(
-                "Unexpected JSONRPC error code %i" % e.error["code"])
-        if (message is not None) and (message not in e.error['message']):
-            raise AssertionError(
-                "Expected substring not found:" + e.error['message'])
-    except Exception as e:
-        raise AssertionError(
-            "Unexpected exception raised: " + type(e).__name__)
-    else:
-        raise AssertionError("No exception raised")
-
-
-def assert_is_hex_string(string):
-    try:
-        int(string, 16)
-    except Exception as e:
-        raise AssertionError(
-            "Couldn't interpret %r as hexadecimal; raised: %s" % (string, e))
-
-
-def assert_is_hash_string(string, length=64):
-    if not isinstance(string, str):
-        raise AssertionError("Expected a string, got type %r" % type(string))
-    elif length and len(string) != length:
-        raise AssertionError(
-            "String of length %d expected; got %d" % (length, len(string)))
-    elif not re.match('[abcdef0-9]+$', string):
-        raise AssertionError(
-            "String %r contains invalid characters for a hash." % string)
-
-
-def assert_array_result(object_array, to_match, expected, should_not_find=False):
-    """
-        Pass in array of JSON objects, a dictionary with key/value pairs
-        to match against, and another dictionary with expected key/value
-        pairs.
-        If the should_not_find flag is true, to_match should not be found
-        in object_array
-        """
-    if should_not_find == True:
-        assert_equal(expected, {})
-    num_matched = 0
-    for item in object_array:
-        all_match = True
-        for key, value in to_match.items():
-            if item[key] != value:
-                all_match = False
-        if not all_match:
-            continue
-        elif should_not_find == True:
-            num_matched = num_matched + 1
-        for key, value in expected.items():
-            if item[key] != value:
-                raise AssertionError(
-                    "%s : expected %s=%s" % (str(item), str(key), str(value)))
-            num_matched = num_matched + 1
-    if num_matched == 0 and should_not_find != True:
-        raise AssertionError("No objects matched %s" % (str(to_match)))
-    if num_matched > 0 and should_not_find == True:
-        raise AssertionError("Objects were found %s" % (str(to_match)))
-
-
-def satoshi_round(amount):
-    return Decimal(amount).quantize(Decimal('0.00000001'), rounding=ROUND_DOWN)
-
 # Helper to create at least "count" utxos
 # Pass in a fee that is sufficient for relay and mining new transactions.
 
 
 def create_confirmed_utxos(fee, node, count, age=101):
-    node.generate(int(0.5 * count) + age)
+    to_generate = int(0.5 * count) + age
+    while to_generate > 0:
+        node.generate(min(25, to_generate))
+        to_generate -= 25
     utxos = node.listunspent()
     iterations = count - len(utxos)
     addr1 = node.getnewaddress()
@@ -664,7 +580,7 @@ def create_confirmed_utxos(fee, node, count, age=101):
         raw_tx = node.createrawtransaction(inputs, outputs)
         signed_tx = node.signrawtransaction(
             raw_tx, None, None, "ALL|FORKID")["hex"]
-        txid = node.sendrawtransaction(signed_tx)
+        node.sendrawtransaction(signed_tx)
 
     while (node.getmempoolinfo()['size'] > 0):
         node.generate(1)
@@ -742,11 +658,6 @@ def mine_large_block(node, utxos=None):
     node.generate(1)
 
 
-def get_bip9_status(node, key):
-    info = node.getblockchaininfo()
-    return info['bip9_softforks'][key]
-
-
 def get_srcdir(calling_script=None):
     """
     Try to find out the base folder containing the 'src' folder.
@@ -754,6 +665,8 @@ def get_srcdir(calling_script=None):
     Otherwise it goes on a search and rescue mission.
 
     Returns None if it cannot find a suitable folder.
+
+    TODO: This is only used for cdefs, consider moving that there.
     """
     def contains_src(path_to_check):
         if not path_to_check:
@@ -777,6 +690,7 @@ def get_srcdir(calling_script=None):
     # Try to work it based out on main module
     # We might expect the caller to be rpc-tests.py or a test script
     # itself.
+    import sys
     mainmod = sys.modules['__main__']
     mainmod_path = getattr(mainmod, '__file__', '')
     if mainmod_path and mainmod_path.endswith('.py'):

@@ -5,7 +5,7 @@
 
 /**
  * Server/client environment: argument handling, config file parsing, logging,
- * thread wrappers.
+ * thread wrappers, startup time
  */
 #ifndef BITCOIN_UTIL_H
 #define BITCOIN_UTIL_H
@@ -29,6 +29,9 @@
 
 #include <boost/signals2/signal.hpp>
 #include <boost/thread/exceptions.hpp>
+
+// Application startup time (used for uptime calculation)
+int64_t GetStartupTime();
 
 static const bool DEFAULT_LOGTIMEMICROS = false;
 static const bool DEFAULT_LOGIPS = false;
@@ -234,55 +237,6 @@ public:
 };
 
 extern ArgsManager gArgs;
-
-// wrappers using the global ArgsManager:
-static inline void ParseParameters(int argc, const char *const argv[]) {
-    gArgs.ParseParameters(argc, argv);
-}
-
-static inline void ReadConfigFile(const std::string &confPath) {
-    gArgs.ReadConfigFile(confPath);
-}
-
-static inline bool SoftSetArg(const std::string &strArg,
-                              const std::string &strValue) {
-    return gArgs.SoftSetArg(strArg, strValue);
-}
-
-static inline void ForceSetArg(const std::string &strArg,
-                               const std::string &strValue) {
-    gArgs.ForceSetArg(strArg, strValue);
-}
-
-static inline void ForceSetMultiArg(const std::string &strArg,
-                                    const std::string &strValue) {
-    gArgs.ForceSetMultiArg(strArg, strValue);
-}
-
-static inline void ClearArg(const std::string &strArg) {
-    gArgs.ClearArg(strArg);
-}
-
-static inline bool IsArgSet(const std::string &strArg) {
-    return gArgs.IsArgSet(strArg);
-}
-
-static inline std::string GetArg(const std::string &strArg,
-                                 const std::string &strDefault) {
-    return gArgs.GetArg(strArg, strDefault);
-}
-
-static inline int64_t GetArg(const std::string &strArg, int64_t nDefault) {
-    return gArgs.GetArg(strArg, nDefault);
-}
-
-static inline bool GetBoolArg(const std::string &strArg, bool fDefault) {
-    return gArgs.GetBoolArg(strArg, fDefault);
-}
-
-static inline bool SoftSetBoolArg(const std::string &strArg, bool fValue) {
-    return gArgs.SoftSetBoolArg(strArg, fValue);
-}
 
 /**
  * Format a string to be used as group of options in help messages.

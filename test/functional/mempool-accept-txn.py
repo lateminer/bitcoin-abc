@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Copyright (c) 2015-2016 The Bitcoin Core developers
 # Copyright (c) 2017 The Bitcoin developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -25,7 +24,7 @@ RPC_TXNS_TOO_MANY_SIGOPS_ERROR = "64: " + \
     TXNS_TOO_MANY_SIGOPS_ERROR.decode("utf-8")
 
 
-class PreviousSpendableOutput(object):
+class PreviousSpendableOutput():
 
     def __init__(self, tx=CTransaction(), n=-1):
         self.tx = tx
@@ -38,9 +37,9 @@ class FullBlockTest(ComparisonTestFramework):
     # Change the "outcome" variable from each TestInstance object to only do
     # the comparison.
 
-    def __init__(self):
-        super().__init__()
+    def set_test_params(self):
         self.num_nodes = 1
+        self.setup_clean_chain = True
         self.block_heights = {}
         self.coinbase_key = CECKey()
         self.coinbase_key.set_secretbytes(b"horsebattery")
@@ -50,9 +49,8 @@ class FullBlockTest(ComparisonTestFramework):
 
     def setup_network(self):
         self.extra_args = [['-norelaypriority']]
-        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir,
-                                 self.extra_args,
-                                 binary=[self.options.testbinary])
+        self.add_nodes(self.num_nodes, self.extra_args)
+        self.start_nodes()
 
     def add_options(self, parser):
         super().add_options(parser)

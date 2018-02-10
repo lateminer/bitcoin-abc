@@ -567,8 +567,8 @@ void WalletModel::getOutputs(const std::vector<COutPoint> &vOutpoints,
         if (!wallet->mapWallet.count(outpoint.hash)) continue;
         int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
         if (nDepth < 0) continue;
-        COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth, true,
-                    true);
+        COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth,
+                    true /* spendable */, true /* solvable */, true /* safe */);
         vOutputs.push_back(out);
     }
 }
@@ -595,11 +595,12 @@ void WalletModel::listCoins(
         if (!wallet->mapWallet.count(outpoint.hash)) continue;
         int nDepth = wallet->mapWallet[outpoint.hash].GetDepthInMainChain();
         if (nDepth < 0) continue;
-        COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth, true,
-                    true);
+        COutput out(&wallet->mapWallet[outpoint.hash], outpoint.n, nDepth,
+                    true /* spendable */, true /* solvable */, true /* safe */);
         if (outpoint.n < out.tx->tx->vout.size() &&
-            wallet->IsMine(out.tx->tx->vout[outpoint.n]) == ISMINE_SPENDABLE)
+            wallet->IsMine(out.tx->tx->vout[outpoint.n]) == ISMINE_SPENDABLE) {
             vCoins.push_back(out);
+        }
     }
 
     for (const COutput &out : vCoins) {
@@ -611,7 +612,9 @@ void WalletModel::listCoins(
             if (!wallet->mapWallet.count(cout.tx->tx->vin[0].prevout.hash))
                 break;
             cout = COutput(&wallet->mapWallet[cout.tx->tx->vin[0].prevout.hash],
-                           cout.tx->tx->vin[0].prevout.n, 0, true, true);
+                           cout.tx->tx->vin[0].prevout.n, 0 /* depth */,
+                           true /* spendable */, true /* solvable */,
+                           true /* safe */);
         }
 
         CTxDestination address;
@@ -689,7 +692,7 @@ bool WalletModel::abandonTransaction(uint256 hash) const {
 }
 
 bool WalletModel::isWalletEnabled() {
-    return !GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET);
+    return !gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET);
 }
 
 bool WalletModel::hdEnabled() const {

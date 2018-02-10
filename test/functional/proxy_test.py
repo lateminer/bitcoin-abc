@@ -3,18 +3,6 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-import socket
-import os
-
-from test_framework.socks5 import Socks5Configuration, Socks5Command, Socks5Server, AddressType
-from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import (
-    PORT_MIN,
-    PORT_RANGE,
-    start_nodes,
-    assert_equal,
-)
-from test_framework.netutil import test_ipv6_local
 '''
 Test plan:
 - Start bitcoind's with different proxy configurations
@@ -39,15 +27,24 @@ addnode connect to onion
 addnode connect to generic DNS name
 '''
 
+import socket
+import os
+
+from test_framework.socks5 import Socks5Configuration, Socks5Command, Socks5Server, AddressType
+from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import (
+    PORT_MIN,
+    PORT_RANGE,
+    assert_equal,
+)
+from test_framework.netutil import test_ipv6_local
+
 RANGE_BEGIN = PORT_MIN + 2 * PORT_RANGE  # Start after p2p and rpc ports
 
 
 class ProxyTest(BitcoinTestFramework):
-
-    def __init__(self):
-        super().__init__()
+    def set_test_params(self):
         self.num_nodes = 4
-        self.setup_clean_chain = False
 
     def setup_nodes(self):
         self.have_ipv6 = test_ipv6_local()
@@ -97,8 +94,8 @@ class ProxyTest(BitcoinTestFramework):
         if self.have_ipv6:
             args[3] = ['-listen', '-proxy=[%s]:%i' %
                        (self.conf3.addr), '-proxyrandomize=0', '-noonion']
-        self.nodes = start_nodes(
-            self.num_nodes, self.options.tmpdir, extra_args=args)
+        self.add_nodes(self.num_nodes, extra_args=args)
+        self.start_nodes()
 
     def node_test(self, node, proxies, auth, test_onion=True):
         rv = []

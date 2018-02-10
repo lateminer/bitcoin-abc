@@ -87,6 +87,9 @@
 #include <openssl/conf.h>
 #include <openssl/rand.h>
 
+// Application startup time (used for uptime calculation)
+const int64_t nStartupTime = GetTime();
+
 const char *const BITCOIN_CONF_FILENAME = "lore.conf";
 const char *const BITCOIN_PID_FILENAME = "lored.pid";
 
@@ -536,8 +539,8 @@ const fs::path &GetDataDir(bool fNetSpecific) {
     // value so we don't have to do memory allocations after that.
     if (!path.empty()) return path;
 
-    if (IsArgSet("-datadir")) {
-        path = fs::system_complete(GetArg("-datadir", ""));
+    if (gArgs.IsArgSet("-datadir")) {
+        path = fs::system_complete(gArgs.GetArg("-datadir", ""));
         if (!fs::is_directory(path)) {
             path = "";
             return path;
@@ -599,7 +602,7 @@ void ArgsManager::ReadConfigFile(const std::string &confPath) {
 
 #ifndef WIN32
 fs::path GetPidFile() {
-    fs::path pathPidFile(GetArg("-pid", BITCOIN_PID_FILENAME));
+    fs::path pathPidFile(gArgs.GetArg("-pid", BITCOIN_PID_FILENAME));
     if (!pathPidFile.is_complete()) pathPidFile = GetDataDir() / pathPidFile;
     return pathPidFile;
 }
@@ -864,4 +867,9 @@ std::string CopyrightHolders(const std::string &strPrefix) {
         strCopyrightHolders += "\n" + strPrefix + "The Bitcoin Core developers";
     }
     return strCopyrightHolders;
+}
+
+// Obtain the application startup time (used for uptime calculation)
+int64_t GetStartupTime() {
+    return nStartupTime;
 }

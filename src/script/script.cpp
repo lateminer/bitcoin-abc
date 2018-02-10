@@ -315,11 +315,6 @@ bool CScript::IsPayToPublicKey() const
             (*this)[34] == OP_CHECKSIG);
 }
 
-bool CScript::IsPayToWitnessScriptHash() const {
-    // Extra-fast test for pay-to-witness-script-hash CScripts:
-    return (this->size() == 34 && (*this)[0] == OP_0 && (*this)[1] == 0x20);
-}
-
 bool CScript::IsCommitment(const std::vector<uint8_t> &data) const {
     // To ensure we have an immediate push, we limit the commitment size to 64
     // bytes. In addition to the data themselves, we have 2 extra bytes:

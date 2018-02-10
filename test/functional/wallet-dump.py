@@ -4,8 +4,7 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import (
-    start_nodes, start_node, assert_equal, bitcoind_processes)
+from test_framework.util import assert_equal
 
 
 def read_dump(file_name, addrs, hd_master_addr_old):
@@ -54,10 +53,7 @@ def read_dump(file_name, addrs, hd_master_addr_old):
 
 
 class WalletDumpTest(BitcoinTestFramework):
-
-    def __init__(self):
-        super().__init__()
-        self.setup_clean_chain = False
+    def set_test_params(self):
         self.num_nodes = 1
         self.extra_args = [["-keypool=90"]]
 
@@ -66,8 +62,8 @@ class WalletDumpTest(BitcoinTestFramework):
         # longer than the default 30 seconds due to an expensive
         # CWallet::TopUpKeyPool call, and the encryptwallet RPC made later in
         # the test often takes even longer.
-        self.nodes = start_nodes(
-            self.num_nodes, self.options.tmpdir, self.extra_args, timewait=60)
+        self.add_nodes(self.num_nodes, self.extra_args, timewait=60)
+        self.start_nodes()
 
     def run_test(self):
         tmpdir = self.options.tmpdir
@@ -95,9 +91,8 @@ class WalletDumpTest(BitcoinTestFramework):
         assert_equal(found_addr_rsv, 90 * 2)
 
         # encrypt wallet, restart, unlock and dump
-        self.nodes[0].encryptwallet('test')
-        bitcoind_processes[0].wait()
-        self.nodes[0] = start_node(0, self.options.tmpdir, self.extra_args[0])
+        self.nodes[0].node_encrypt_wallet('test')
+        self.start_node(0)
         self.nodes[0].walletpassphrase('test', 10)
         # Should be a no-op:
         self.nodes[0].keypoolrefill()

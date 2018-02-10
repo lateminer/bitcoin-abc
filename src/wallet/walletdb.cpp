@@ -118,29 +118,23 @@ bool CWalletDB::WriteMasterKey(unsigned int nID, const CMasterKey &kMasterKey) {
 }
 
 bool CWalletDB::WriteCScript(const uint160 &hash, const CScript &redeemScript) {
-    return WriteIC(std::make_pair(std::string("cscript"), hash),
-                   *(const CScriptBase *)(&redeemScript), false);
+    return WriteIC(std::make_pair(std::string("cscript"), hash), redeemScript,
+                   false);
 }
 
 bool CWalletDB::WriteWatchOnly(const CScript &dest,
                                const CKeyMetadata &keyMeta) {
-    if (!WriteIC(std::make_pair(std::string("watchmeta"),
-                                *(const CScriptBase *)(&dest)),
-                 keyMeta)) {
+    if (!WriteIC(std::make_pair(std::string("watchmeta"), dest), keyMeta)) {
         return false;
     }
-    return WriteIC(
-        std::make_pair(std::string("watchs"), *(const CScriptBase *)(&dest)),
-        '1');
+    return WriteIC(std::make_pair(std::string("watchs"), dest), '1');
 }
 
 bool CWalletDB::EraseWatchOnly(const CScript &dest) {
-    if (!EraseIC(std::make_pair(std::string("watchmeta"),
-                                *(const CScriptBase *)(&dest)))) {
+    if (!EraseIC(std::make_pair(std::string("watchmeta"), dest))) {
         return false;
     }
-    return EraseIC(
-        std::make_pair(std::string("watchs"), *(const CScriptBase *)(&dest)));
+    return EraseIC(std::make_pair(std::string("watchs"), dest));
 }
 
 bool CWalletDB::WriteBestBlock(const CBlockLocator &locator) {
@@ -160,10 +154,6 @@ bool CWalletDB::ReadBestBlock(CBlockLocator &locator) {
 
 bool CWalletDB::WriteOrderPosNext(int64_t nOrderPosNext) {
     return WriteIC(std::string("orderposnext"), nOrderPosNext);
-}
-
-bool CWalletDB::WriteDefaultKey(const CPubKey &vchPubKey) {
-    return WriteIC(std::string("defaultkey"), vchPubKey);
 }
 
 bool CWalletDB::ReadPool(int64_t nPool, CKeyPool &keypool) {
@@ -359,7 +349,7 @@ bool ReadKeyValue(CWallet *pwallet, CDataStream &ssKey, CDataStream &ssValue,
         } else if (strType == "watchs") {
             wss.nWatchKeys++;
             CScript script;
-            ssKey >> *(CScriptBase *)(&script);
+            ssKey >> script;
             char fYes;
             ssValue >> fYes;
             if (fYes == '1') {
@@ -461,7 +451,7 @@ bool ReadKeyValue(CWallet *pwallet, CDataStream &ssKey, CDataStream &ssValue,
                 keyID = vchPubKey.GetID();
             } else if (strType == "watchmeta") {
                 CScript script;
-                ssKey >> *(CScriptBase *)(&script);
+                ssKey >> script;
                 keyID = CScriptID(script);
             }
 
@@ -471,7 +461,15 @@ bool ReadKeyValue(CWallet *pwallet, CDataStream &ssKey, CDataStream &ssValue,
 
             pwallet->LoadKeyMetadata(keyID, keyMeta);
         } else if (strType == "defaultkey") {
-            ssValue >> pwallet->vchDefaultKey;
+            // We don't want or need the default key, but if there is one set,
+            // we want to make sure that it is valid so that we can detect
+            // corruption
+            CPubKey vchPubKey;
+            ssValue >> vchPubKey;
+            if (!vchPubKey.IsValid()) {
+                strErr = "Error reading wallet database: Default Key corrupt";
+                return false;
+            }
         } else if (strType == "pool") {
             int64_t nIndex;
             ssKey >> nIndex;
@@ -488,7 +486,7 @@ bool ReadKeyValue(CWallet *pwallet, CDataStream &ssKey, CDataStream &ssValue,
             uint160 hash;
             ssKey >> hash;
             CScript script;
-            ssValue >> *(CScriptBase *)(&script);
+            ssValue >> script;
             if (!pwallet->LoadCScript(script)) {
                 strErr = "Error reading wallet database: LoadCScript failed";
                 return false;
@@ -525,7 +523,6 @@ bool CWalletDB::IsKeyType(const std::string &strType) {
 }
 
 DBErrors CWalletDB::LoadWallet(CWallet *pwallet) {
-    pwallet->vchDefaultKey = CPubKey();
     CWalletScanState wss;
     bool fNoncriticalErrors = false;
     DBErrors result = DB_LOAD_OK;
@@ -566,7 +563,7 @@ DBErrors CWalletDB::LoadWallet(CWallet *pwallet) {
             if (!ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr)) {
                 // losing keys is considered a catastrophic error, anything else
                 // we assume the user can live with:
-                if (IsKeyType(strType)) {
+                if (IsKeyType(strType) || strType == "defaultkey") {
                     result = DB_CORRUPT;
                 } else {
                     // Leave other errors alone, if we try to fix them we might
@@ -575,7 +572,7 @@ DBErrors CWalletDB::LoadWallet(CWallet *pwallet) {
                     fNoncriticalErrors = true;
                     if (strType == "tx") {
                         // Rescan if there is a bad transaction record:
-                        SoftSetBoolArg("-rescan", true);
+                        gArgs.SoftSetBoolArg("-rescan", true);
                     }
                 }
             }
@@ -764,7 +761,7 @@ void MaybeCompactWalletDB() {
     if (fOneThread.exchange(true)) {
         return;
     }
-    if (!GetBoolArg("-flushwallet", DEFAULT_FLUSHWALLET)) {
+    if (!gArgs.GetBoolArg("-flushwallet", DEFAULT_FLUSHWALLET)) {
         return;
     }
 

@@ -692,9 +692,8 @@ UniValue dumpwallet(const Config &config, const JSONRPCRequest &request) {
     }
 
     std::map<CTxDestination, int64_t> mapKeyBirth;
-    std::set<CKeyID> setKeyPool;
+    const std::map<CKeyID, int64_t> &mapKeyPool = pwallet->GetAllReserveKeys();
     pwallet->GetKeyBirthTimes(mapKeyBirth);
-    pwallet->GetAllReserveKeys(setKeyPool);
 
     // sort time/key pairs
     std::vector<std::pair<int64_t, CKeyID>> vKeyBirth;
@@ -748,7 +747,7 @@ UniValue dumpwallet(const Config &config, const JSONRPCRequest &request) {
                     EncodeDumpString(pwallet->mapAddressBook[keyid].name));
             } else if (keyid == masterKeyID) {
                 file << "hdmaster=1";
-            } else if (setKeyPool.count(keyid)) {
+            } else if (mapKeyPool.count(keyid)) {
                 file << "reserve=1";
             } else if (pwallet->mapKeyMetadata[keyid].hdKeypath == "m") {
                 file << "inactivehdmaster=1";
@@ -873,8 +872,7 @@ UniValue ProcessImport(CWallet *const pwallet, const UniValue &data,
 
             pwallet->MarkDirty();
 
-            if (!pwallet->HaveWatchOnly(redeemScript) &&
-                !pwallet->AddWatchOnly(redeemScript, timestamp)) {
+            if (!pwallet->AddWatchOnly(redeemScript, timestamp)) {
                 throw JSONRPCError(RPC_WALLET_ERROR,
                                    "Error adding address to wallet");
             }
@@ -896,8 +894,7 @@ UniValue ProcessImport(CWallet *const pwallet, const UniValue &data,
 
             pwallet->MarkDirty();
 
-            if (!pwallet->HaveWatchOnly(redeemDestination) &&
-                !pwallet->AddWatchOnly(redeemDestination, timestamp)) {
+            if (!pwallet->AddWatchOnly(redeemDestination, timestamp)) {
                 throw JSONRPCError(RPC_WALLET_ERROR,
                                    "Error adding address to wallet");
             }
@@ -1000,8 +997,7 @@ UniValue ProcessImport(CWallet *const pwallet, const UniValue &data,
 
                 pwallet->MarkDirty();
 
-                if (!pwallet->HaveWatchOnly(pubKeyScript) &&
-                    !pwallet->AddWatchOnly(pubKeyScript, timestamp)) {
+                if (!pwallet->AddWatchOnly(pubKeyScript, timestamp)) {
                     throw JSONRPCError(RPC_WALLET_ERROR,
                                        "Error adding address to wallet");
                 }
@@ -1023,8 +1019,7 @@ UniValue ProcessImport(CWallet *const pwallet, const UniValue &data,
 
                 pwallet->MarkDirty();
 
-                if (!pwallet->HaveWatchOnly(scriptRawPubKey) &&
-                    !pwallet->AddWatchOnly(scriptRawPubKey, timestamp)) {
+                if (!pwallet->AddWatchOnly(scriptRawPubKey, timestamp)) {
                     throw JSONRPCError(RPC_WALLET_ERROR,
                                        "Error adding address to wallet");
                 }
@@ -1079,7 +1074,10 @@ UniValue ProcessImport(CWallet *const pwallet, const UniValue &data,
                 pwallet->SetAddressBook(vchAddress, label, "receive");
 
                 if (pwallet->HaveKey(vchAddress)) {
-                    return false;
+                    throw JSONRPCError(RPC_WALLET_ERROR, "The wallet already "
+                                                         "contains the private "
+                                                         "key for this address "
+                                                         "or script");
                 }
 
                 pwallet->mapKeyMetadata[vchAddress].nCreateTime = timestamp;
@@ -1105,8 +1103,7 @@ UniValue ProcessImport(CWallet *const pwallet, const UniValue &data,
 
                 pwallet->MarkDirty();
 
-                if (!pwallet->HaveWatchOnly(script) &&
-                    !pwallet->AddWatchOnly(script, timestamp)) {
+                if (!pwallet->AddWatchOnly(script, timestamp)) {
                     throw JSONRPCError(RPC_WALLET_ERROR,
                                        "Error adding address to wallet");
                 }
@@ -1323,7 +1320,7 @@ static const CRPCCommand commands[] = {
 // clang-format on
 
 void RegisterDumpRPCCommands(CRPCTable &t) {
-    if (GetBoolArg("-disablewallet", false)) {
+    if (gArgs.GetBoolArg("-disablewallet", false)) {
         return;
     }
 

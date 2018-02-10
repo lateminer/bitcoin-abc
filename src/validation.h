@@ -14,6 +14,7 @@
 #include "amount.h"
 #include "chain.h"
 #include "coins.h"
+#include "consensus/consensus.h"
 #include "fs.h"
 #include "protocol.h" // For CMessageHeader::MessageMagic
 #include "script/script_error.h"
@@ -76,6 +77,9 @@ static const unsigned int DEFAULT_DESCENDANT_SIZE_LIMIT = 101;
 /** Default for -mempoolexpiry, expiration time for mempool transactions in
  * hours */
 static const unsigned int DEFAULT_MEMPOOL_EXPIRY = 336;
+/** Maximum bytes for transactions to store for processing during reorg */
+static const unsigned int MAX_DISCONNECTED_TX_POOL_SIZE =
+    20 * DEFAULT_MAX_BLOCK_SIZE;
 /** The maximum size of a blk?????.dat file (since 0.8) */
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
@@ -283,8 +287,6 @@ bool ProcessNewBlockHeaders(const Config &config,
 bool CheckDiskSpace(uint64_t nAdditionalBytes = 0);
 /** Open a block file (blk?????.dat) */
 FILE *OpenBlockFile(const CDiskBlockPos &pos, bool fReadOnly = false);
-/** Open an undo file (rev?????.dat) */
-FILE *OpenUndoFile(const CDiskBlockPos &pos, bool fReadOnly = false);
 /** Translation to a filesystem path */
 fs::path GetBlockPosFilename(const CDiskBlockPos &pos, const char *prefix);
 /** Import blocks from an external file */
@@ -294,6 +296,8 @@ bool LoadExternalBlockFile(const Config &config, FILE *fileIn,
 bool InitBlockIndex(const Config &config);
 /** Load the block tree and coins database from disk */
 bool LoadBlockIndex(const CChainParams &chainparams);
+/** Update the chain tip based on database information. */
+void LoadChainTip(const CChainParams &chainparams);
 /** Unload database information */
 void UnloadBlockIndex();
 /** Run an instance of the script checking thread */
@@ -328,30 +332,6 @@ Amount GetProofOfStakeSubsidy(int nHeight, const Consensus::Params &consensusPar
 double GuessVerificationProgress(const ChainTxData &data, CBlockIndex *pindex);
 
 /**
- * Prune block and undo files (blk???.dat and undo???.dat) so that the disk
- * space used is less than a user-defined target. The user sets the target (in
- * MB) on the command line or in config file. This will be run on startup and
- * whenever new space is allocated in a block or undo file, staying below the
- * target. Changing back to unpruned requires a reindex (which in this case
- * means the blockchain must be re-downloaded.)
- *
- * Pruning functions are called from FlushStateToDisk when the global
- * fCheckForPruning flag has been set. Block and undo files are deleted in
- * lock-step (when blk00003.dat is deleted, so is rev00003.dat.) Pruning cannot
- * take place until the longest chain is at least a certain length (100000 on
- * mainnet, 1000 on testnet, 1000 on regtest). Pruning will never delete a block
- * within a defined distance (currently 288) from the active chain's tip. The
- * block index is updated by unsetting HAVE_DATA and HAVE_UNDO for any blocks
- * that were stored in the deleted files. A db flag records the fact that at
- * least some block files have been pruned.
- *
- * @param[out]   setFilesToPrune   The set of file indices that can be unlinked
- * will be returned
- */
-void FindFilesToPrune(std::set<int> &setFilesToPrune,
-                      uint64_t nPruneAfterHeight);
-
-/**
  *  Mark one block file as pruned.
  */
 void PruneOneBlockFile(const int fileNumber);
@@ -370,9 +350,11 @@ void PruneAndFlush();
 /** Prune block files up to a given height */
 void PruneBlockFilesManual(int nPruneUpToHeight);
 
-/** (try to) add transaction to memory pool
- * plTxnReplaced will be appended to with all transactions replaced from mempool
- * **/
+/**
+ * (try to) add transaction to memory pool
+ * plTxnReplaced will be appended to with all transactions replaced from
+ * mempool.
+ */
 bool AcceptToMemoryPool(const Config &config, CTxMemPool &pool,
                         CValidationState &state, const CTransactionRef &tx,
                         bool fLimitFree, bool *pfMissingInputs,
@@ -540,8 +522,6 @@ public:
 };
 
 /** Functions for disk access for blocks */
-bool WriteBlockToDisk(const CBlock &block, CDiskBlockPos &pos,
-                      const CMessageHeader::MessageMagic &messageStart);
 bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos,
                        const Config &config);
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex,
@@ -578,17 +558,6 @@ bool ContextualCheckTransactionForCurrentBlock(const Config &config,
                                                int flags = -1);
 
 /**
- * Context-dependent validity checks.
- *
- * By "context", we mean only the previous block headers, but not the UTXO set;
- * UTXO-related validity checks are done in ConnectBlock().
- */
-bool ContextualCheckBlock(const Config &config, const CBlock &block,
-                          CValidationState &state,
-                          const Consensus::Params &consensusParams,
-                          const CBlockIndex *pindexPrev);
-
-/**
  * Check a block is completely valid from start to finish (only works on top of
  * our current best block, with cs_main held)
  */
@@ -614,6 +583,9 @@ public:
     bool VerifyDB(const Config &config, CCoinsView *coinsview, int nCheckLevel,
                   int nCheckDepth);
 };
+
+/** Replay blocks that aren't fully applied to the database. */
+bool ReplayBlocks(const Config &config, CCoinsView *view);
 
 /** Find the last common block between the parameter chain and a locator. */
 CBlockIndex *FindForkInGlobalIndex(const CChain &chain,

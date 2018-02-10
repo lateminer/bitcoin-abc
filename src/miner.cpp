@@ -92,9 +92,9 @@ static uint64_t ComputeMaxGeneratedBlockSize(const Config &config,
     // If only one is given, only restrict the specified resource.
     // If both are given, restrict both.
     uint64_t nMaxGeneratedBlockSize = DEFAULT_MAX_GENERATED_BLOCK_SIZE;
-    if (IsArgSet("-blockmaxsize")) {
+    if (gArgs.IsArgSet("-blockmaxsize")) {
         nMaxGeneratedBlockSize =
-            GetArg("-blockmaxsize", DEFAULT_MAX_GENERATED_BLOCK_SIZE);
+            gArgs.GetArg("-blockmaxsize", DEFAULT_MAX_GENERATED_BLOCK_SIZE);
     }
 
     // Limit size to between 1K and MaxBlockSize-1K for sanity:
@@ -105,12 +105,11 @@ static uint64_t ComputeMaxGeneratedBlockSize(const Config &config,
     return nMaxGeneratedBlockSize;
 }
 
-BlockAssembler::BlockAssembler(const Config &_config,
-                               const CChainParams &_chainparams)
-    : chainparams(_chainparams), config(&_config) {
-    if (IsArgSet("-blockmintxfee")) {
+BlockAssembler::BlockAssembler(const Config &_config) : config(&_config) {
+
+    if (gArgs.IsArgSet("-blockmintxfee")) {
         Amount n(0);
-        ParseMoney(GetArg("-blockmintxfee", ""), n);
+        ParseMoney(gArgs.GetArg("-blockmintxfee", ""), n);
         blockMinFeeRate = CFeeRate(n);
     } else {
         blockMinFeeRate = CFeeRate(DEFAULT_BLOCK_MIN_TX_FEE);
@@ -176,12 +175,13 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn, int64_t *pFees, bo
     CBlockIndex *pindexPrev = chainActive.Tip();
     nHeight = pindexPrev->nHeight + 1;
 
+    const CChainParams &chainparams = config->GetChainParams();
     pblock->nVersion =
         ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
     // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
     if (chainparams.MineBlocksOnDemand()) {
-        pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
+        pblock->nVersion = gArgs.GetArg("-blockversion", pblock->nVersion);
     }
 
     pblock->nTime = GetAdjustedTime();
@@ -367,7 +367,8 @@ void BlockAssembler::AddToBlock(CTxMemPool::txiter iter) {
     nFees += iter->GetFee();
     inBlock.insert(iter);
 
-    bool fPrintPriority = GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
+    bool fPrintPriority =
+        gArgs.GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
     if (fPrintPriority) {
         double dPriority = iter->GetPriority(nHeight);
         Amount dummy;

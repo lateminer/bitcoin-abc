@@ -544,29 +544,9 @@ bool PeerHasHeader(CNodeState *state, const CBlockIndex *pindex) {
 }
 
 /**
- * Find the last common ancestor two blocks have.
- * Both pa and pb must be non null.
+ * Update pindexLastCommonBlock and add not-in-flight missing successors to
+ * vBlocks, until it has at most count entries.
  */
-const CBlockIndex *LastCommonAncestor(const CBlockIndex *pa,
-                                      const CBlockIndex *pb) {
-    if (pa->nHeight > pb->nHeight) {
-        pa = pa->GetAncestor(pb->nHeight);
-    } else if (pb->nHeight > pa->nHeight) {
-        pb = pb->GetAncestor(pa->nHeight);
-    }
-
-    while (pa != pb && pa && pb) {
-        pa = pa->pprev;
-        pb = pb->pprev;
-    }
-
-    // Eventually all chain branches meet at the genesis block.
-    assert(pa == pb);
-    return pa;
-}
-
-/** Update pindexLastCommonBlock and add not-in-flight missing successors to
- * vBlocks, until it has at most count entries. */
 void FindNextBlocksToDownload(NodeId nodeid, unsigned int count,
                               std::vector<const CBlockIndex *> &vBlocks,
                               NodeId &nodeStaller,
@@ -710,8 +690,8 @@ void UnregisterNodeSignals(CNodeSignals &nodeSignals) {
 //
 
 void AddToCompactExtraTransactions(const CTransactionRef &tx) {
-    size_t max_extra_txn = GetArg("-blockreconstructionextratxn",
-                                  DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN);
+    size_t max_extra_txn = gArgs.GetArg("-blockreconstructionextratxn",
+                                        DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN);
     if (max_extra_txn <= 0) {
         return;
     }
@@ -852,7 +832,7 @@ void Misbehaving(NodeId pnode, int howmuch, const std::string &reason) {
     }
 
     state->nMisbehavior += howmuch;
-    int banscore = GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
+    int banscore = gArgs.GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
     if (state->nMisbehavior >= banscore &&
         state->nMisbehavior - howmuch < banscore) {
         LogPrintf(
@@ -1401,8 +1381,8 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
 
     uint256 hash = block.GetHash();
 
-    if (IsArgSet("-dropmessagestest") &&
-        GetRand(GetArg("-dropmessagestest", 0)) == 0) {
+    if (gArgs.IsArgSet("-dropmessagestest") &&
+        GetRand(gArgs.GetArg("-dropmessagestest", 0)) == 0) {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
     }
@@ -1763,7 +1743,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         // Allow whitelisted peers to send data other than blocks in blocks only
         // mode if whitelistrelay is true
         if (pfrom->fWhitelisted &&
-            GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY)) {
+            gArgs.GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY)) {
             fBlocksOnly = false;
         }
 
@@ -2044,7 +2024,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         // whitelistrelay is off
         if (!fRelayTxes &&
             (!pfrom->fWhitelisted ||
-             !GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY))) {
+             !gArgs.GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY))) {
             LogPrint(BCLog::NET,
                      "transaction sent in violation of protocol peer=%d\n",
                      pfrom->id);
@@ -2180,7 +2160,8 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
                 // unbounded
                 unsigned int nMaxOrphanTx = (unsigned int)std::max(
                     int64_t(0),
-                    GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+                    gArgs.GetArg("-maxorphantx",
+                                 DEFAULT_MAX_ORPHAN_TRANSACTIONS));
                 unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
                 if (nEvicted > 0) {
                     LogPrint(BCLog::MEMPOOL,
@@ -2208,8 +2189,8 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
             }
 
             if (pfrom->fWhitelisted &&
-                GetBoolArg("-whitelistforcerelay",
-                           DEFAULT_WHITELISTFORCERELAY)) {
+                gArgs.GetBoolArg("-whitelistforcerelay",
+                                 DEFAULT_WHITELISTFORCERELAY)) {
                 // Always relay transactions received from whitelisted peers,
                 // even if they were already in the mempool or rejected from it
                 // due to policy, allowing the node to function as a gateway for
@@ -3048,7 +3029,7 @@ static bool SendRejectsAndCheckIfBanned(CNode *pnode, CConnman &connman) {
         connman.PushMessage(
             pnode,
             CNetMsgMaker(INIT_PROTO_VERSION)
-                .Make(NetMsgType::REJECT, (std::string)NetMsgType::BLOCK,
+                .Make(NetMsgType::REJECT, std::string(NetMsgType::BLOCK),
                       reject.chRejectCode, reject.strRejectReason,
                       reject.hashBlock));
     }
@@ -3783,13 +3764,15 @@ bool SendMessages(const Config &config, CNode *pto, CConnman &connman,
     // We don't want white listed peers to filter txs to us if we have
     // -whitelistforcerelay
     if (pto->nVersion >= FEEFILTER_VERSION &&
-        GetBoolArg("-feefilter", DEFAULT_FEEFILTER) &&
+        gArgs.GetBoolArg("-feefilter", DEFAULT_FEEFILTER) &&
         !(pto->fWhitelisted &&
-          GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY))) {
+          gArgs.GetBoolArg("-whitelistforcerelay",
+                           DEFAULT_WHITELISTFORCERELAY))) {
         Amount currentFilter =
             mempool
-                .GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) *
-                           1000000)
+                .GetMinFee(
+                    gArgs.GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) *
+                    1000000)
                 .GetFeePerK();
         int64_t timeNow = GetTimeMicros();
         if (timeNow > pto->nextSendTimeFeeFilter) {
@@ -3799,7 +3782,7 @@ bool SendMessages(const Config &config, CNode *pto, CConnman &connman,
             Amount filterToSend = filterRounder.round(currentFilter);
             // If we don't allow free transactions, then we always have a fee
             // filter of at least minRelayTxFee
-            if (GetArg("-limitfreerelay", DEFAULT_LIMITFREERELAY) <= 0) {
+            if (gArgs.GetArg("-limitfreerelay", DEFAULT_LIMITFREERELAY) <= 0) {
                 filterToSend =
                     std::max(filterToSend, ::minRelayTxFee.GetFeePerK());
             }

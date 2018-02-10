@@ -77,7 +77,7 @@ TestingSetup::TestingSetup(const std::string &chainName)
                                          (unsigned long)GetTime(),
                                          (int)(InsecureRandRange(100000)));
     fs::create_directories(pathTemp);
-    ForceSetArg("-datadir", pathTemp.string());
+    gArgs.ForceSetArg("-datadir", pathTemp.string());
     mempool.setSanityCheck(1.0);
     pblocktree = new CBlockTreeDB(1 << 20, true);
     pcoinsdbview = new CCoinsViewDB(1 << 23, true);
@@ -132,10 +132,9 @@ TestChain100Setup::TestChain100Setup()
 //
 CBlock TestChain100Setup::CreateAndProcessBlock(
     const std::vector<CMutableTransaction> &txns, const CScript &scriptPubKey) {
-    const CChainParams &chainparams = Params();
     const Config &config = GetConfig();
     std::unique_ptr<CBlockTemplate> pblocktemplate =
-        BlockAssembler(config, chainparams).CreateNewBlock(scriptPubKey);
+        BlockAssembler(config).CreateNewBlock(scriptPubKey);
     CBlock &block = pblocktemplate->block;
 
     // Replace mempool-selected txns with just coinbase plus passed-in txns:

@@ -1224,9 +1224,10 @@ private:
 public:
     CTransactionSignatureSerializer(const CTransaction &txToIn,
                                     const CScript &scriptCodeIn,
-                                    unsigned int nInIn, uint32_t nHashTypeIn)
+                                    unsigned int nInIn,
+                                    SigHashType sigHashTypeIn)
         : txTo(txToIn), scriptCode(scriptCodeIn), nIn(nInIn),
-          sigHashType(nHashTypeIn) {}
+          sigHashType(sigHashTypeIn) {}
 
     /** Serialize the passed scriptCode, skipping OP_CODESEPARATORs */
     template <typename S> void SerializeScriptCode(S &s) const {
@@ -1264,7 +1265,7 @@ public:
         // Serialize the script
         if (nInput != nIn) {
             // Blank out other inputs' signatures
-            ::Serialize(s, CScriptBase());
+            ::Serialize(s, CScript());
         } else {
             SerializeScriptCode(s);
         }
@@ -1393,7 +1394,7 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
         // amount). The prevout may already be contained in hashPrevout, and the
         // nSequence may already be contain in hashSequence.
         ss << txTo.vin[nIn].prevout;
-        ss << static_cast<const CScriptBase &>(scriptCode);
+        ss << scriptCode;
         ss << amount.GetSatoshis();
         ss << txTo.vin[nIn].nSequence;
         // Outputs (none/one/all, depending on flags)
@@ -1422,8 +1423,7 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
 
     // Wrapper to serialize only the necessary parts of the transaction being
     // signed
-    CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn,
-                                          sigHashType.getRawSigHashType());
+    CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn, sigHashType);
 
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);
