@@ -308,6 +308,13 @@ bool CScript::IsPayToScriptHash() const {
             (*this)[1] == 0x14 && (*this)[22] == OP_EQUAL);
 }
 
+bool CScript::IsPayToPublicKey() const
+{
+    // Extra-fast test for pay-to-pubkey CScripts:
+    return (this->size() == 35 && (*this)[0] == 0x21 &&
+            (*this)[34] == OP_CHECKSIG);
+}
+
 bool CScript::IsPayToWitnessScriptHash() const {
     // Extra-fast test for pay-to-witness-script-hash CScripts:
     return (this->size() == 34 && (*this)[0] == OP_0 && (*this)[1] == 0x20);

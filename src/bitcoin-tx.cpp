@@ -81,6 +81,7 @@ static int AppInitRawTx(int argc, char *argv[]) {
         strUsage += HelpMessageOpt("in=TXID:VOUT(:SEQUENCE_NUMBER)",
                                    _("Add input to TX"));
         strUsage += HelpMessageOpt("locktime=N", _("Set TX lock time to N"));
+        strUsage += HelpMessageOpt("time=N", _("Set TX time to N"));
         strUsage += HelpMessageOpt("nversion=N", _("Set TX version to N"));
         strUsage += HelpMessageOpt("outaddr=VALUE:ADDRESS",
                                    _("Add address-based output to TX"));
@@ -223,6 +224,15 @@ static void MutateTxLocktime(CMutableTransaction &tx,
     }
 
     tx.nLockTime = (unsigned int)newLocktime;
+}
+
+static void MutateTxTime(CMutableTransaction &tx, const std::string &cmdVal)
+{
+    int64_t newTime = atoi64(cmdVal);
+    if (newTime < 0LL || newTime > 0xffffffffLL)
+        throw runtime_error("Invalid TX time requested");
+
+    tx.nTime = (unsigned int)newTime;
 }
 
 static void MutateTxAddInput(CMutableTransaction &tx,
@@ -720,6 +730,8 @@ static void MutateTx(CMutableTransaction &tx, const std::string &command,
         MutateTxVersion(tx, commandVal);
     } else if (command == "locktime") {
         MutateTxLocktime(tx, commandVal);
+    } else if (command == "time") {
+        MutateTxTime(tx, commandVal);
     } else if (command == "delin") {
         MutateTxDelInput(tx, commandVal);
     } else if (command == "in") {

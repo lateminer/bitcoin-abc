@@ -580,6 +580,7 @@ std::string HelpMessage(HelpMessageMode mode) {
         strprintf(_("Tries to keep outbound traffic under the given target (in "
                     "MiB per 24h), 0 = no limit (default: %d)"),
                   DEFAULT_MAX_UPLOAD_TARGET));
+    strUsage += HelpMessageOpt("-synctime", strprintf(_("Sync time with other nodes (default: %d)"), DEFAULT_SYNC_TIME));
 
 #ifdef ENABLE_WALLET
     strUsage += CWallet::GetWalletHelpString(showDebug);
@@ -625,10 +626,6 @@ std::string HelpMessage(HelpMessageMode mode) {
             strprintf(
                 "Run checks every <n> transactions (default: %d)",
                 Params(CBaseChainParams::MAIN).DefaultConsistencyChecks()));
-        strUsage += HelpMessageOpt(
-            "-checkpoints", strprintf("Disable expensive verification for "
-                                      "known chain history (default: %d)",
-                                      DEFAULT_CHECKPOINTS_ENABLED));
         strUsage += HelpMessageOpt(
             "-disablesafemode", strprintf("Disable safemode, override a real "
                                           "safe mode event (default: %d)",
@@ -1555,6 +1552,8 @@ bool AppInitParameterInteraction(Config &config) {
     fAcceptDatacarrier = GetBoolArg("-datacarrier", DEFAULT_ACCEPT_DATACARRIER);
     nMaxDatacarrierBytes = GetArg("-datacarriersize", nMaxDatacarrierBytes);
 
+    fBIP37 = GetArg("-bip37", false);
+
     // Option to startup with mocktime set (used for regression testing):
     SetMockTime(GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op
 
@@ -1736,6 +1735,10 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
     }
 
     int64_t nStart;
+
+#if defined(USE_SSE2)
+    scrypt_detect_sse2();
+#endif
 
 // Step 5: verify wallet database integrity
 #ifdef ENABLE_WALLET
@@ -2218,6 +2221,14 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
     }
 
     // Step 12: finished
+
+#ifdef ENABLE_WALLET
+    // Mine proof-of-stake blocks in the background
+    if (!GetBoolArg("-staking", true))
+        LogPrintf("Staking disabled\n");
+    else if (pwallet)
+        threadGroup.create_thread(boost::bind(&ThreadStakeMiner, pwallet, config));
+#endif
 
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));

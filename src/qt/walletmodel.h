@@ -142,10 +142,12 @@ public:
     Amount getBalance(const CCoinControl *coinControl = nullptr) const;
     Amount getUnconfirmedBalance() const;
     Amount getImmatureBalance() const;
+    Amount getStake() const;
     bool haveWatchOnly() const;
     Amount getWatchBalance() const;
     Amount getWatchUnconfirmedBalance() const;
     Amount getWatchImmatureBalance() const;
+    Amount getWatchStake() const;
     EncryptionStatus getEncryptionStatus() const;
 
     // Check address for validity
@@ -247,9 +249,11 @@ private:
     Amount cachedBalance;
     Amount cachedUnconfirmedBalance;
     Amount cachedImmatureBalance;
+    Amount cachedStake;
     Amount cachedWatchOnlyBalance;
     Amount cachedWatchUnconfBalance;
     Amount cachedWatchImmatureBalance;
+    Amount cachedWatchOnlyStake;
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
 
@@ -263,9 +267,11 @@ Q_SIGNALS:
     // Signal that balance in wallet changed
     void balanceChanged(const Amount balance, const Amount unconfirmedBalance,
                         const Amount immatureBalance,
+                        const Amount stake,
                         const Amount watchOnlyBalance,
                         const Amount watchUnconfBalance,
-                        const Amount watchImmatureBalance);
+                        const Amount watchImmatureBalance,
+                        const Amount watchOnlyStake);
 
     // Encryption status of wallet changed
     void encryptionStatusChanged(int status);

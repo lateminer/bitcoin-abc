@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         // pointer for convenience.
         CBlock *pblock = &pblocktemplate->block;
         pblock->nVersion = 1;
-        pblock->nTime = chainActive.Tip()->GetMedianTimePast() + 1;
+        pblock->nTime = chainActive.Tip()->GetPastTimeLimit() + 1;
         CMutableTransaction txCoinbase(*pblock->vtx[0]);
         txCoinbase.nVersion = 1;
         txCoinbase.vin[0].scriptSig = CScript();
@@ -301,7 +301,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         pblock->nNonce = blockinfo[i].nonce;
         std::shared_ptr<const CBlock> shared_pblock =
             std::make_shared<const CBlock>(*pblock);
-        BOOST_CHECK(ProcessNewBlock(GetConfig(), shared_pblock, true, nullptr));
+        BOOST_CHECK(ProcessNewBlock(GetConfig(), shared_pblock, true, nullptr, pblock->GetHash()));
         pblock->hashPrevBlock = pblock->GetHash();
     }
 
@@ -521,8 +521,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
     }
 
     // non-final txs in mempool
-    SetMockTime(chainActive.Tip()->GetMedianTimePast() + 1);
-    int flags = LOCKTIME_VERIFY_SEQUENCE | LOCKTIME_MEDIAN_TIME_PAST;
+    SetMockTime(chainActive.Tip()->GetPastTimeLimit() + 1);
     // height map
     std::vector<int> prevheights;
 
@@ -551,22 +550,22 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         GlobalConfig config;
         CValidationState state;
         BOOST_CHECK(ContextualCheckTransactionForCurrentBlock(config, tx, state,
-                                                              flags));
+                                                              0));
     }
 
     // Sequence locks fail.
-    BOOST_CHECK(!TestSequenceLocks(tx, flags));
+    BOOST_CHECK(!TestSequenceLocks(tx, 0));
     // Sequence locks pass on 2nd block.
     BOOST_CHECK(
-        SequenceLocks(tx, flags, &prevheights,
+        SequenceLocks(tx, 0, &prevheights,
                       CreateBlockIndex(chainActive.Tip()->nHeight + 2)));
 
     // Relative time locked.
     tx.vin[0].prevout.hash = txFirst[1]->GetId();
     // txFirst[1] is the 3rd block.
     tx.vin[0].nSequence = CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG |
-                          (((chainActive.Tip()->GetMedianTimePast() + 1 -
-                             chainActive[1]->GetMedianTimePast()) >>
+                          (((chainActive.Tip()->GetPastTimeLimit() + 1 -
+                             chainActive[1]->GetPastTimeLimit()) >>
                             CTxIn::SEQUENCE_LOCKTIME_GRANULARITY) +
                            1);
     prevheights[0] = baseheight + 2;
@@ -578,22 +577,22 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         GlobalConfig config;
         CValidationState state;
         BOOST_CHECK(ContextualCheckTransactionForCurrentBlock(config, tx, state,
-                                                              flags));
+                                                              0));
     }
 
     // Sequence locks fail.
-    BOOST_CHECK(!TestSequenceLocks(tx, flags));
+    BOOST_CHECK(!TestSequenceLocks(tx, 0));
 
-    for (int i = 0; i < CBlockIndex::nMedianTimeSpan; i++) {
+    for (int i = 0; i < 11; i++) {
         // Trick the MedianTimePast.
         chainActive.Tip()->GetAncestor(chainActive.Tip()->nHeight - i)->nTime +=
             512;
     }
     // Sequence locks pass 512 seconds later.
     BOOST_CHECK(
-        SequenceLocks(tx, flags, &prevheights,
+        SequenceLocks(tx, 0, &prevheights,
                       CreateBlockIndex(chainActive.Tip()->nHeight + 1)));
-    for (int i = 0; i < CBlockIndex::nMedianTimeSpan; i++) {
+    for (int i = 0; i < 11; i++) {
         // Undo tricked MTP.
         chainActive.Tip()->GetAncestor(chainActive.Tip()->nHeight - i)->nTime -=
             512;
@@ -612,12 +611,12 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         GlobalConfig config;
         CValidationState state;
         BOOST_CHECK(!ContextualCheckTransactionForCurrentBlock(config, tx,
-                                                               state, flags));
+                                                               state, 0));
         BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-txns-nonfinal");
     }
 
     // Sequence locks pass.
-    BOOST_CHECK(TestSequenceLocks(tx, flags));
+    BOOST_CHECK(TestSequenceLocks(tx, 0));
 
     {
         // Locktime passes on 2nd block.
@@ -625,12 +624,12 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         CValidationState state;
         BOOST_CHECK(ContextualCheckTransaction(
             config, tx, state, chainActive.Tip()->nHeight + 2,
-            chainActive.Tip()->GetMedianTimePast()));
+            chainActive.Tip()->GetPastTimeLimit()));
     }
 
     // Absolute time locked.
     tx.vin[0].prevout.hash = txFirst[3]->GetId();
-    tx.nLockTime = chainActive.Tip()->GetMedianTimePast();
+    tx.nLockTime = chainActive.Tip()->GetPastTimeLimit();
     prevheights.resize(1);
     prevheights[0] = baseheight + 4;
     hash = tx.GetId();
@@ -641,12 +640,12 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         GlobalConfig config;
         CValidationState state;
         BOOST_CHECK(!ContextualCheckTransactionForCurrentBlock(config, tx,
-                                                               state, flags));
+                                                               state, 0));
         BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-txns-nonfinal");
     }
 
     // Sequence locks pass.
-    BOOST_CHECK(TestSequenceLocks(tx, flags));
+    BOOST_CHECK(TestSequenceLocks(tx, 0));
 
     {
         // Locktime passes 1 second later.
@@ -654,7 +653,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         CValidationState state;
         BOOST_CHECK(ContextualCheckTransaction(
             config, tx, state, chainActive.Tip()->nHeight + 1,
-            chainActive.Tip()->GetMedianTimePast() + 1));
+            chainActive.Tip()->GetPastTimeLimit() + 1));
     }
 
     // mempool-dependent transactions (not added)
@@ -668,20 +667,20 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
         GlobalConfig config;
         CValidationState state;
         BOOST_CHECK(ContextualCheckTransactionForCurrentBlock(config, tx, state,
-                                                              flags));
+                                                              0));
     }
 
     // Sequence locks pass.
-    BOOST_CHECK(TestSequenceLocks(tx, flags));
+    BOOST_CHECK(TestSequenceLocks(tx, 0));
     tx.vin[0].nSequence = 1;
     // Sequence locks fail.
-    BOOST_CHECK(!TestSequenceLocks(tx, flags));
+    BOOST_CHECK(!TestSequenceLocks(tx, 0));
     tx.vin[0].nSequence = CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG;
     // Sequence locks pass.
-    BOOST_CHECK(TestSequenceLocks(tx, flags));
+    BOOST_CHECK(TestSequenceLocks(tx, 0));
     tx.vin[0].nSequence = CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG | 1;
     // Sequence locks fail.
-    BOOST_CHECK(!TestSequenceLocks(tx, flags));
+    BOOST_CHECK(!TestSequenceLocks(tx, 0));
 
     BOOST_CHECK(
         pblocktemplate =
@@ -694,13 +693,13 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
     BOOST_CHECK_EQUAL(pblocktemplate->block.vtx.size(), 3UL);
     // However if we advance height by 1 and time by 512, all of them should be
     // mined.
-    for (int i = 0; i < CBlockIndex::nMedianTimeSpan; i++) {
+    for (int i = 0; i < 11; i++) {
         // Trick the MedianTimePast.
         chainActive.Tip()->GetAncestor(chainActive.Tip()->nHeight - i)->nTime +=
             512;
     }
     chainActive.Tip()->nHeight++;
-    SetMockTime(chainActive.Tip()->GetMedianTimePast() + 1);
+    SetMockTime(chainActive.Tip()->GetPastTimeLimit() + 1);
 
     BOOST_CHECK(
         pblocktemplate =

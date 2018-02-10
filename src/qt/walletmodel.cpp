@@ -34,6 +34,8 @@ WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet,
       addressTableModel(0), transactionTableModel(0),
       recentRequestsTableModel(0), cachedBalance(0),
       cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
+      cachedStake(0), cachedWatchOnlyBalance(0), cachedWatchUnconfBalance(0), 
+      cachedWatchImmatureBalance(0), cachedWatchOnlyStake(0),
       cachedEncryptionStatus(Unencrypted), cachedNumBlocks(0) {
     fHaveWatchOnly = wallet->HaveWatchOnly();
     fForceCheckBalanceChanged = false;
@@ -68,6 +70,14 @@ Amount WalletModel::getBalance(const CCoinControl *coinControl) const {
     }
 
     return wallet->GetBalance();
+}
+
+CAmount WalletModel::getStake() const {
+    return wallet->GetStake();
+}
+
+CAmount WalletModel::getWatchStake() const {
+    return wallet->GetWatchOnlyStake();
 }
 
 Amount WalletModel::getUnconfirmedBalance() const {
@@ -125,13 +135,16 @@ void WalletModel::checkBalanceChanged() {
     Amount newBalance(getBalance());
     Amount newUnconfirmedBalance(getUnconfirmedBalance());
     Amount newImmatureBalance(getImmatureBalance());
+    Amount newStake(getStake());
     Amount newWatchOnlyBalance(0);
     Amount newWatchUnconfBalance(0);
     Amount newWatchImmatureBalance(0);
+    Amount newWatchOnlyStake(0);
     if (haveWatchOnly()) {
         newWatchOnlyBalance = getWatchBalance();
         newWatchUnconfBalance = getWatchUnconfirmedBalance();
         newWatchImmatureBalance = getWatchImmatureBalance();
+        newWatchOnlyStake = getWatchStake();
     }
 
     if (cachedBalance != newBalance ||
@@ -139,16 +152,19 @@ void WalletModel::checkBalanceChanged() {
         cachedImmatureBalance != newImmatureBalance ||
         cachedWatchOnlyBalance != newWatchOnlyBalance ||
         cachedWatchUnconfBalance != newWatchUnconfBalance ||
-        cachedWatchImmatureBalance != newWatchImmatureBalance) {
+        cachedWatchImmatureBalance != newWatchImmatureBalance ||
+        cachedStake != newStake || cachedWatchOnlyStake != newWatchOnlyStake) {
         cachedBalance = newBalance;
         cachedUnconfirmedBalance = newUnconfirmedBalance;
         cachedImmatureBalance = newImmatureBalance;
+        cachedStake = newStake;
         cachedWatchOnlyBalance = newWatchOnlyBalance;
         cachedWatchUnconfBalance = newWatchUnconfBalance;
         cachedWatchImmatureBalance = newWatchImmatureBalance;
+        cachedWatchOnlyStake = newWatchOnlyStake;
         Q_EMIT balanceChanged(newBalance, newUnconfirmedBalance,
-                              newImmatureBalance, newWatchOnlyBalance,
-                              newWatchUnconfBalance, newWatchImmatureBalance);
+                              newImmatureBalance, newStake, newWatchOnlyBalance,
+                              newWatchUnconfBalance, newWatchImmatureBalance, newWatchOnlyStake);
     }
 }
 
@@ -499,6 +515,10 @@ void WalletModel::unsubscribeFromCoreSignals() {
 // WalletModel::UnlockContext implementation
 WalletModel::UnlockContext WalletModel::requestUnlock() {
     bool was_locked = getEncryptionStatus() == Locked;
+    if ((!was_locked) && fWalletUnlockStakingOnly) {
+        setWalletLocked(true);
+        was_locked = getEncryptionStatus() == Locked;
+    }
     if (was_locked) {
         // Request UI to unlock wallet
         Q_EMIT requireUnlock();
@@ -507,7 +527,7 @@ WalletModel::UnlockContext WalletModel::requestUnlock() {
     // as invalid
     bool valid = getEncryptionStatus() != Locked;
 
-    return UnlockContext(this, valid, was_locked);
+    return UnlockContext(this, valid, was_locked && !fWalletUnlockStakingOnly);
 }
 
 WalletModel::UnlockContext::UnlockContext(WalletModel *_wallet, bool _valid,

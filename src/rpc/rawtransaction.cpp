@@ -22,6 +22,7 @@
 #include "script/script_error.h"
 #include "script/sign.h"
 #include "script/standard.h"
+#include "timedata.h"
 #include "txmempool.h"
 #include "uint256.h"
 #include "utilstrencodings.h"
@@ -499,6 +500,8 @@ static UniValue createrawtransaction(const Config &config,
         rawTx.nLockTime = nLockTime;
     }
 
+    rawTx.nTime = GetAdjustedTime();
+
     for (size_t idx = 0; idx < inputs.size(); idx++) {
         const UniValue &input = inputs[idx];
         const UniValue &o = input.get_obj();
@@ -714,6 +717,21 @@ static void TxInErrorToJSON(const CTxIn &txin, UniValue &vErrorsRet,
     entry.push_back(Pair("sequence", (uint64_t)txin.nSequence));
     entry.push_back(Pair("error", strMessage));
     vErrorsRet.push_back(entry);
+}
+
+UniValue getnormalizedtxid(const Config &config,
+                                   const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "getnormalizedtxid <hex string>\n"
+            "Return the normalized transaction ID.");
+    // parse hex string from parameter
+    CTransaction tx;
+    if (!DecodeHexTx(tx, params[0].get_str()))
+        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+
+    uint256 hashNormalized = CMutableTransaction(tx).GetNormalizedHash();
+    return hashNormalized.GetHex();
 }
 
 static UniValue signrawtransaction(const Config &config,
@@ -1182,6 +1200,7 @@ static const CRPCCommand commands[] = {
     { "rawtransactions",    "decodescript",           decodescript,           true,  {"hexstring"} },
     { "rawtransactions",    "sendrawtransaction",     sendrawtransaction,     false, {"hexstring","allowhighfees"} },
     { "rawtransactions",    "signrawtransaction",     signrawtransaction,     false, {"hexstring","prevtxs","privkeys","sighashtype"} }, /* uses wallet if enabled */
+    { "rawtransactions",    "getnormalizedtxid",      getnormalizedtxid,      true,  {"hexstring"} },
 
     { "blockchain",         "gettxoutproof",          gettxoutproof,          true,  {"txids", "blockhash"} },
     { "blockchain",         "verifytxoutproof",       verifytxoutproof,       true,  {"proof"} },

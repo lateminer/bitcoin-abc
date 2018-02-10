@@ -17,13 +17,19 @@
 #include "net.h"
 #include "policy/policy.h"
 #include "pow.h"
+#include "pos.h"
 #include "rpc/blockchain.h"
 #include "rpc/server.h"
 #include "txmempool.h"
+#include "timedata.h"
 #include "util.h"
 #include "utilstrencodings.h"
 #include "validation.h"
 #include "validationinterface.h"
+
+#ifdef ENABLE_WALLET
+#include "wallet/wallet.h"
+#endif
 
 #include <univalue.h>
 
@@ -131,7 +137,7 @@ static UniValue generateBlocks(const Config &config,
     while (nHeight < nHeightEnd) {
         std::unique_ptr<CBlockTemplate> pblocktemplate(
             BlockAssembler(config, Params())
-                .CreateNewBlock(coinbaseScript->reserveScript));
+                .CreateNewBlock(coinbaseScript->reserveScript, 0, false));
 
         if (!pblocktemplate.get()) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
@@ -145,7 +151,7 @@ static UniValue generateBlocks(const Config &config,
         }
 
         while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount &&
-               !CheckProofOfWork(pblock->GetHash(), pblock->nBits, config)) {
+               !CheckProofOfWork(pblock->GetPoWHash(), pblock->nBits, config)) {
             ++pblock->nNonce;
             --nMaxTries;
         }
@@ -160,12 +166,13 @@ static UniValue generateBlocks(const Config &config,
 
         std::shared_ptr<const CBlock> shared_pblock =
             std::make_shared<const CBlock>(*pblock);
-        if (!ProcessNewBlock(config, shared_pblock, true, nullptr)) {
+        uint256 hash = pblock->GetHash();
+        if (!ProcessNewBlock(config, shared_pblock, true, nullptr, hash)) {
             throw JSONRPCError(RPC_INTERNAL_ERROR,
                                "ProcessNewBlock, block not accepted");
         }
         ++nHeight;
-        blockHashes.push_back(pblock->GetHash().GetHex());
+        blockHashes.push_back(hash.GetHex());
 
         // Mark script as important because it was used at least for one
         // coinbase output if the script came from the wallet.
@@ -302,6 +309,42 @@ static UniValue getmininginfo(const Config &config,
     obj.push_back(Pair("networkhashps", getnetworkhashps(config, request)));
     obj.push_back(Pair("pooledtx", uint64_t(mempool.size())));
     obj.push_back(Pair("chain", Params().NetworkIDString()));
+    return obj;
+}
+
+static UniValue getstakinginfo(const Config &config,
+                              const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+            "getstakinginfo\n"
+            "Returns an object containing staking-related information.");
+
+    uint64_t nWeight = 0;
+    if (pwalletMain)
+        nWeight = pwalletMain->GetStakeWeight();
+
+    uint64_t nNetworkWeight = GetPoSKernelPS();
+    bool staking = nLastCoinStakeSearchInterval && nWeight;
+    uint64_t nExpectedTime = staking ? 1.0455 * 64 * nNetworkWeight / nWeight : 0;
+
+    UniValue obj(UniValue::VOBJ);
+
+    obj.push_back(Pair("enabled", GetBoolArg("-staking", true)));
+    obj.push_back(Pair("staking", staking));
+    obj.push_back(Pair("errors", GetWarnings("statusbar")));
+
+    obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
+    obj.push_back(Pair("currentblocktx", (uint64_t)nLastBlockTx));
+    obj.push_back(Pair("pooledtx", (uint64_t)mempool.size()));
+
+    obj.push_back(Pair("difficulty", GetDifficulty(GetLastBlockIndex(chainActive.Tip(), true))));
+    obj.push_back(Pair("search-interval", (int)nLastCoinStakeSearchInterval));
+
+    obj.push_back(Pair("weight", (uint64_t)nWeight));
+    obj.push_back(Pair("netstakeweight", (uint64_t)nNetworkWeight));
+
+    obj.push_back(Pair("expectedtime", nExpectedTime));
+
     return obj;
 }
 
@@ -559,7 +602,7 @@ static UniValue getblocktemplate(const Config &config,
                 return "inconclusive-not-best-prevblk";
             }
             CValidationState state;
-            TestBlockValidity(config, state, block, pindexPrev, false, true);
+            TestBlockValidity(config, state, block, pindexPrev, false, true, true);
             return BIP22ValidationResult(config, state);
         }
 
@@ -598,6 +641,9 @@ static UniValue getblocktemplate(const Config &config,
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD,
                            "Bitcoin is downloading blocks...");
     }
+
+    if (chainActive.Tip()->nHeight > Params().GetConsensus().nLastPOWBlock)
+        throw JSONRPCError(RPC_MISC_ERROR, "No more PoW blocks");
 
     static unsigned int nTransactionsUpdatedLast;
 
@@ -668,7 +714,7 @@ static UniValue getblocktemplate(const Config &config,
         // Create new block
         CScript scriptDummy = CScript() << OP_TRUE;
         pblocktemplate =
-            BlockAssembler(config, Params()).CreateNewBlock(scriptDummy);
+            BlockAssembler(config, Params()).CreateNewBlock(scriptDummy, 0, false);
         if (!pblocktemplate) {
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
         }
@@ -818,7 +864,7 @@ static UniValue getblocktemplate(const Config &config,
                               i64tostr(nTransactionsUpdatedLast)));
     result.push_back(Pair("target", hashTarget.GetHex()));
     result.push_back(
-        Pair("mintime", (int64_t)pindexPrev->GetMedianTimePast() + 1));
+        Pair("mintime", (int64_t)pindexPrev->GetPastTimeLimit() + 1));
     result.push_back(Pair("mutable", aMutable));
     result.push_back(Pair("noncerange", "00000000ffffffff"));
     // FIXME: Allow for mining block greater than 1M.
@@ -908,9 +954,9 @@ static UniValue submitblock(const Config &config,
         }
     }
 
-    submitblock_StateCatcher sc(block.GetHash());
+    submitblock_StateCatcher sc(hash);
     RegisterValidationInterface(&sc);
-    bool fAccepted = ProcessNewBlock(config, blockptr, true, nullptr);
+    bool fAccepted = ProcessNewBlock(config, blockptr, true, nullptr, hash);
     UnregisterValidationInterface(&sc);
     if (fBlockPresent) {
         if (fAccepted && !sc.found) {
@@ -924,6 +970,100 @@ static UniValue submitblock(const Config &config,
     }
 
     return BIP22ValidationResult(config, sc.state);
+}
+
+static UniValue checkkernel(const Config &config,
+                            const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
+            throw std::runtime_error(
+                "checkkernel [{\"txid\":txid,\"vout\":n},...] [createblocktemplate=false]\n"
+                "Check if one of given inputs is a kernel input at the moment.\n"
+            );
+
+        RPCTypeCheck(params, boost::assign::list_of(UniValue::VARR)(UniValue::VBOOL));
+
+        UniValue inputs = params[0].get_array();
+        bool fCreateBlockTemplate = params.size() > 1 ? params[1].get_bool() : false;
+
+        if (vNodes.empty())
+            throw JSONRPCError(-9, "BlackCoin is not connected!");
+
+        if (IsInitialBlockDownload())
+            throw JSONRPCError(-10, "BlackCoin is downloading blocks...");
+
+        COutPoint kernel;
+        CBlockIndex* pindexPrev = chainActive.Tip();
+        CBlockHeader blockHeader = pindexPrev->GetBlockHeader();
+        unsigned int nBits = GetNextTargetRequired(pindexPrev, &blockHeader, true, Params().GetConsensus());
+        int64_t nTime = GetAdjustedTime();
+        nTime &= ~Params().GetConsensus().nStakeTimestampMask;
+
+        for (unsigned int idx = 0; idx < inputs.size(); idx++) {
+            const UniValue& input = inputs[idx];
+            const UniValue& o = input.get_obj();
+
+            const UniValue& txid_v = find_value(o, "txid");
+            if (!txid_v.isStr())
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing txid key");
+            string txid = txid_v.get_str();
+            if (!IsHex(txid))
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, expected hex txid");
+
+            const UniValue& vout_v = find_value(o, "vout");
+            if (!vout_v.isNum())
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, missing vout key");
+            int nOutput = vout_v.get_int();
+            if (nOutput < 0)
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, vout must be positive");
+
+            COutPoint cInput(uint256S(txid), nOutput);
+            if (CheckKernel(pindexPrev, nBits, nTime, cInput))
+            {
+                kernel = cInput;
+                break;
+            }
+        }
+
+        UniValue result(UniValue::VOBJ);
+        result.push_back(Pair("found", !kernel.IsNull()));
+
+        if (kernel.IsNull())
+            return result;
+
+        UniValue oKernel(UniValue::VOBJ);
+        oKernel.push_back(Pair("txid", kernel.hash.GetHex()));
+        oKernel.push_back(Pair("vout", (int64_t)kernel.n));
+        oKernel.push_back(Pair("time", nTime));
+        result.push_back(Pair("kernel", oKernel));
+
+        if (!fCreateBlockTemplate)
+            return result;
+
+        int64_t nFees;
+        if (!pwalletMain->IsLocked())
+            pwalletMain->TopUpKeyPool();
+
+        CReserveKey pMiningKey(pwalletMain);
+        std::unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), pMiningKey.reserveScript, &nFees, true));
+        if (!pblocktemplate.get())
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
+
+        CBlock *pblock = &pblocktemplate->block;
+        pblock->nTime = pblock->vtx[0].nTime = nTime;
+
+        CDataStream ss(SER_DISK, PROTOCOL_VERSION);
+        ss << *pblock;
+
+        result.push_back(Pair("blocktemplate", HexStr(ss.begin(), ss.end())));
+        result.push_back(Pair("blocktemplatefees", nFees));
+
+        CPubKey pubkey;
+        if (!pMiningKey.GetReservedKey(pubkey))
+            throw JSONRPCError(RPC_MISC_ERROR, "GetReservedKey failed");
+
+        result.push_back(Pair("blocktemplatesignkey", HexStr(pubkey)));
+
+        return result;
 }
 
 static UniValue estimatefee(const Config &config,
@@ -1091,7 +1231,9 @@ static const CRPCCommand commands[] = {
     {"mining",     "prioritisetransaction", prioritisetransaction, true, {"txid", "priority_delta", "fee_delta"}},
     {"mining",     "getblocktemplate",      getblocktemplate,      true, {"template_request"}},
     {"mining",     "submitblock",           submitblock,           true, {"hexdata", "parameters"}},
-
+    {"mining",     "checkkernel",           checkkernel,           true, {}},
+    {"mining",     "getstakinginfo",        getstakinginfo,        true, {}},
+    
     {"generating", "generate",              generate,              true, {"nblocks", "maxtries"}},
     {"generating", "generatetoaddress",     generatetoaddress,     true, {"nblocks", "address", "maxtries"}},
 

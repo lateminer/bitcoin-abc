@@ -301,7 +301,7 @@ bool CCoinsViewCache::HaveInputs(const CTransaction &tx) const {
 double CCoinsViewCache::GetPriority(const CTransaction &tx, int nHeight,
                                     Amount &inChainInputValue) const {
     inChainInputValue = Amount(0);
-    if (tx.IsCoinBase()) {
+    if (tx.IsCoinBase() || tx.IsCoinStake()) {
         return 0.0;
     }
     double dResult = 0.0;

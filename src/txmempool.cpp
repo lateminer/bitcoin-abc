@@ -563,7 +563,7 @@ void CTxMemPool::removeRecursive(const CTransaction &origTx,
 void CTxMemPool::removeForReorg(const Config &config,
                                 const CCoinsViewCache *pcoins,
                                 unsigned int nMemPoolHeight, int flags) {
-    // Remove transactions spending a coinbase which are now immature and
+    // Remove transactions spending a coinbase or coinstake which are now immature and
     // no-longer-final transactions.
     LOCK(cs);
     setEntries txToRemove;
@@ -595,9 +595,9 @@ void CTxMemPool::removeForReorg(const Config &config,
                 }
 
                 if (coin.IsSpent() ||
-                    (coin.IsCoinBase() &&
+                    (coin.IsCoinBase() || coin.IsCoinStake() &&
                      int64_t(nMemPoolHeight) - coin.GetHeight() <
-                         COINBASE_MATURITY)) {
+                         chainparams.GetConsensus().nCoinbaseMaturity)) {
                     txToRemove.insert(it);
                     break;
                 }

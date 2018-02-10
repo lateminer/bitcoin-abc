@@ -254,13 +254,17 @@ bool CBlockTreeDB::LoadBlockIndexGuts(
         pindexNew->nBits = diskindex.nBits;
         pindexNew->nNonce = diskindex.nNonce;
         pindexNew->nStatus = diskindex.nStatus;
+        pindexNew->nStakeModifier = diskindex.nStakeModifier;
         pindexNew->nTx = diskindex.nTx;
 
-        if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits,
-                              config)) {
-            return error("LoadBlockIndex(): CheckProofOfWork failed: %s",
-                         pindexNew->ToString());
-        }
+        // Litecoin: Disable PoW Sanity check while loading block index from disk.
+                        // We use the sha256 hash for the block index for performance reasons, which is recorded for later use.
+                        // CheckProofOfWork() uses the scrypt hash which is discarded after a block is accepted.
+                        // While it is technically feasible to verify the PoW, doing so takes several minutes as it
+                        // requires recomputing every PoW hash during every Litecoin startup.
+                        // We opt instead to simply trust the data that is on your local disk.
+                        //if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, Params().GetConsensus()))
+        //    return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
 
         pcursor->Next();
     }
@@ -274,6 +278,9 @@ class CCoins {
 public:
     //! whether transaction is a coinbase
     bool fCoinBase;
+    
+    //! whether transaction is a coinstake
+    bool fCoinStake;
 
     //! unspent transaction outputs; spent outputs are .IsNull(); spent outputs
     //! at the end of the array are dropped
@@ -282,8 +289,11 @@ public:
     //! at which height this transaction was included in the active block chain
     int nHeight;
 
+    //! time of the CTransaction
+    uint32_t nTime;
+
     //! empty constructor
-    CCoins() : fCoinBase(false), vout(0), nHeight(0) {}
+    CCoins() : fCoinBase(false), fCoinStake(false), vout(0), nHeight(0), nVersion(0), nTime(0) {}
 
     template <typename Stream> void Unserialize(Stream &s) {
         uint32_t nCode = 0;
@@ -293,10 +303,11 @@ public:
         // header code
         ::Unserialize(s, VARINT(nCode));
         fCoinBase = nCode & 1;
+        fCoinStake = nCode & 8;
         std::vector<bool> vAvail(2, false);
         vAvail[0] = (nCode & 2) != 0;
         vAvail[1] = (nCode & 4) != 0;
-        uint32_t nMaskCode = (nCode / 8) + ((nCode & 6) != 0 ? 0 : 1);
+        uint32_t nMaskCode = (nCode / 16) + ((nCode & 6) != 0 ? 0 : 1);
         // spentness bitmask
         while (nMaskCode > 0) {
             uint8_t chAvail = 0;
@@ -318,6 +329,8 @@ public:
         }
         // coinbase height
         ::Unserialize(s, VARINT(nHeight));
+        // time
+        ::Unserialize(s, nTime);
     }
 };
 } // namespace

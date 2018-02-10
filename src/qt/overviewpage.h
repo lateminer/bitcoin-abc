@@ -39,9 +39,8 @@ public:
 
 public Q_SLOTS:
     void setBalance(const Amount balance, const Amount unconfirmedBalance,
-                    const Amount immatureBalance, const Amount watchOnlyBalance,
-                    const Amount watchUnconfBalance,
-                    const Amount watchImmatureBalance);
+                    const Amount immatureBalance, const Amount stake, const Amount watchOnlyBalance,
+                    const Amount watchUnconfBalance, const Amount watchImmatureBalance, const Amount watchOnlyStake);
 
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
@@ -54,9 +53,11 @@ private:
     Amount currentBalance;
     Amount currentUnconfirmedBalance;
     Amount currentImmatureBalance;
+    Amount currentStake;
     Amount currentWatchOnlyBalance;
     Amount currentWatchUnconfBalance;
     Amount currentWatchImmatureBalance;
+    Amount currentWatchOnlyStake;
 
     TxViewDelegate *txdelegate;
     std::unique_ptr<TransactionFilterProxy> filter;

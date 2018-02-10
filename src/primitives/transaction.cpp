@@ -6,6 +6,7 @@
 #include "primitives/transaction.h"
 
 #include "hash.h"
+#include "script/interpreter.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
@@ -48,6 +49,7 @@ CTxOut::CTxOut(const Amount &nValueIn, CScript scriptPubKeyIn) {
 }
 
 std::string CTxOut::ToString() const {
+    if (IsEmpty()) return "CTxOut(empty)";
     return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)",
                      nValue.GetSatoshis() / COIN.GetSatoshis(),
                      nValue.GetSatoshis() % COIN.GetSatoshis(),
@@ -55,9 +57,9 @@ std::string CTxOut::ToString() const {
 }
 
 CMutableTransaction::CMutableTransaction()
-    : nVersion(CTransaction::CURRENT_VERSION), nLockTime(0) {}
+    : nVersion(CTransaction::CURRENT_VERSION), nTime(0), nLockTime(0) {}
 CMutableTransaction::CMutableTransaction(const CTransaction &tx)
-    : nVersion(tx.nVersion), vin(tx.vin), vout(tx.vout),
+    : nVersion(tx.nVersion), nTime(tx.nTime), vin(tx.vin), vout(tx.vout),
       nLockTime(tx.nLockTime) {}
 
 static uint256 ComputeCMutableTransactionHash(const CMutableTransaction &tx) {
@@ -72,6 +74,10 @@ TxHash CMutableTransaction::GetHash() const {
     return TxHash(ComputeCMutableTransactionHash(*this));
 }
 
+uint256 CMutableTransaction::GetNormalizedHash() const {
+    return SignatureHash(CScript(), *this, 0, SIGHASH_ALL);
+}
+
 uint256 CTransaction::ComputeHash() const {
     return SerializeHash(*this, SER_GETHASH, 0);
 }
@@ -81,13 +87,15 @@ uint256 CTransaction::ComputeHash() const {
  * TODO: remove the need for this default constructor entirely.
  */
 CTransaction::CTransaction()
-    : nVersion(CTransaction::CURRENT_VERSION), vin(), vout(), nLockTime(0),
+    : nVersion(CTransaction::CURRENT_VERSION), nTime(0), vin(), vout(), nLockTime(0),
       hash() {}
 CTransaction::CTransaction(const CMutableTransaction &tx)
-    : nVersion(tx.nVersion), vin(tx.vin), vout(tx.vout),
+    : nVersion(tx.nVersion), nTime(tx.nTime),
+      vin(tx.vin), vout(tx.vout),
       nLockTime(tx.nLockTime), hash(ComputeHash()) {}
 CTransaction::CTransaction(CMutableTransaction &&tx)
-    : nVersion(tx.nVersion), vin(std::move(tx.vin)), vout(std::move(tx.vout)),
+    : nVersion(tx.nVersion), nTime(tx.nTime),
+      vin(std::move(tx.vin)), vout(std::move(tx.vout)),
       nLockTime(tx.nLockTime), hash(ComputeHash()) {}
 
 Amount CTransaction::GetValueOut() const {
@@ -133,9 +141,9 @@ unsigned int CTransaction::GetTotalSize() const {
 
 std::string CTransaction::ToString() const {
     std::string str;
-    str += strprintf("CTransaction(txid=%s, ver=%d, vin.size=%u, vout.size=%u, "
+    str += strprintf("CTransaction(txid=%s, ver=%d, nTime=%d, vin.size=%u, vout.size=%u, "
                      "nLockTime=%u)\n",
-                     GetId().ToString().substr(0, 10), nVersion, vin.size(),
+                     GetId().ToString().substr(0, 10), nTime, nVersion, vin.size(),
                      vout.size(), nLockTime);
     for (unsigned int i = 0; i < vin.size(); i++)
         str += "    " + vin[i].ToString() + "\n";

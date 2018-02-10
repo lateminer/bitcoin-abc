@@ -41,7 +41,7 @@ void CDBEnv::EnvShutdown() {
     }
 
     if (!fMockDb) {
-        DbEnv(uint32_t(0)).remove(strPath.c_str(), 0);
+        DbEnv((u_int32_t)0).remove(strPath.c_str(), 0);
     }
 }
 

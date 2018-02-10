@@ -21,10 +21,13 @@
 #include "platformstyle.h"
 #include "rpcconsole.h"
 #include "utilitydialog.h"
+#include "validation.h"
+#include "rpc/server.h"
 
 #ifdef ENABLE_WALLET
 #include "walletframe.h"
 #include "walletmodel.h"
+#include "wallet/wallet.h"
 #endif // ENABLE_WALLET
 
 #ifdef Q_OS_MAC
@@ -80,6 +83,9 @@ const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
  */
 const QString BitcoinGUI::DEFAULT_WALLET = "~Default";
 
+extern int64_t nLastCoinStakeSearchInterval;
+double GetPoSKernelPS();
+
 BitcoinGUI::BitcoinGUI(const Config *cfg, const PlatformStyle *_platformStyle,
                        const NetworkStyle *networkStyle, QWidget *parent)
     : QMainWindow(parent), enableWallet(false), clientModel(0), walletFrame(0),
@@ -92,6 +98,7 @@ BitcoinGUI::BitcoinGUI(const Config *cfg, const PlatformStyle *_platformStyle,
       verifyMessageAction(0), aboutAction(0), receiveCoinsAction(0),
       receiveCoinsMenuAction(0), optionsAction(0), toggleHideAction(0),
       encryptWalletAction(0), backupWalletAction(0), changePassphraseAction(0),
+      unlockWalletAction(0), lockWalletAction(0),
       aboutQtAction(0), openRPCConsoleAction(0), openAction(0),
       showHelpMessageAction(0), trayIcon(0), trayIconMenu(0), notificator(0),
       rpcConsole(0), helpMessageDialog(0), modalOverlay(0), prevBlocks(0),
@@ -173,6 +180,7 @@ BitcoinGUI::BitcoinGUI(const Config *cfg, const PlatformStyle *_platformStyle,
     labelWalletHDStatusIcon = new QLabel();
     connectionsControl = new GUIUtil::ClickableLabel();
     labelBlocksIcon = new GUIUtil::ClickableLabel();
+    labelStakingIcon = new QLabel();
     if (enableWallet) {
         frameBlocksLayout->addStretch();
         frameBlocksLayout->addWidget(unitDisplayControl);
@@ -181,10 +189,20 @@ BitcoinGUI::BitcoinGUI(const Config *cfg, const PlatformStyle *_platformStyle,
         frameBlocksLayout->addWidget(labelWalletHDStatusIcon);
     }
     frameBlocksLayout->addStretch();
+    frameBlocksLayout->addWidget(labelStakingIcon);
+    frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(connectionsControl);
     frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(labelBlocksIcon);
     frameBlocksLayout->addStretch();
+
+    if (GetBoolArg("-staking", true))
+    {
+        QTimer *timerStakingIcon = new QTimer(labelStakingIcon);
+        connect(timerStakingIcon, SIGNAL(timeout()), this, SLOT(updateStakingIcon()));
+        QTimer::singleShot(1000, this, SLOT(updateStakingIcon()));
+        timerStakingIcon->start(30 * 1000);
+    }
 
     // Progress bar and label for blocks download
     progressBarLabel = new QLabel();
@@ -377,6 +395,10 @@ void BitcoinGUI::createActions() {
                     tr("&Change Passphrase..."), this);
     changePassphraseAction->setStatusTip(
         tr("Change the passphrase used for wallet encryption"));
+    unlockWalletAction = new QAction(platformStyle->TextColorIcon(":/icons/lock_open"), tr("&Unlock Wallet..."), this);
+    unlockWalletAction->setStatusTip(tr("Unlock wallet with passphrase used for wallet encryption"));
+    lockWalletAction = new QAction(platformStyle->TextColorIcon(":/icons/lock_closed"),  tr("&Lock Wallet"), this);
+    lockWalletAction->setToolTip(tr("Lock wallet"));
     signMessageAction =
         new QAction(platformStyle->TextColorIcon(":/icons/edit"),
                     tr("Sign &message..."), this);
@@ -443,6 +465,8 @@ void BitcoinGUI::createActions() {
                 SLOT(backupWallet()));
         connect(changePassphraseAction, SIGNAL(triggered()), walletFrame,
                 SLOT(changePassphrase()));
+        connect(unlockWalletAction, SIGNAL(triggered()), walletFrame, SLOT(unlockWallet()));
+        connect(lockWalletAction, SIGNAL(triggered()), walletFrame, SLOT(lockWallet()));
         connect(signMessageAction, SIGNAL(triggered()), this,
                 SLOT(gotoSignMessageTab()));
         connect(verifyMessageAction, SIGNAL(triggered()), this,
@@ -489,6 +513,8 @@ void BitcoinGUI::createMenuBar() {
     if (walletFrame) {
         settings->addAction(encryptWalletAction);
         settings->addAction(changePassphraseAction);
+        settings->addAction(unlockWalletAction);
+        settings->addAction(lockWalletAction);
         settings->addSeparator();
     }
     settings->addAction(optionsAction);
@@ -615,6 +641,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled) {
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
+    unlockWalletAction->setEnabled(enabled);
     signMessageAction->setEnabled(enabled);
     verifyMessageAction->setEnabled(enabled);
     usedSendingAddressesAction->setEnabled(enabled);
@@ -1100,6 +1127,8 @@ void BitcoinGUI::setEncryptionStatus(int status) {
             encryptWalletAction->setChecked(false);
             changePassphraseAction->setEnabled(false);
             encryptWalletAction->setEnabled(true);
+            unlockWalletAction->setVisible(false);
+            lockWalletAction->setVisible(false);
             break;
         case WalletModel::Unlocked:
             labelWalletEncryptionIcon->show();
@@ -1112,6 +1141,8 @@ void BitcoinGUI::setEncryptionStatus(int status) {
             changePassphraseAction->setEnabled(true);
             encryptWalletAction->setEnabled(
                 false); // TODO: decrypt currently not supported
+            unlockWalletAction->setVisible(true);
+            lockWalletAction->setVisible(false);
             break;
         case WalletModel::Locked:
             labelWalletEncryptionIcon->show();
@@ -1148,6 +1179,74 @@ void BitcoinGUI::showNormalIfMinimized(bool fToggleHidden) {
 
 void BitcoinGUI::toggleHidden() {
     showNormalIfMinimized(true);
+}
+
+void BitcoinGUI::updateWeight()
+{
+    if(!pwalletMain)
+        return;
+
+    TRY_LOCK(cs_main, lockMain);
+    if (!lockMain)
+        return;
+
+    TRY_LOCK(pwalletMain->cs_wallet, lockWallet);
+    if (!lockWallet)
+        return;
+
+#ifdef ENABLE_WALLET
+    if (pwalletMain)
+    nWeight = pwalletMain->GetStakeWeight();
+#endif
+}
+
+void BitcoinGUI::updateStakingIcon()
+{
+    updateWeight();
+
+    if (nLastCoinStakeSearchInterval && nWeight)
+    {
+        uint64_t nWeight = this->nWeight;
+        uint64_t nNetworkWeight = 1.1429 * GetPoSKernelPS();
+        unsigned nEstimateTime = 1.0455 * 64 * nNetworkWeight / nWeight;
+
+        QString text;
+        if (nEstimateTime < 60)
+        {
+            text = tr("%n second(s)", "", nEstimateTime);
+        }
+        else if (nEstimateTime < 60*60)
+        {
+            text = tr("%n minute(s)", "", nEstimateTime/60);
+        }
+        else if (nEstimateTime < 24*60*60)
+        {
+            text = tr("%n hour(s)", "", nEstimateTime/(60*60));
+        }
+        else
+        {
+            text = tr("%n day(s)", "", nEstimateTime/(60*60*24));
+        }
+
+        nWeight /= COIN;
+        nNetworkWeight /= COIN;
+        labelStakingIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/staking_on").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelStakingIcon->setToolTip(tr("Staking.<br>Your weight is %1<br>Network weight is %2<br>Expected time to earn reward is %3").arg(nWeight).arg(nNetworkWeight).arg(text));
+    }
+    else
+    {
+        labelStakingIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/staking_off").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        if (vNodes.empty())
+            labelStakingIcon->setToolTip(tr("Not staking because wallet is offline"));
+        else if (IsInitialBlockDownload())
+            labelStakingIcon->setToolTip(tr("Not staking because wallet is syncing"));
+        else if (!nWeight)
+            labelStakingIcon->setToolTip(tr("Not staking because you don't have mature coins"));
+        else if (pwalletMain && pwalletMain->IsLocked())
+            labelStakingIcon->setToolTip(tr("Not staking because wallet is locked"));
+        else
+            labelStakingIcon->setToolTip(tr("Not staking"));
+    }
 }
 
 void BitcoinGUI::detectShutdown() {

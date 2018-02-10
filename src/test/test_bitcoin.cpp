@@ -119,7 +119,7 @@ TestChain100Setup::TestChain100Setup()
     coinbaseKey.MakeNewKey(true);
     CScript scriptPubKey = CScript() << ToByteVector(coinbaseKey.GetPubKey())
                                      << OP_CHECKSIG;
-    for (int i = 0; i < COINBASE_MATURITY; i++) {
+    for (int i = 0; i < Params().GetConsensus().nCoinbaseMaturity; i++) {
         std::vector<CMutableTransaction> noTxns;
         CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
         coinbaseTxns.push_back(*b.vtx[0]);
@@ -153,7 +153,7 @@ CBlock TestChain100Setup::CreateAndProcessBlock(
 
     std::shared_ptr<const CBlock> shared_pblock =
         std::make_shared<const CBlock>(block);
-    ProcessNewBlock(GetConfig(), shared_pblock, true, nullptr);
+    ProcessNewBlock(GetConfig(), shared_pblock, true, nullptr, block.GetHash());
 
     CBlock result = block;
     return result;

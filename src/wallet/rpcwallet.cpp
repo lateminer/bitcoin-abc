@@ -25,6 +25,18 @@
 
 #include <cstdint>
 
+static void accountingDeprecationCheck()
+{
+    if (!GetBoolArg("-enableaccounts", false))
+        throw std::runtime_error(
+            "Accounting API is deprecated and will be removed in future.\n"
+            "It can easily result in negative or odd balances if misused or misunderstood, which has happened in the field.\n"
+            "If you still want to enable it, add to your config file iknowaccountsarebroken=1\n");
+
+    if (GetBoolArg("-staking", true))
+        throw std::runtime_error("If you want to use accounting API, staking must be disabled, add to your config file staking=0\n");
+}
+
 CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest &request) {
     // TODO: Some way to access secondary wallets
     return vpwallets.empty() ? nullptr : vpwallets[0];
@@ -49,12 +61,16 @@ bool EnsureWalletIsAvailable(CWallet *const pwallet, bool avoidException) {
     throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
 }
 
+// optional setting to unlock wallet for staking only
+// serves to disable the trivial sendmoney when OS account compromised
+// provides no real security
+bool fWalletUnlockStakingOnly = false;
+
 void EnsureWalletIsUnlocked(CWallet *const pwallet) {
-    if (pwallet->IsLocked()) {
-        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the "
-                                                     "wallet passphrase with "
-                                                     "walletpassphrase first.");
-    }
+    if (pwallet->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+    if (fWalletUnlockStakingOnly)
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet is unlocked for staking only.");
 }
 
 void WalletTxToJSON(const CWalletTx &wtx, UniValue &entry) {
@@ -767,6 +783,8 @@ static UniValue getreceivedbyaccount(const Config &config,
             HelpExampleRpc("getreceivedbyaccount", "\"tabby\", 6"));
     }
 
+    accountingDeprecationCheck();
+
     LOCK2(cs_main, pwallet->cs_wallet);
 
     // Minimum confirmations
@@ -915,6 +933,8 @@ static UniValue getbalance(const Config &config,
         return ValueFromAmount(nBalance);
     }
 
+    accountingDeprecationCheck();
+
     std::string strAccount = AccountFromValue(request.params[0]);
 
     Amount nBalance = pwallet->GetAccountBalance(strAccount, nMinDepth, filter);
@@ -981,6 +1001,8 @@ static UniValue movecmd(const Config &config, const JSONRPCRequest &request) {
                 "move",
                 "\"timotei\", \"akiko\", 0.01, 6, \"happy birthday!\""));
     }
+
+    accountingDeprecationCheck();
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
@@ -1591,6 +1613,8 @@ static UniValue listreceivedbyaccount(const Config &config,
             HelpExampleRpc("listreceivedbyaccount", "6, true, true"));
     }
 
+    accountingDeprecationCheck();
+
     LOCK2(cs_main, pwallet->cs_wallet);
 
     return ListReceived(config, pwallet, request.params, true);
@@ -1921,6 +1945,8 @@ static UniValue listaccounts(const Config &config,
             HelpExampleCli("listaccounts", "6") + "\nAs json rpc call\n" +
             HelpExampleRpc("listaccounts", "6"));
     }
+
+    accountingDeprecationCheck();
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
@@ -2462,6 +2488,12 @@ static UniValue walletpassphrase(const Config &config,
     pwallet->nRelockTime = GetTime() + nSleepTime;
     RPCRunLater(strprintf("lockwallet(%s)", pwallet->GetName()),
                 boost::bind(LockWallet, pwallet), nSleepTime);
+
+    // ppcoin: if user OS account compromised prevent trivial sendmoney commands
+    if (request.params.size() > 2)
+        fWalletUnlockStakingOnly = request.params[2].get_bool();
+    else
+        fWalletUnlockStakingOnly = false;
 
     return NullUniValue;
 }

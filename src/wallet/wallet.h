@@ -37,17 +37,20 @@ extern std::vector<CWalletRef> vpwallets;
  * Settings
  */
 extern CFeeRate payTxFee;
+extern CAmount nReserveBalance;
+extern CAmount nMinimumInputValue;
 extern unsigned int nTxConfirmTarget;
 extern bool bSpendZeroConfChange;
 extern bool fSendFreeTransactions;
+extern bool fWalletUnlockStakingOnly;
 
 static const unsigned int DEFAULT_KEYPOOL_SIZE = 100;
 //! -paytxfee default
-static const Amount DEFAULT_TRANSACTION_FEE(0);
+static const Amount DEFAULT_TRANSACTION_FEE(10000);
 //! -fallbackfee default
-static const Amount DEFAULT_FALLBACK_FEE(20000);
+static const Amount DEFAULT_FALLBACK_FEE(10000);
 //! -mintxfee default
-static const Amount DEFAULT_TRANSACTION_MINFEE(1000);
+static const Amount DEFAULT_TRANSACTION_MINFEE(10000);
 //! minimum recommended increment for BIP 125 replacement txs
 static const Amount WALLET_INCREMENTAL_RELAY_FEE(5000);
 //! target minimum change amount
@@ -309,6 +312,7 @@ public:
     mutable bool fCreditCached;
     mutable bool fImmatureCreditCached;
     mutable bool fAvailableCreditCached;
+    mutable bool fImmatureStakeCreditCached;
     mutable bool fWatchDebitCached;
     mutable bool fWatchCreditCached;
     mutable bool fImmatureWatchCreditCached;
@@ -318,6 +322,7 @@ public:
     mutable Amount nCreditCached;
     mutable Amount nImmatureCreditCached;
     mutable Amount nAvailableCreditCached;
+    mutable Amount nImmatureStakeCreditCached;
     mutable Amount nWatchDebitCached;
     mutable Amount nWatchCreditCached;
     mutable Amount nImmatureWatchCreditCached;
@@ -343,7 +348,9 @@ public:
         fDebitCached = false;
         fCreditCached = false;
         fImmatureCreditCached = false;
+        fImmatureStakeCreditCached = false;
         fAvailableCreditCached = false;
+        fImmatureCreditCached = false;
         fWatchDebitCached = false;
         fWatchCreditCached = false;
         fImmatureWatchCreditCached = false;
@@ -352,6 +359,7 @@ public:
         nDebitCached = Amount(0);
         nCreditCached = Amount(0);
         nImmatureCreditCached = Amount(0);
+        nImmatureStakeCreditCached = Amount(0);
         nAvailableCreditCached = Amount(0);
         nWatchDebitCached = Amount(0);
         nWatchCreditCached = Amount(0);
@@ -426,6 +434,7 @@ public:
     Amount GetDebit(const isminefilter &filter) const;
     Amount GetCredit(const isminefilter &filter) const;
     Amount GetImmatureCredit(bool fUseCache = true) const;
+    Amount GetImmatureStakeCredit(bool fUseCache = true) const;
     Amount GetAvailableCredit(bool fUseCache = true) const;
     Amount GetImmatureWatchOnlyCredit(const bool &fUseCache = true) const;
     Amount GetAvailableWatchOnlyCredit(const bool &fUseCache = true) const;
@@ -618,7 +627,9 @@ private:
     typedef std::multimap<COutPoint, uint256> TxSpends;
     TxSpends mapTxSpends;
     void AddToSpends(const COutPoint &outpoint, const uint256 &wtxid);
+    void RemoveFromSpends(const COutPoint &outpoint, const uint256 &wtxid);
     void AddToSpends(const uint256 &wtxid);
+    void RemoveFromSpends(const uint256 &wtxid);
 
     /* Mark a transaction (and its in-wallet descendants) as conflicting with a
      * particular block. */
@@ -883,6 +894,8 @@ public:
     Amount GetBalance() const;
     Amount GetUnconfirmedBalance() const;
     Amount GetImmatureBalance() const;
+    Amount GetStake() const;
+    Amount GetWatchOnlyStake() const;
     Amount GetWatchOnlyBalance() const;
     Amount GetUnconfirmedWatchOnlyBalance() const;
     Amount GetImmatureWatchOnlyBalance() const;
@@ -1029,6 +1042,8 @@ public:
         return nWalletVersion;
     }
 
+    void DisableTransaction(const CTransaction &tx);
+
     //! Get wallet transactions that conflict with given transaction (spend same
     //! outputs)
     std::set<uint256> GetConflicts(const uint256 &txid) const;
@@ -1079,6 +1094,14 @@ public:
      * inputs may be respent.
      */
     bool AbandonTransaction(const uint256 &hashTx);
+
+    /**
+     * Proof-of-stake stuff.
+     */
+    bool CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int64_t nSearchInterval, CAmount &nFees, CMutableTransaction &tx, CKey &key);
+    bool SelectCoinsForStaking(CAmount &nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> > &setCoinsRet, CAmount &nValueRet) const;
+    void AvailableCoinsForStaking(std::vector<COutput> &vCoins) const;
+    uint64_t GetStakeWeight() const;
 
     /**
      * Mark a transaction as replaced by another transaction (e.g., BIP 125).
@@ -1197,5 +1220,7 @@ bool CWallet::DummySignTx(CMutableTransaction &txNew,
 
     return true;
 }
+
+bool CheckKernel(CBlockIndex *pindexPrev, unsigned int nBits, int64_t nTime, const COutPoint &prevout, int64_t *pBlockTime = nullptr);
 
 #endif // BITCOIN_WALLET_WALLET_H
