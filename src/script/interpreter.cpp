@@ -59,7 +59,7 @@ static inline void popstack(std::vector<valtype> &stack) {
     stack.pop_back();
 }
 
-bool IsCompressedOrUncompressedPubKey(const vector<unsigned char> &vchPubKey) {
+bool IsCompressedOrUncompressedPubKey(const std::vector<unsigned char> &vchPubKey) {
     if (vchPubKey.size() < 33) {
         //  Non-canonical public key: too short
         return false;
@@ -174,7 +174,7 @@ static bool IsValidSignatureEncoding(const std::vector<uint8_t> &sig, bool haveH
 }
 
 bool IsLowDERSignature(const valtype &vchSig, ScriptError *serror, bool haveHashType) {
-    if (!IsValidSignatureEncoding(vchSig, bool haveHashType)) {
+    if (!IsValidSignatureEncoding(vchSig, haveHashType)) {
         return set_error(serror, SCRIPT_ERR_SIG_DER);
     }
     unsigned int nLenR = vchSig[3];

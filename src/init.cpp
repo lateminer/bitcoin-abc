@@ -1565,18 +1565,13 @@ bool AppInitParameterInteraction(Config &config) {
     nMaxDatacarrierBytes =
         gArgs.GetArg("-datacarriersize", nMaxDatacarrierBytes);
 
-    fBIP37 = GetArg("-bip37", false);
+    fBIP37 = gArgs.GetArg("-bip37", false);
 
     // Option to startup with mocktime set (used for regression testing):
     SetMockTime(gArgs.GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op
 
     if (gArgs.GetBoolArg("-peerbloomfilters", DEFAULT_PEERBLOOMFILTERS))
         nLocalServices = ServiceFlags(nLocalServices | NODE_BLOOM);
-
-    // Signal Bitcoin Cash support.
-    // TODO: remove some time after the hardfork when no longer needed
-    // to differentiate the network nodes.
-    nLocalServices = ServiceFlags(nLocalServices | NODE_BITCOIN_CASH);
 
     nMaxTipAge = gArgs.GetArg("-maxtipage", DEFAULT_MAX_TIP_AGE);
 
@@ -2248,20 +2243,19 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
 
     // Step 12: finished
 
-#ifdef ENABLE_WALLET
-    // Mine proof-of-stake blocks in the background
-    if (!GetBoolArg("-staking", true))
-        LogPrintf("Staking disabled\n");
-    else if (pwallet)
-        threadGroup.create_thread(boost::bind(&ThreadStakeMiner, pwallet, config));
-#endif
-
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
 
 #ifdef ENABLE_WALLET
+    if (!gArgs.GetBoolArg("-staking", true))
+        LogPrintf("Staking disabled\n");
+
     for (CWalletRef pwallet : vpwallets) {
         pwallet->postInitProcess(scheduler);
+
+    // Mine proof-of-stake blocks in the background
+    if (pwallet)
+        threadGroup.create_thread(boost::bind(&ThreadStakeMiner, pwallet, config));
     }
 #endif
 

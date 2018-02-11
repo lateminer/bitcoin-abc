@@ -19,6 +19,7 @@
 #include "protocol.h" // For CMessageHeader::MessageMagic
 #include "script/script_error.h"
 #include "sync.h"
+#include "txdb.h"
 #include "versionbits.h"
 
 #include <algorithm>
@@ -60,7 +61,7 @@ static const Amount DEFAULT_MIN_RELAY_TX_FEE(10000);
 //! -maxtxfee default
 static const Amount DEFAULT_TRANSACTION_MAXFEE(1 * COIN);
 //! Discourage users to set fees higher than this amount (in satoshis) per kB
-static const Amount HIGH_TX_FEE_PER_KB(0.1 * COIN);
+static const Amount HIGH_TX_FEE_PER_KB(COIN / 10);
 /** -maxtxfee will warn if called with a higher fee than this amount (in
  * satoshis */
 static const Amount HIGH_MAX_TX_FEE(100 * HIGH_TX_FEE_PER_KB);

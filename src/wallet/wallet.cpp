@@ -68,8 +68,8 @@ CFeeRate CWallet::fallbackFee = CFeeRate(DEFAULT_FALLBACK_FEE);
 
 const uint256 CMerkleTx::ABANDON_HASH(uint256S(
     "0000000000000000000000000000000000000000000000000000000000000001"));
-CAmount nReserveBalance = 0;
-CAmount nMinimumInputValue = 0;
+Amount nReserveBalance(0);
+Amount nMinimumInputValue(0);
 
 /** @defgroup mapWallet
  *
@@ -801,13 +801,13 @@ void CWallet::AvailableCoinsForStaking(std::vector<COutput> &vCoins) const
 }
 
 // Select some coins without random shuffle or best subset approximation
-bool CWallet::SelectCoinsForStaking(CAmount &nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> > &setCoinsRet, CAmount &nValueRet) const
+bool CWallet::SelectCoinsForStaking(Amount &nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> > &setCoinsRet, Amount &nValueRet) const
 {
     vector<COutput> vCoins;
     AvailableCoinsForStaking(vCoins);
 
     setCoinsRet.clear();
-    nValueRet = 0;
+    nValueRet(0);
 
     for (COutput output : vCoins) {
         const CWalletTx *pcoin = output.tx;
@@ -853,7 +853,7 @@ int64_t GetProofOfStakeReward(const CBlockIndex *pindexPrev, int64_t nCoinAge, i
     return nSubsidy + nFees;
 }
 
-bool CWallet::CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int64_t nSearchInterval, CAmount &nFees, CMutableTransaction &tx, CKey &key)
+bool CWallet::CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int64_t nSearchInterval, Amount &nFees, CMutableTransaction &tx, CKey &key)
 {
     CBlockIndex* pindexPrev = pindexBestHeader;
     arith_uint256 bnTargetPerCoinDay;
@@ -869,7 +869,7 @@ bool CWallet::CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int
     txNew.vout.push_back(CTxOut(0, scriptEmpty));
 
     // Choose coins to use
-    CAmount nBalance = GetBalance();
+    Amount nBalance = GetBalance();
 
     if (nBalance <= nReserveBalance)
         return false;
@@ -877,30 +877,29 @@ bool CWallet::CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int
     vector<const CWalletTx*> vwtxPrev;
 
     set<pair<const CWalletTx*,unsigned int> > setCoins;
-    CAmount nValueIn = 0;
+    Amount nValueIn(0);
 
     // Select coins with suitable depth
-    CAmount nTargetValue = nBalance - nReserveBalance;
+    Amount nTargetValue = nBalance - nReserveBalance;
     if (!SelectCoinsForStaking(nTargetValue, setCoins, nValueIn))
         return false;
-
 
     if (setCoins.empty())
         return false;
 
     static std::map<COutPoint, CStakeCache> stakeCache;
     if(stakeCache.size() > setCoins.size() + 100){
-		//Determining if the cache is still valid is harder than just clearing it when it gets too big, so instead just clear it
-		//when it has more than 100 entries more than the actual setCoins.
-		stakeCache.clear();
+        //Determining if the cache is still valid is harder than just clearing it when it gets too big, so instead just clear it
+        //when it has more than 100 entries more than the actual setCoins.
+        stakeCache.clear();
     }
-    if(GetBoolArg("-stakecache", DEFAULT_STAKE_CACHE)) {
-    	BOOST_FOREACH(const PAIRTYPE(const CWalletTx*, unsigned int)& pcoin, setCoins)
-    	{
-    		boost::this_thread::interruption_point();
-    		COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-    		CacheKernel(stakeCache, prevoutStake); //this will do a 2 disk loads per op
-    	}
+    if(gArgs.GetBoolArg("-stakecache", DEFAULT_STAKE_CACHE)) {
+        BOOST_FOREACH(const PAIRTYPE(const CWalletTx*, unsigned int)& pcoin, setCoins)
+        {
+            boost::this_thread::interruption_point();
+            COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
+            acheKernel(stakeCache, prevoutStake); //this will do a 2 disk loads per op
+        }
 
     }
 

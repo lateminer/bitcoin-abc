@@ -37,8 +37,8 @@ extern std::vector<CWalletRef> vpwallets;
  * Settings
  */
 extern CFeeRate payTxFee;
-extern CAmount nReserveBalance;
-extern CAmount nMinimumInputValue;
+extern Amount nReserveBalance;
+extern Amount nMinimumInputValue;
 extern unsigned int nTxConfirmTarget;
 extern bool bSpendZeroConfChange;
 extern bool fSendFreeTransactions;
@@ -1122,8 +1122,8 @@ public:
     /**
      * Proof-of-stake stuff.
      */
-    bool CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int64_t nSearchInterval, CAmount &nFees, CMutableTransaction &tx, CKey &key);
-    bool SelectCoinsForStaking(CAmount &nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> > &setCoinsRet, CAmount &nValueRet) const;
+    bool CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int64_t nSearchInterval, Amount &nFees, CMutableTransaction &tx, CKey &key);
+    bool SelectCoinsForStaking(Amount &nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> > &setCoinsRet, Amount &nValueRet) const;
     void AvailableCoinsForStaking(std::vector<COutput> &vCoins) const;
     uint64_t GetStakeWeight() const;
 
