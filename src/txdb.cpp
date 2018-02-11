@@ -8,8 +8,12 @@
 #include "chainparams.h"
 #include "config.h"
 #include "hash.h"
+#include "init.h"
 #include "pow.h"
+#include "random.h"
+#include "ui_interface.h"
 #include "uint256.h"
+#include "util.h"
 
 #include <boost/thread.hpp>
 
@@ -22,6 +26,7 @@ static const char DB_TXINDEX = 't';
 static const char DB_BLOCK_INDEX = 'b';
 
 static const char DB_BEST_BLOCK = 'B';
+static const char DB_HEAD_BLOCKS = 'H';
 static const char DB_FLAG = 'F';
 static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
@@ -65,10 +70,40 @@ uint256 CCoinsViewDB::GetBestBlock() const {
     return hashBestChain;
 }
 
+std::vector<uint256> CCoinsViewDB::GetHeadBlocks() const {
+    std::vector<uint256> vhashHeadBlocks;
+    if (!db.Read(DB_HEAD_BLOCKS, vhashHeadBlocks)) {
+        return std::vector<uint256>();
+    }
+    return vhashHeadBlocks;
+}
+
 bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) {
     CDBBatch batch(db);
     size_t count = 0;
     size_t changed = 0;
+    size_t batch_size =
+        (size_t)gArgs.GetArg("-dbbatchsize", nDefaultDbBatchSize);
+    int crash_simulate = gArgs.GetArg("-dbcrashratio", 0);
+    assert(!hashBlock.IsNull());
+
+    uint256 old_tip = GetBestBlock();
+    if (old_tip.IsNull()) {
+        // We may be in the middle of replaying.
+        std::vector<uint256> old_heads = GetHeadBlocks();
+        if (old_heads.size() == 2) {
+            assert(old_heads[0] == hashBlock);
+            old_tip = old_heads[1];
+        }
+    }
+
+    // In the first batch, mark the database as being in the middle of a
+    // transition from old_tip to hashBlock.
+    // A vector is used for future extensibility, as we may want to support
+    // interrupting after partial writes from multiple independent reorgs.
+    batch.Erase(DB_BEST_BLOCK);
+    batch.Write(DB_HEAD_BLOCKS, std::vector<uint256>{hashBlock, old_tip});
+
     for (CCoinsMap::iterator it = mapCoins.begin(); it != mapCoins.end();) {
         if (it->second.flags & CCoinsCacheEntry::DIRTY) {
             CoinEntry entry(&it->first);
@@ -82,11 +117,27 @@ bool CCoinsViewDB::BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock) {
         count++;
         CCoinsMap::iterator itOld = it++;
         mapCoins.erase(itOld);
-    }
-    if (!hashBlock.IsNull()) {
-        batch.Write(DB_BEST_BLOCK, hashBlock);
+        if (batch.SizeEstimate() > batch_size) {
+            LogPrint(BCLog::COINDB, "Writing partial batch of %.2f MiB\n",
+                     batch.SizeEstimate() * (1.0 / 1048576.0));
+            db.WriteBatch(batch);
+            batch.Clear();
+            if (crash_simulate) {
+                static FastRandomContext rng;
+                if (rng.randrange(crash_simulate) == 0) {
+                    LogPrintf("Simulating a crash. Goodbye.\n");
+                    _Exit(0);
+                }
+            }
+        }
     }
 
+    // In the last batch, mark the database as consistent with hashBlock again.
+    batch.Erase(DB_HEAD_BLOCKS);
+    batch.Write(DB_BEST_BLOCK, hashBlock);
+
+    LogPrint(BCLog::COINDB, "Writing final batch of %.2f MiB\n",
+             batch.SizeEstimate() * (1.0 / 1048576.0));
     bool ret = db.WriteBatch(batch);
     LogPrint(BCLog::COINDB, "Committed %u changed transaction outputs (out of "
                             "%u) to coin database...\n",
@@ -124,7 +175,7 @@ bool CBlockTreeDB::ReadLastBlockFile(int &nFile) {
 
 CCoinsViewCursor *CCoinsViewDB::Cursor() const {
     CCoinsViewDBCursor *i = new CCoinsViewDBCursor(
-        const_cast<CDBWrapper *>(&db)->NewIterator(), GetBestBlock());
+        const_cast<CDBWrapper &>(db).NewIterator(), GetBestBlock());
     /**
      * It seems that there are no "const iterators" for LevelDB. Since we only
      * need read operations on it, use a const-cast to get around that
@@ -254,13 +305,17 @@ bool CBlockTreeDB::LoadBlockIndexGuts(
         pindexNew->nBits = diskindex.nBits;
         pindexNew->nNonce = diskindex.nNonce;
         pindexNew->nStatus = diskindex.nStatus;
+        pindexNew->nStakeModifier = diskindex.nStakeModifier;
         pindexNew->nTx = diskindex.nTx;
 
-        if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits,
-                              config)) {
-            return error("LoadBlockIndex(): CheckProofOfWork failed: %s",
-                         pindexNew->ToString());
-        }
+        // Litecoin: Disable PoW Sanity check while loading block index from disk.
+                        // We use the sha256 hash for the block index for performance reasons, which is recorded for later use.
+                        // CheckProofOfWork() uses the scrypt hash which is discarded after a block is accepted.
+                        // While it is technically feasible to verify the PoW, doing so takes several minutes as it
+                        // requires recomputing every PoW hash during every Litecoin startup.
+                        // We opt instead to simply trust the data that is on your local disk.
+                        //if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, Params().GetConsensus()))
+        //    return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
 
         pcursor->Next();
     }
@@ -274,6 +329,9 @@ class CCoins {
 public:
     //! whether transaction is a coinbase
     bool fCoinBase;
+    
+    //! whether transaction is a coinstake
+    bool fCoinStake;
 
     //! unspent transaction outputs; spent outputs are .IsNull(); spent outputs
     //! at the end of the array are dropped
@@ -282,8 +340,11 @@ public:
     //! at which height this transaction was included in the active block chain
     int nHeight;
 
+    //! time of the CTransaction
+    uint32_t nTime;
+
     //! empty constructor
-    CCoins() : fCoinBase(false), vout(0), nHeight(0) {}
+    CCoins() : fCoinBase(false), fCoinStake(false), vout(0), nHeight(0), nVersion(0), nTime(0) {}
 
     template <typename Stream> void Unserialize(Stream &s) {
         uint32_t nCode = 0;
@@ -293,10 +354,11 @@ public:
         // header code
         ::Unserialize(s, VARINT(nCode));
         fCoinBase = nCode & 1;
+        fCoinStake = nCode & 8;
         std::vector<bool> vAvail(2, false);
         vAvail[0] = (nCode & 2) != 0;
         vAvail[1] = (nCode & 4) != 0;
-        uint32_t nMaskCode = (nCode / 8) + ((nCode & 6) != 0 ? 0 : 1);
+        uint32_t nMaskCode = (nCode / 16) + ((nCode & 6) != 0 ? 0 : 1);
         // spentness bitmask
         while (nMaskCode > 0) {
             uint8_t chAvail = 0;
@@ -318,6 +380,8 @@ public:
         }
         // coinbase height
         ::Unserialize(s, VARINT(nHeight));
+        // time
+        ::Unserialize(s, nTime);
     }
 };
 } // namespace
@@ -334,14 +398,38 @@ bool CCoinsViewDB::Upgrade() {
         return true;
     }
 
-    LogPrintf("Upgrading database...\n");
+    int64_t count = 0;
+    LogPrintf("Upgrading utxo-set database...\n");
+    LogPrintf("[0%%]...");
     size_t batch_size = 1 << 24;
     CDBBatch batch(db);
+    uiInterface.SetProgressBreakAction(StartShutdown);
+    int reportDone = 0;
+    std::pair<uint8_t, uint256> key;
+    std::pair<uint8_t, uint256> prev_key = {DB_COINS, uint256()};
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
-        std::pair<uint8_t, uint256> key;
+        if (ShutdownRequested()) {
+            break;
+        }
+
         if (!pcursor->GetKey(key) || key.first != DB_COINS) {
             break;
+        }
+
+        if (count++ % 256 == 0) {
+            uint32_t high =
+                0x100 * *key.second.begin() + *(key.second.begin() + 1);
+            int percentageDone = (int)(high * 100.0 / 65536.0 + 0.5);
+            uiInterface.ShowProgress(
+                _("Upgrading UTXO database") + "\n" +
+                    _("(press q to shutdown and continue later)") + "\n",
+                percentageDone);
+            if (reportDone < percentageDone / 10) {
+                // report max. every 10% step
+                LogPrintf("[%d%%]...", percentageDone);
+                reportDone = percentageDone / 10;
+            }
         }
 
         CCoins old_coins;
@@ -365,11 +453,16 @@ bool CCoinsViewDB::Upgrade() {
         if (batch.SizeEstimate() > batch_size) {
             db.WriteBatch(batch);
             batch.Clear();
+            db.CompactRange(prev_key, key);
+            prev_key = key;
         }
 
         pcursor->Next();
     }
 
     db.WriteBatch(batch);
-    return true;
+    db.CompactRange({DB_COINS, uint256()}, key);
+    uiInterface.SetProgressBreakAction(std::function<void(void)>());
+    LogPrintf("[%s].\n", ShutdownRequested() ? "CANCELLED" : "DONE");
+    return !ShutdownRequested();
 }

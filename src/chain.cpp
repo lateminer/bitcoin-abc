@@ -129,6 +129,13 @@ void CBlockIndex::BuildSkip() {
     }
 }
 
+const CBlockIndex *GetLastBlockIndex(const CBlockIndex *pindex, bool fProofOfStake)
+{
+    while (pindex && pindex->pprev && (pindex->IsProofOfStake() != fProofOfStake))
+        pindex = pindex->pprev;
+    return pindex;
+}
+
 arith_uint256 GetBlockProof(const CBlockIndex &block) {
     arith_uint256 bnTarget;
     bool fNegative;
@@ -156,9 +163,31 @@ int64_t GetBlockProofEquivalentTime(const CBlockIndex &to,
         r = from.nChainWork - to.nChainWork;
         sign = -1;
     }
-    r = r * arith_uint256(params.nPowTargetSpacing) / GetBlockProof(tip);
+    r = r * arith_uint256(params.nTargetSpacing) / GetBlockProof(tip);
     if (r.bits() > 63) {
         return sign * std::numeric_limits<int64_t>::max();
     }
     return sign * r.GetLow64();
+}
+
+/**
+ * Find the last common ancestor two blocks have.
+ * Both pa and pb must be non null.
+ */
+const CBlockIndex *LastCommonAncestor(const CBlockIndex *pa,
+                                      const CBlockIndex *pb) {
+    if (pa->nHeight > pb->nHeight) {
+        pa = pa->GetAncestor(pb->nHeight);
+    } else if (pb->nHeight > pa->nHeight) {
+        pb = pb->GetAncestor(pa->nHeight);
+    }
+
+    while (pa != pb && pa && pb) {
+        pa = pa->pprev;
+        pb = pb->pprev;
+    }
+
+    // Eventually all chain branches meet at the genesis block.
+    assert(pa == pb);
+    return pa;
 }

@@ -5,6 +5,25 @@ The Bitcoin ABC project welcomes contributors!
 
 This guide is intended to help developers contribute effectively to Bitcoin ABC.
 
+Communicating with Developers
+-----------------------------
+
+To get in contact with ABC developers, we monitor a telegram supergroup.  The 
+intent of this group is specifically to facilitate development of Bitcoin-ABC, 
+and to welcome people who wish to participate.
+
+https://t.me/joinchat/HCYr50mxRWjA2uLqii-psw
+
+Acceptable use of this supergroup includes the following:
+
+* Introducing yourself to other ABC developers.
+* Getting help with your development environment.
+* Discussing how to complete a patch.
+
+It is not for:
+
+* Market discussion
+* Non-constructive criticism
 
 Bitcoin ABC Development Philosophy
 ----------------------------------
@@ -90,7 +109,8 @@ Follow instructions provided by `arc install-certificate` to provide your API to
 6. Code formatting tools
 
 If code formatting tools do not install automatically on your system, you
-may have to install clang-format-3.8 and autopep8.
+may have to install clang-format-4.0 and autopep8. clang-format-4.0.0 can be installed 
+from http://releases.llvm.org/download.html
 
 
 Working with The Bitcoin ABC Repository
@@ -135,6 +155,9 @@ as the Diff number, reviewers, etc.).
 in Phabricator. When you want to commit your diff to the repository, check out
 type my-topic-branch in git, then type `arc land`. You have now succesfully 
 committed a change to the Bitcoin ABC repository.
+
+- When reviewing a Diff, apply the changeset on your local by using 
+`arc patch D{NNNN}`
 
 
 What to work on

@@ -20,10 +20,10 @@
 
 static const uint64_t GB_BYTES = 1000000000LL;
 /* Minimum free space (in GB) needed for data directory */
-static const uint64_t BLOCK_CHAIN_SIZE = 150;
+static const uint64_t BLOCK_CHAIN_SIZE = 5;
 /* Minimum free space (in GB) needed for data directory when pruned; Does not
  * include prune target */
-static const uint64_t CHAIN_STATE_SIZE = 3;
+static const uint64_t CHAIN_STATE_SIZE = 2;
 /* Total required space (in GB) depending on user choice (prune, not prune) */
 static uint64_t requiredSpace;
 
@@ -113,7 +113,7 @@ Intro::Intro(QWidget *parent)
     ui->setupUi(this);
     ui->welcomeLabel->setText(ui->welcomeLabel->text().arg(tr(PACKAGE_NAME)));
     ui->storageLabel->setText(ui->storageLabel->text().arg(tr(PACKAGE_NAME)));
-    uint64_t pruneTarget = std::max<int64_t>(0, GetArg("-prune", 0));
+    uint64_t pruneTarget = std::max<int64_t>(0, gArgs.GetArg("-prune", 0));
     requiredSpace = BLOCK_CHAIN_SIZE;
     if (pruneTarget) {
         uint64_t prunedGBs = std::ceil(pruneTarget * 1024 * 1024.0 / GB_BYTES);
@@ -159,16 +159,16 @@ bool Intro::pickDataDirectory() {
     QSettings settings;
     /* If data directory provided on command line, no need to look at settings
        or show a picking dialog */
-    if (!GetArg("-datadir", "").empty()) return true;
+    if (!gArgs.GetArg("-datadir", "").empty()) return true;
     /* 1) Default data directory for operating system */
     QString dataDir = getDefaultDataDirectory();
     /* 2) Allow QSettings to override default dir */
     dataDir = settings.value("strDataDir", dataDir).toString();
 
     if (!fs::exists(GUIUtil::qstringToBoostPath(dataDir)) ||
-        GetBoolArg("-choosedatadir", DEFAULT_CHOOSE_DATADIR) ||
+        gArgs.GetBoolArg("-choosedatadir", DEFAULT_CHOOSE_DATADIR) ||
         settings.value("fReset", false).toBool() ||
-        GetBoolArg("-resetguisettings", false)) {
+        gArgs.GetBoolArg("-resetguisettings", false)) {
         /* If current default data directory does not exist, let the user choose
          * one */
         Intro intro;
@@ -203,7 +203,8 @@ bool Intro::pickDataDirectory() {
      */
     if (dataDir != getDefaultDataDirectory()) {
         // use OS locale for path setting
-        SoftSetArg("-datadir", GUIUtil::qstringToBoostPath(dataDir).string());
+        gArgs.SoftSetArg("-datadir",
+                         GUIUtil::qstringToBoostPath(dataDir).string());
     }
     return true;
 }

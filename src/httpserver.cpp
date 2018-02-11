@@ -11,6 +11,7 @@
 #include "sync.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "utilstrencodings.h"
 
 #include <signal.h>
 #include <sys/stat.h>
@@ -39,7 +40,7 @@
 static const size_t MAX_HEADERS_SIZE = 8192;
 
 /** HTTP request work item */
-class HTTPWorkItem : public HTTPClosure {
+class HTTPWorkItem final : public HTTPClosure {
 public:
     HTTPWorkItem(Config &_config, std::unique_ptr<HTTPRequest> _req,
                  const std::string &_path, const HTTPRequestHandler &_func)
@@ -301,15 +302,15 @@ static bool ThreadHTTP(struct event_base *base, struct evhttp *http) {
 
 /** Bind HTTP server to specified addresses */
 static bool HTTPBindAddresses(struct evhttp *http) {
-    int defaultPort = GetArg("-rpcport", BaseParams().RPCPort());
+    int defaultPort = gArgs.GetArg("-rpcport", BaseParams().RPCPort());
     std::vector<std::pair<std::string, uint16_t>> endpoints;
 
     // Determine what addresses to bind to
-    if (!IsArgSet("-rpcallowip")) {
+    if (!gArgs.IsArgSet("-rpcallowip")) {
         // Default to loopback if not allowing external IPs.
         endpoints.push_back(std::make_pair("::1", defaultPort));
         endpoints.push_back(std::make_pair("127.0.0.1", defaultPort));
-        if (IsArgSet("-rpcbind")) {
+        if (gArgs.IsArgSet("-rpcbind")) {
             LogPrintf("WARNING: option -rpcbind was ignored because "
                       "-rpcallowip was not specified, refusing to allow "
                       "everyone to connect\n");
@@ -372,7 +373,7 @@ bool InitHTTPServer(Config &config) {
 
     if (!InitHTTPAllowList()) return false;
 
-    if (GetBoolArg("-rpcssl", false)) {
+    if (gArgs.GetBoolArg("-rpcssl", false)) {
         uiInterface.ThreadSafeMessageBox(
             "SSL mode for RPC (-rpcssl) is no longer supported.", "",
             CClientUIInterface::MSG_ERROR);
@@ -413,7 +414,7 @@ bool InitHTTPServer(Config &config) {
     }
 
     evhttp_set_timeout(
-        http, GetArg("-rpcservertimeout", DEFAULT_HTTP_SERVER_TIMEOUT));
+        http, gArgs.GetArg("-rpcservertimeout", DEFAULT_HTTP_SERVER_TIMEOUT));
     evhttp_set_max_headers_size(http, MAX_HEADERS_SIZE);
     evhttp_set_max_body_size(http, MAX_SIZE);
     evhttp_set_gencb(http, http_request_cb, &config);
@@ -426,8 +427,8 @@ bool InitHTTPServer(Config &config) {
     }
 
     LogPrint(BCLog::HTTP, "Initialized HTTP server\n");
-    int workQueueDepth =
-        std::max((long)GetArg("-rpcworkqueue", DEFAULT_HTTP_WORKQUEUE), 1L);
+    int workQueueDepth = std::max(
+        (long)gArgs.GetArg("-rpcworkqueue", DEFAULT_HTTP_WORKQUEUE), 1L);
     LogPrintf("HTTP: creating work queue of depth %d\n", workQueueDepth);
 
     workQueue = new WorkQueue<HTTPClosure>(workQueueDepth);
@@ -442,7 +443,7 @@ std::future<bool> threadResult;
 bool StartHTTPServer() {
     LogPrint(BCLog::HTTP, "Starting HTTP server\n");
     int rpcThreads =
-        std::max((long)GetArg("-rpcthreads", DEFAULT_HTTP_THREADS), 1L);
+        std::max((long)gArgs.GetArg("-rpcthreads", DEFAULT_HTTP_THREADS), 1L);
     LogPrintf("HTTP: starting %d worker threads\n", rpcThreads);
     std::packaged_task<bool(event_base *, evhttp *)> task(ThreadHTTP);
     threadResult = task.get_future();

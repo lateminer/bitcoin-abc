@@ -139,7 +139,7 @@
     </message>
     <message>
         <source>Send coins to a Bitcoin address</source>
-        <translation>Испрати биткоини на Биткоин адреса</translation>
+        <translation>Испрати биткоини на Blackcoin адреса</translation>
     </message>
     <message>
         <source>&amp;Verify message...</source>
@@ -147,7 +147,7 @@
     </message>
     <message>
         <source>Bitcoin</source>
-        <translation>Биткоин</translation>
+        <translation>Blackcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -579,7 +579,7 @@
     </message>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>Биткоин ABC</translation>
+        <translation>Blackcoin Lore</translation>
     </message>
     <message>
         <source>Warning</source>

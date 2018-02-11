@@ -22,7 +22,7 @@ from test_framework.cdefs import (ONE_MEGABYTE, LEGACY_MAX_BLOCK_SIZE,
                                   MAX_BLOCK_SIGOPS_PER_MB, MAX_TX_SIGOPS_COUNT)
 
 
-class PreviousSpendableOutput(object):
+class PreviousSpendableOutput():
 
     def __init__(self, tx=CTransaction(), n=-1):
         self.tx = tx
@@ -30,14 +30,14 @@ class PreviousSpendableOutput(object):
 
 
 # TestNode: A peer we use to send messages to bitcoind, and store responses.
-class TestNode(SingleNodeConnCB):
+class TestNode(NodeConnCB):
 
     def __init__(self):
         self.last_sendcmpct = None
         self.last_cmpctblock = None
         self.last_getheaders = None
         self.last_headers = None
-        SingleNodeConnCB.__init__(self)
+        super().__init__()
 
     def on_sendcmpct(self, conn, message):
         self.last_sendcmpct = message
@@ -66,9 +66,9 @@ class FullBlockTest(ComparisonTestFramework):
     # Change the "outcome" variable from each TestInstance object to only do
     # the comparison.
 
-    def __init__(self):
-        super().__init__()
+    def set_test_params(self):
         self.num_nodes = 1
+        self.setup_clean_chain = True
         self.block_heights = {}
         self.coinbase_key = CECKey()
         self.coinbase_key.set_secretbytes(b"fatstacks")
@@ -435,8 +435,7 @@ class FullBlockTest(ComparisonTestFramework):
         # Wait for SENDCMPCT
         def received_sendcmpct():
             return (peer.last_sendcmpct != None)
-        got_sendcmpt = wait_until(received_sendcmpct, timeout=30)
-        assert(got_sendcmpt)
+        wait_until(received_sendcmpct, timeout=30)
 
         sendcmpct = msg_sendcmpct()
         sendcmpct.version = 1
@@ -446,8 +445,7 @@ class FullBlockTest(ComparisonTestFramework):
         # Exchange headers
         def received_getheaders():
             return (peer.last_getheaders != None)
-        got_getheaders = wait_until(received_getheaders, timeout=30)
-        assert(got_getheaders)
+        wait_until(received_getheaders, timeout=30)
 
         # Return the favor
         peer.send_message(peer.last_getheaders)
@@ -455,8 +453,7 @@ class FullBlockTest(ComparisonTestFramework):
         # Wait for the header list
         def received_headers():
             return (peer.last_headers != None)
-        got_headers = wait_until(received_headers, timeout=30)
-        assert(got_headers)
+        wait_until(received_headers, timeout=30)
 
         # It's like we know about the same headers !
         peer.send_message(peer.last_headers)
@@ -468,8 +465,7 @@ class FullBlockTest(ComparisonTestFramework):
         # Checks the node to forward it via compact block
         def received_block():
             return (peer.last_cmpctblock != None)
-        got_cmpctblock = wait_until(received_block, timeout=30)
-        assert(got_cmpctblock)
+        wait_until(received_block, timeout=30)
 
         # Was it our block ?
         cmpctblk_header = peer.last_cmpctblock.header_and_shortids.header
@@ -482,8 +478,7 @@ class FullBlockTest(ComparisonTestFramework):
         yield accepted()
 
         # Checks the node to forward it via compact block
-        got_cmpctblock = wait_until(received_block, timeout=30)
-        assert(got_cmpctblock)
+        wait_until(received_block, timeout=30)
 
         # Was it our block ?
         cmpctblk_header = peer.last_cmpctblock.header_and_shortids.header

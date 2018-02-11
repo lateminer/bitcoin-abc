@@ -31,18 +31,18 @@ void AppendParamsHelpMessages(std::string &strUsage, bool debugHelp) {
  */
 class CBaseMainParams : public CBaseChainParams {
 public:
-    CBaseMainParams() { nRPCPort = 8332; }
+    CBaseMainParams() { nRPCPort = 15715; }
 };
 static CBaseMainParams mainParams;
 
 /**
- * Testnet (v3)
+ * Testnet
  */
 class CBaseTestNetParams : public CBaseChainParams {
 public:
     CBaseTestNetParams() {
-        nRPCPort = 18332;
-        strDataDir = "testnet3";
+        nRPCPort = 25715;
+        strDataDir = "testnet";
     }
 };
 static CBaseTestNetParams testNetParams;
@@ -83,8 +83,8 @@ void SelectBaseParams(const std::string &chain) {
 }
 
 std::string ChainNameFromCommandLine() {
-    bool fRegTest = GetBoolArg("-regtest", false);
-    bool fTestNet = GetBoolArg("-testnet", false);
+    bool fRegTest = gArgs.GetBoolArg("-regtest", false);
+    bool fTestNet = gArgs.GetBoolArg("-testnet", false);
 
     if (fTestNet && fRegTest)
         throw std::runtime_error(

@@ -170,13 +170,12 @@ void SendCoinsDialog::setModel(WalletModel *_model) {
         }
 
         setBalance(_model->getBalance(), _model->getUnconfirmedBalance(),
-                   _model->getImmatureBalance(), _model->getWatchBalance(),
-                   _model->getWatchUnconfirmedBalance(),
-                   _model->getWatchImmatureBalance());
+                   _model->getImmatureBalance(), _model->getStake(), _model->getWatchBalance(),
+                   _model->getWatchUnconfirmedBalance(), _model->getWatchImmatureBalance(), _model->getWatchStake());
         connect(_model, SIGNAL(balanceChanged(Amount, Amount, Amount, Amount,
-                                              Amount, Amount)),
+                                              Amount, Amount, Amount, Amount)),
                 this, SLOT(setBalance(Amount, Amount, Amount, Amount, Amount,
-                                      Amount)));
+                                      Amount, Amount, Amount)));
         connect(_model->getOptionsModel(), SIGNAL(displayUnitChanged(int)),
                 this, SLOT(updateDisplayUnit()));
         updateDisplayUnit();
@@ -531,14 +530,18 @@ bool SendCoinsDialog::handlePaymentRequest(const SendCoinsRecipient &rv) {
 void SendCoinsDialog::setBalance(const Amount balance,
                                  const Amount unconfirmedBalance,
                                  const Amount immatureBalance,
+                                 const Amount stake,
                                  const Amount watchBalance,
                                  const Amount watchUnconfirmedBalance,
-                                 const Amount watchImmatureBalance) {
+                                 const Amount watchImmatureBalance,
+                                 const Amount watchStake) {
     Q_UNUSED(unconfirmedBalance);
     Q_UNUSED(immatureBalance);
     Q_UNUSED(watchBalance);
+    Q_UNUSED(stake);
     Q_UNUSED(watchUnconfirmedBalance);
     Q_UNUSED(watchImmatureBalance);
+    Q_UNUSED(watchStake);
 
     if (model && model->getOptionsModel()) {
         ui->labelBalance->setText(BitcoinUnits::formatWithUnit(
@@ -548,7 +551,7 @@ void SendCoinsDialog::setBalance(const Amount balance,
 
 void SendCoinsDialog::updateDisplayUnit() {
     setBalance(model->getBalance(), Amount(0), Amount(0), Amount(0), Amount(0),
-               Amount(0));
+               Amount(0), Amount(0), Amount(0));
     ui->customFee->setDisplayUnit(model->getOptionsModel()->getDisplayUnit());
     updateMinFeeLabel();
     updateSmartFeeLabel();
@@ -616,22 +619,17 @@ void SendCoinsDialog::processSendCoinsReturn(
 }
 
 void SendCoinsDialog::minimizeFeeSection(bool fMinimize) {
-    ui->labelFeeMinimized->setVisible(fMinimize);
-    ui->buttonChooseFee->setVisible(fMinimize);
     ui->buttonMinimizeFee->setVisible(!fMinimize);
     ui->frameFeeSelection->setVisible(!fMinimize);
-    ui->horizontalLayoutSmartFee->setContentsMargins(0, (fMinimize ? 0 : 6), 0,
-                                                     0);
     fFeeMinimized = fMinimize;
 }
 
 void SendCoinsDialog::on_buttonChooseFee_clicked() {
-    minimizeFeeSection(false);
+
 }
 
 void SendCoinsDialog::on_buttonMinimizeFee_clicked() {
-    updateFeeMinimizedLabel();
-    minimizeFeeSection(true);
+
 }
 
 void SendCoinsDialog::setMinimumFee() {
@@ -690,16 +688,6 @@ void SendCoinsDialog::updateGlobalFeeVariables() {
 
 void SendCoinsDialog::updateFeeMinimizedLabel() {
     if (!model || !model->getOptionsModel()) return;
-
-    if (ui->radioSmartFee->isChecked())
-        ui->labelFeeMinimized->setText(ui->labelSmartFee->text());
-    else {
-        ui->labelFeeMinimized->setText(
-            BitcoinUnits::formatWithUnit(
-                model->getOptionsModel()->getDisplayUnit(),
-                ui->customFee->value()) +
-            ((ui->radioCustomPerKilobyte->isChecked()) ? "/kB" : ""));
-    }
 }
 
 void SendCoinsDialog::updateMinFeeLabel() {

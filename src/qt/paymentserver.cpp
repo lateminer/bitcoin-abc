@@ -52,10 +52,10 @@ const int BITCOIN_IPC_CONNECT_TIMEOUT = 1000; // milliseconds
 const char *BIP70_MESSAGE_PAYMENTACK = "PaymentACK";
 const char *BIP70_MESSAGE_PAYMENTREQUEST = "PaymentRequest";
 // BIP71 payment protocol media types
-const char *BIP71_MIMETYPE_PAYMENT = "application/bitcoincash-payment";
-const char *BIP71_MIMETYPE_PAYMENTACK = "application/bitcoincash-paymentack";
+const char *BIP71_MIMETYPE_PAYMENT = "application/blackcoin-payment";
+const char *BIP71_MIMETYPE_PAYMENTACK = "application/blackcoin-paymentack";
 const char *BIP71_MIMETYPE_PAYMENTREQUEST =
-    "application/bitcoincash-paymentrequest";
+    "application/blackcoin-paymentrequest";
 
 struct X509StoreDeleter {
     void operator()(X509_STORE *b) { X509_STORE_free(b); }
@@ -127,7 +127,7 @@ void PaymentServer::LoadRootCAs(X509_STORE *_store) {
     // -rootcertificates="" and get 'I don't like X.509 certificates, don't
     // trust anybody' behavior:
     QString certFile =
-        QString::fromStdString(GetArg("-rootcertificates", "-system-"));
+        QString::fromStdString(gArgs.GetArg("-rootcertificates", "-system-"));
 
     // Empty store
     if (certFile.isEmpty()) {

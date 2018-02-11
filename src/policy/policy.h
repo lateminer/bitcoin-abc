@@ -16,7 +16,7 @@ class CCoinsViewCache;
 
 /** Default for -blockmaxsize, which controls the maximum size of block the
  * mining code will create **/
-static const uint64_t DEFAULT_MAX_GENERATED_BLOCK_SIZE = 2 * ONE_MEGABYTE;
+static const uint64_t DEFAULT_MAX_GENERATED_BLOCK_SIZE = ONE_MEGABYTE;
 /** Default for -blockprioritypercentage, define the amount of block space
  * reserved to high priority transactions **/
 static const uint64_t DEFAULT_BLOCK_PRIORITY_PERCENTAGE = 5;
@@ -58,12 +58,10 @@ static const Amount DUST_RELAY_TX_FEE(1000);
  * blocks and we must accept those blocks.
  */
 static const unsigned int STANDARD_SCRIPT_VERIFY_FLAGS =
-    MANDATORY_SCRIPT_VERIFY_FLAGS | SCRIPT_VERIFY_DERSIG |
-    SCRIPT_VERIFY_MINIMALDATA | SCRIPT_VERIFY_NULLDUMMY |
-    SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS | SCRIPT_VERIFY_CLEANSTACK |
-    SCRIPT_VERIFY_NULLFAIL | SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY |
-    SCRIPT_VERIFY_CHECKSEQUENCEVERIFY | SCRIPT_VERIFY_LOW_S |
-    SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM;
+    MANDATORY_SCRIPT_VERIFY_FLAGS | SCRIPT_VERIFY_STRICTENC |
+    SCRIPT_VERIFY_MINIMALDATA | SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_NOPS |
+    SCRIPT_VERIFY_CLEANSTACK | SCRIPT_VERIFY_NULLFAIL |
+    SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
 
 /** For convenience, standard but not mandatory verify flags. */
 static const unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS =
@@ -71,8 +69,7 @@ static const unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS =
 
 /** Used as the flags parameter to sequence and nLocktime checks in
  * non-consensus code. */
-static const unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS =
-    LOCKTIME_VERIFY_SEQUENCE | LOCKTIME_MEDIAN_TIME_PAST;
+static const unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS = 0;
 
 bool IsStandard(const CScript &scriptPubKey, txnouttype &whichType);
 /**

@@ -113,8 +113,8 @@ public:
 OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent)
     : QWidget(parent), ui(new Ui::OverviewPage), clientModel(0), walletModel(0),
       currentBalance(-1), currentUnconfirmedBalance(-1),
-      currentImmatureBalance(-1), currentWatchOnlyBalance(-1),
-      currentWatchUnconfBalance(-1), currentWatchImmatureBalance(-1),
+      currentImmatureBalance(-1), currentStake(-1), currentWatchOnlyBalance(-1),
+      currentWatchUnconfBalance(-1), currentWatchImmatureBalance(-1), currentWatchOnlyStake(-1),
       txdelegate(new TxViewDelegate(platformStyle, this)) {
     ui->setupUi(this);
 
@@ -161,47 +161,53 @@ OverviewPage::~OverviewPage() {
 void OverviewPage::setBalance(const Amount balance,
                               const Amount unconfirmedBalance,
                               const Amount immatureBalance,
+                              const Amount stake,
                               const Amount watchOnlyBalance,
                               const Amount watchUnconfBalance,
-                              const Amount watchImmatureBalance) {
+                              const Amount watchImmatureBalance,
+                              const Amount watchOnlyStake) {
     int unit = walletModel->getOptionsModel()->getDisplayUnit();
     currentBalance = balance;
     currentUnconfirmedBalance = unconfirmedBalance;
     currentImmatureBalance = immatureBalance;
+    currentStake = stake;
     currentWatchOnlyBalance = watchOnlyBalance;
     currentWatchUnconfBalance = watchUnconfBalance;
     currentWatchImmatureBalance = watchImmatureBalance;
+    currentWatchOnlyStake = watchOnlyStake;
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(
         unit, balance, false, BitcoinUnits::separatorAlways));
     ui->labelUnconfirmed->setText(BitcoinUnits::formatWithUnit(
         unit, unconfirmedBalance, false, BitcoinUnits::separatorAlways));
     ui->labelImmature->setText(BitcoinUnits::formatWithUnit(
         unit, immatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(
-        unit, balance + unconfirmedBalance + immatureBalance, false,
-        BitcoinUnits::separatorAlways));
+    ui->labelStake->setText(BitcoinUnits::formatWithUnit(unit, stake, false, BitcoinUnits::separatorAlways));
+    ui->labelTotal->setText(BitcoinUnits::formatWithUnit(unit, balance + unconfirmedBalance + immatureBalance + stake, false, BitcoinUnits::separatorAlways));
     ui->labelWatchAvailable->setText(BitcoinUnits::formatWithUnit(
         unit, watchOnlyBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchPending->setText(BitcoinUnits::formatWithUnit(
         unit, watchUnconfBalance, false, BitcoinUnits::separatorAlways));
     ui->labelWatchImmature->setText(BitcoinUnits::formatWithUnit(
         unit, watchImmatureBalance, false, BitcoinUnits::separatorAlways));
-    ui->labelWatchTotal->setText(BitcoinUnits::formatWithUnit(
-        unit, watchOnlyBalance + watchUnconfBalance + watchImmatureBalance,
-        false, BitcoinUnits::separatorAlways));
+    ui->labelWatchStake->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyStake, false, BitcoinUnits::separatorAlways));
+    ui->labelWatchTotal->setText(BitcoinUnits::formatWithUnit(unit, watchOnlyBalance + watchUnconfBalance + watchImmatureBalance + watchOnlyStake, false, BitcoinUnits::separatorAlways));
 
     // only show immature (newly mined) balance if it's non-zero, so as not to
     // complicate things
     // for the non-mining users
     bool showImmature = immatureBalance != Amount(0);
+    bool showStake = stake != Amount(0);
     bool showWatchOnlyImmature = watchImmatureBalance != Amount(0);
+    bool showWatchOnlyStake = watchOnlyStake != Amount(0);
 
     // for symmetry reasons also show immature label when the watch-only one is
     // shown
     ui->labelImmature->setVisible(showImmature || showWatchOnlyImmature);
     ui->labelImmatureText->setVisible(showImmature || showWatchOnlyImmature);
-    ui->labelWatchImmature->setVisible(
-        showWatchOnlyImmature); // show watch-only immature balance
+    ui->labelWatchImmature->setVisible(showWatchOnlyImmature); // show watch-only immature balance
+    ui->labelStake->setVisible(showStake || showWatchOnlyStake);
+    ui->labelStakeText->setVisible(showStake || showWatchOnlyStake);
+    ui->labelWatchStake->setVisible(showWatchOnlyStake); // show watch-only stake balance
 }
 
 // show/hide watch-only labels
@@ -218,7 +224,10 @@ void OverviewPage::updateWatchOnlyLabels(bool showWatchOnly) {
     ui->labelWatchTotal->setVisible(
         showWatchOnly); // show watch-only total balance
 
-    if (!showWatchOnly) ui->labelWatchImmature->hide();
+    if (!showWatchOnly) {
+        ui->labelWatchImmature->hide();
+        ui->labelWatchStake->hide();
+    }
 }
 
 void OverviewPage::setClientModel(ClientModel *model) {
@@ -248,13 +257,12 @@ void OverviewPage::setWalletModel(WalletModel *model) {
 
         // Keep up to date with wallet
         setBalance(model->getBalance(), model->getUnconfirmedBalance(),
-                   model->getImmatureBalance(), model->getWatchBalance(),
-                   model->getWatchUnconfirmedBalance(),
-                   model->getWatchImmatureBalance());
+                   model->getImmatureBalance(), model->getStake(), model->getWatchBalance(),
+                   model->getWatchUnconfirmedBalance(), model->getWatchImmatureBalance(), model->getWatchStake());
         connect(model, SIGNAL(balanceChanged(Amount, Amount, Amount, Amount,
-                                             Amount, Amount)),
+                                             Amount, Amount, Amount, Amount)),
                 this, SLOT(setBalance(Amount, Amount, Amount, Amount, Amount,
-                                      Amount)));
+                                      Amount, Amount, Amount)));
 
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this,
                 SLOT(updateDisplayUnit()));
@@ -272,8 +280,8 @@ void OverviewPage::updateDisplayUnit() {
     if (walletModel && walletModel->getOptionsModel()) {
         if (currentBalance != Amount(-1))
             setBalance(currentBalance, currentUnconfirmedBalance,
-                       currentImmatureBalance, currentWatchOnlyBalance,
-                       currentWatchUnconfBalance, currentWatchImmatureBalance);
+                       currentImmatureBalance, currentStake, currentWatchOnlyBalance,
+                       currentWatchUnconfBalance, currentWatchImmatureBalance, currentWatchOnlyStake);
 
         // Update txdelegate->unit with the current unit
         txdelegate->unit = walletModel->getOptionsModel()->getDisplayUnit();

@@ -91,7 +91,7 @@
     </message>
     <message>
         <source>Bitcoin</source>
-        <translation>Bitcoin</translation>
+        <translation>Blackcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -709,7 +709,7 @@
     <name>bitcoin-abc</name>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>Bitcoin மையம்</translation>
+        <translation>Blackcoin Lore</translation>
     </message>
     <message>
         <source>(default: %u)</source>

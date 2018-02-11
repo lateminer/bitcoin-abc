@@ -80,7 +80,7 @@
     </message>
     <message>
         <source>Bitcoin</source>
-        <translation>बीटकोइन</translation>
+        <translation>Blackcoin</translation>
     </message>
     <message>
         <source>Wallet</source>

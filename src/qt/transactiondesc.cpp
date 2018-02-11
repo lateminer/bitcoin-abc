@@ -44,7 +44,7 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx &wtx) {
                        .arg((wtx.InMempool() ? tr("in memory pool")
                                              : tr("not in memory pool"))) +
                    (wtx.isAbandoned() ? ", " + tr("abandoned") : "");
-        else if (nDepth < 6)
+        else if (nDepth < 10)
             return tr("%1/unconfirmed").arg(nDepth);
         else
             return tr("%1 confirmations").arg(nDepth);
@@ -298,7 +298,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx,
     }
 
     if (wtx.IsCoinBase()) {
-        quint32 numBlocksToMaturity = COINBASE_MATURITY + 1;
+        quint32 numBlocksToMaturity = Params().GetConsensus().nCoinbaseMaturity + 1;
         strHTML +=
             "<br>" +
             tr("Generated coins must mature %1 blocks before they can be "

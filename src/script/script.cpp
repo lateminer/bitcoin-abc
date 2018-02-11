@@ -308,9 +308,11 @@ bool CScript::IsPayToScriptHash() const {
             (*this)[1] == 0x14 && (*this)[22] == OP_EQUAL);
 }
 
-bool CScript::IsPayToWitnessScriptHash() const {
-    // Extra-fast test for pay-to-witness-script-hash CScripts:
-    return (this->size() == 34 && (*this)[0] == OP_0 && (*this)[1] == 0x20);
+bool CScript::IsPayToPublicKey() const
+{
+    // Extra-fast test for pay-to-pubkey CScripts:
+    return (this->size() == 35 && (*this)[0] == 0x21 &&
+            (*this)[34] == OP_CHECKSIG);
 }
 
 bool CScript::IsCommitment(const std::vector<uint8_t> &data) const {
@@ -367,6 +369,33 @@ bool CScript::IsPushOnly(const_iterator pc) const {
 
 bool CScript::IsPushOnly() const {
     return this->IsPushOnly(begin());
+}
+
+bool CScript::HasCanonicalPushes() const
+{
+    const_iterator pc = begin();
+    while (pc < end())
+    {
+        opcodetype opcode;
+        std::vector<unsigned char> data;
+        if (!GetOp(pc, opcode, data))
+            return false;
+        if (opcode > OP_16)
+            continue;
+        if (opcode < OP_PUSHDATA1 && opcode > OP_0 && (data.size() == 1 && data[0] <= 16))
+            // Could have used an OP_n code, rather than a 1-byte push.
+            return false;
+        if (opcode == OP_PUSHDATA1 && data.size() < OP_PUSHDATA1)
+            // Could have used a normal n-byte push, rather than OP_PUSHDATA1.
+            return false;
+        if (opcode == OP_PUSHDATA2 && data.size() <= 0xFF)
+            // Could have used an OP_PUSHDATA1.
+            return false;
+        if (opcode == OP_PUSHDATA4 && data.size() <= 0xFFFF)
+            // Could have used an OP_PUSHDATA2.
+            return false;
+    }
+    return true;
 }
 
 std::string CScriptWitness::ToString() const {

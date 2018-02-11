@@ -527,7 +527,7 @@ void MaybeSetPeerAsAnnouncingHeaderAndIDs(NodeId nodeid, CConnman &connman) {
 // Requires cs_main
 bool CanDirectFetch(const Consensus::Params &consensusParams) {
     return chainActive.Tip()->GetBlockTime() >
-           GetAdjustedTime() - consensusParams.nPowTargetSpacing * 20;
+           GetAdjustedTime() - consensusParams.nTargetSpacing * 20;
 }
 
 // Requires cs_main
@@ -544,29 +544,9 @@ bool PeerHasHeader(CNodeState *state, const CBlockIndex *pindex) {
 }
 
 /**
- * Find the last common ancestor two blocks have.
- * Both pa and pb must be non null.
+ * Update pindexLastCommonBlock and add not-in-flight missing successors to
+ * vBlocks, until it has at most count entries.
  */
-const CBlockIndex *LastCommonAncestor(const CBlockIndex *pa,
-                                      const CBlockIndex *pb) {
-    if (pa->nHeight > pb->nHeight) {
-        pa = pa->GetAncestor(pb->nHeight);
-    } else if (pb->nHeight > pa->nHeight) {
-        pb = pb->GetAncestor(pa->nHeight);
-    }
-
-    while (pa != pb && pa && pb) {
-        pa = pa->pprev;
-        pb = pb->pprev;
-    }
-
-    // Eventually all chain branches meet at the genesis block.
-    assert(pa == pb);
-    return pa;
-}
-
-/** Update pindexLastCommonBlock and add not-in-flight missing successors to
- * vBlocks, until it has at most count entries. */
 void FindNextBlocksToDownload(NodeId nodeid, unsigned int count,
                               std::vector<const CBlockIndex *> &vBlocks,
                               NodeId &nodeStaller,
@@ -710,8 +690,8 @@ void UnregisterNodeSignals(CNodeSignals &nodeSignals) {
 //
 
 void AddToCompactExtraTransactions(const CTransactionRef &tx) {
-    size_t max_extra_txn = GetArg("-blockreconstructionextratxn",
-                                  DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN);
+    size_t max_extra_txn = gArgs.GetArg("-blockreconstructionextratxn",
+                                        DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN);
     if (max_extra_txn <= 0) {
         return;
     }
@@ -852,7 +832,7 @@ void Misbehaving(NodeId pnode, int howmuch, const std::string &reason) {
     }
 
     state->nMisbehavior += howmuch;
-    int banscore = GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
+    int banscore = gArgs.GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
     if (state->nMisbehavior >= banscore &&
         state->nMisbehavior - howmuch < banscore) {
         LogPrintf(
@@ -1184,7 +1164,6 @@ static void ProcessGetData(const Config &config, CNode *pfrom,
                     if (chainActive.Contains(mi->second)) {
                         send = true;
                     } else {
-                        static const int nOneMonth = 30 * 24 * 60 * 60;
                         // To prevent fingerprinting attacks, only send blocks
                         // outside of the active chain if they are valid, and no
                         // more than a month older (both in time, and in best
@@ -1192,13 +1171,7 @@ static void ProcessGetData(const Config &config, CNode *pfrom,
                         // we know about.
                         send = mi->second->IsValid(BLOCK_VALID_SCRIPTS) &&
                                (pindexBestHeader != nullptr) &&
-                               (pindexBestHeader->GetBlockTime() -
-                                    mi->second->GetBlockTime() <
-                                nOneMonth) &&
-                               (GetBlockProofEquivalentTime(
-                                    *pindexBestHeader, *mi->second,
-                                    *pindexBestHeader,
-                                    consensusParams) < nOneMonth);
+                               (chainActive.Height() - mi->second->nHeight < consensusParams.nMaxReorganizationDepth);
                         if (!send) {
                             LogPrintf("%s: ignoring request from peer=%i for "
                                       "old block that isn't in the main "
@@ -1405,8 +1378,11 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
                            const std::atomic<bool> &interruptMsgProc) {
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n",
              SanitizeString(strCommand), vRecv.size(), pfrom->id);
-    if (IsArgSet("-dropmessagestest") &&
-        GetRand(GetArg("-dropmessagestest", 0)) == 0) {
+
+    uint256 hash = block.GetHash();
+
+    if (gArgs.IsArgSet("-dropmessagestest") &&
+        GetRand(gArgs.GetArg("-dropmessagestest", 0)) == 0) {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
     }
@@ -1614,23 +1590,9 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
 
         int64_t nTimeOffset = nTime - GetTime();
         pfrom->nTimeOffset = nTimeOffset;
-        AddTimeData(pfrom->addr, nTimeOffset);
 
-        // If the peer is old enough to have the old alert system, send it the
-        // final alert.
-        if (pfrom->nVersion <= 70012) {
-            CDataStream finalAlert(
-                ParseHex("60010000000000000000000000ffffff7f00000000ffffff7ffef"
-                         "fff7f01ffffff7f00000000ffffff7f00ffffff7f002f55524745"
-                         "4e543a20416c657274206b657920636f6d70726f6d697365642c2"
-                         "075706772616465207265717569726564004630440220653febd6"
-                         "410f470f6bae11cad19c48413becb1ac2c17f908fd0fd53bdc3ab"
-                         "d5202206d0e9c96fe88d4a0f01ed9dedae2b6f9e00da94cad0fec"
-                         "aae66ecf689bf71b50"),
-                SER_NETWORK, PROTOCOL_VERSION);
-            connman.PushMessage(
-                pfrom, CNetMsgMaker(nSendVersion).Make("alert", finalAlert));
-        }
+        if (GetBoolArg("-synctime", false))
+            AddTimeData(pfrom->addr, nTimeOffset);
 
         // Feeler connections exist only to verify if address is online.
         if (pfrom->fFeeler) {
@@ -1781,7 +1743,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         // Allow whitelisted peers to send data other than blocks in blocks only
         // mode if whitelistrelay is true
         if (pfrom->fWhitelisted &&
-            GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY)) {
+            gArgs.GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY)) {
             fBlocksOnly = false;
         }
 
@@ -1919,7 +1881,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
             // that block relay might require.
             const int nPrunedBlocksLikelyToHave =
                 MIN_BLOCKS_TO_KEEP -
-                3600 / chainparams.GetConsensus().nPowTargetSpacing;
+                3600 / chainparams.GetConsensus().nTargetSpacing;
             if (fPruneMode &&
                 (!(pindex->nStatus & BLOCK_HAVE_DATA) ||
                  pindex->nHeight <=
@@ -2062,7 +2024,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         // whitelistrelay is off
         if (!fRelayTxes &&
             (!pfrom->fWhitelisted ||
-             !GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY))) {
+             !gArgs.GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY))) {
             LogPrint(BCLog::NET,
                      "transaction sent in violation of protocol peer=%d\n",
                      pfrom->id);
@@ -2198,7 +2160,8 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
                 // unbounded
                 unsigned int nMaxOrphanTx = (unsigned int)std::max(
                     int64_t(0),
-                    GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+                    gArgs.GetArg("-maxorphantx",
+                                 DEFAULT_MAX_ORPHAN_TRANSACTIONS));
                 unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
                 if (nEvicted > 0) {
                     LogPrint(BCLog::MEMPOOL,
@@ -2226,8 +2189,8 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
             }
 
             if (pfrom->fWhitelisted &&
-                GetBoolArg("-whitelistforcerelay",
-                           DEFAULT_WHITELISTFORCERELAY)) {
+                gArgs.GetBoolArg("-whitelistforcerelay",
+                                 DEFAULT_WHITELISTFORCERELAY)) {
                 // Always relay transactions received from whitelisted peers,
                 // even if they were already in the mempool or rejected from it
                 // due to policy, allowing the node to function as a gateway for
@@ -2301,8 +2264,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
 
         const CBlockIndex *pindex = nullptr;
         CValidationState state;
-        if (!ProcessNewBlockHeaders(config, {cmpctblock.header}, state,
-                                    &pindex)) {
+        if (!ProcessNewBlockHeaders(config, {cmpctblock.header}, state, &hash, &pindex)) {
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0) {
@@ -2513,7 +2475,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
                                        std::make_pair(pfrom->GetId(), false));
             }
             bool fNewBlock = false;
-            ProcessNewBlock(config, pblock, true, &fNewBlock);
+            ProcessNewBlock(config, pblock, true, &fNewBlock, hash);
             if (fNewBlock) {
                 pfrom->nLastBlockTime = GetTime();
             }
@@ -2611,7 +2573,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
             // Since we requested this block (it was in mapBlocksInFlight),
             // force it to be processed, even if it would not be a candidate for
             // new tip (missing previous block, chain not long enough, etc)
-            ProcessNewBlock(config, pblock, true, &fNewBlock);
+            ProcessNewBlock(config, pblock, true, &fNewBlock, hash);
             if (fNewBlock) {
                 pfrom->nLastBlockTime = GetTime();
             }
@@ -2633,8 +2595,8 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         headers.resize(nCount);
         for (unsigned int n = 0; n < nCount; n++) {
             vRecv >> headers[n];
-            // Ignore tx count; assume it is 0.
-            ReadCompactSize(vRecv);
+            ReadCompactSize(vRecv); // ignore tx count; assume it is 0.
+            ReadCompactSize(vRecv); // ignore block sig; assume it is 0.
         }
 
         if (nCount == 0) {
@@ -2701,7 +2663,8 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         }
 
         CValidationState state;
-        if (!ProcessNewBlockHeaders(config, headers, state, &pindexLast)) {
+        uint256 hash = header.GetHash();
+        if (!ProcessNewBlockHeaders(config, headers, state, hash, &pindexLast)) {
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0) {
@@ -2842,7 +2805,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
             mapBlockSource.emplace(hash, std::make_pair(pfrom->GetId(), true));
         }
         bool fNewBlock = false;
-        ProcessNewBlock(config, pblock, forceProcessing, &fNewBlock);
+        ProcessNewBlock(config, pblock, forceProcessing, &fNewBlock, hash);
         if (fNewBlock) {
             pfrom->nLastBlockTime = GetTime();
         }
@@ -2979,7 +2942,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         }
     }
 
-    else if (strCommand == NetMsgType::FILTERLOAD) {
+    else if (strCommand == NetMsgType::FILTERLOAD && fBIP37) {
         CBloomFilter filter;
         vRecv >> filter;
 
@@ -2996,7 +2959,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         }
     }
 
-    else if (strCommand == NetMsgType::FILTERADD) {
+    else if (strCommand == NetMsgType::FILTERADD && fBIP37) {
         std::vector<uint8_t> vData;
         vRecv >> vData;
 
@@ -3022,7 +2985,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         }
     }
 
-    else if (strCommand == NetMsgType::FILTERCLEAR) {
+    else if (strCommand == NetMsgType::FILTERCLEAR && fBIP37) {
         LOCK(pfrom->cs_filter);
         if (pfrom->GetLocalServices() & NODE_BLOOM) {
             delete pfrom->pfilter;
@@ -3066,7 +3029,7 @@ static bool SendRejectsAndCheckIfBanned(CNode *pnode, CConnman &connman) {
         connman.PushMessage(
             pnode,
             CNetMsgMaker(INIT_PROTO_VERSION)
-                .Make(NetMsgType::REJECT, (std::string)NetMsgType::BLOCK,
+                .Make(NetMsgType::REJECT, std::string(NetMsgType::BLOCK),
                       reject.chRejectCode, reject.strRejectReason,
                       reject.hashBlock));
     }
@@ -3728,7 +3691,7 @@ bool SendMessages(const Config &config, CNode *pto, CConnman &connman,
             nPeersWithValidatedDownloads -
             (state.nBlocksInFlightValidHeaders > 0);
         if (nNow > state.nDownloadingSince +
-                       consensusParams.nPowTargetSpacing *
+                       consensusParams.nTargetSpacing *
                            (BLOCK_DOWNLOAD_TIMEOUT_BASE +
                             BLOCK_DOWNLOAD_TIMEOUT_PER_PEER *
                                 nOtherPeersWithValidatedDownloads)) {
@@ -3801,13 +3764,15 @@ bool SendMessages(const Config &config, CNode *pto, CConnman &connman,
     // We don't want white listed peers to filter txs to us if we have
     // -whitelistforcerelay
     if (pto->nVersion >= FEEFILTER_VERSION &&
-        GetBoolArg("-feefilter", DEFAULT_FEEFILTER) &&
+        gArgs.GetBoolArg("-feefilter", DEFAULT_FEEFILTER) &&
         !(pto->fWhitelisted &&
-          GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY))) {
+          gArgs.GetBoolArg("-whitelistforcerelay",
+                           DEFAULT_WHITELISTFORCERELAY))) {
         Amount currentFilter =
             mempool
-                .GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) *
-                           1000000)
+                .GetMinFee(
+                    gArgs.GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) *
+                    1000000)
                 .GetFeePerK();
         int64_t timeNow = GetTimeMicros();
         if (timeNow > pto->nextSendTimeFeeFilter) {
@@ -3817,7 +3782,7 @@ bool SendMessages(const Config &config, CNode *pto, CConnman &connman,
             Amount filterToSend = filterRounder.round(currentFilter);
             // If we don't allow free transactions, then we always have a fee
             // filter of at least minRelayTxFee
-            if (GetArg("-limitfreerelay", DEFAULT_LIMITFREERELAY) <= 0) {
+            if (gArgs.GetArg("-limitfreerelay", DEFAULT_LIMITFREERELAY) <= 0) {
                 filterToSend =
                     std::max(filterToSend, ::minRelayTxFee.GetFeePerK());
             }

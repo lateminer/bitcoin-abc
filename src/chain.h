@@ -7,7 +7,7 @@
 #define BITCOIN_CHAIN_H
 
 #include "arith_uint256.h"
-#include "consensus/params.h"
+#include "chainparams.h"
 #include "pow.h"
 #include "primitives/block.h"
 #include "tinyformat.h"
@@ -175,6 +175,11 @@ enum BlockStatus : uint32_t {
     //!< descends from failed block
     BLOCK_FAILED_CHILD = 64,
     BLOCK_FAILED_MASK = BLOCK_FAILED_VALID | BLOCK_FAILED_CHILD,
+
+     //! Proof-of-stake block
+    BLOCK_PROOF_OF_STAKE = 128,
+    BLOCK_STAKE_ENTROPY = 256,
+    BLOCK_STAKE_MODIFIER = 512,
 };
 
 /**
@@ -226,6 +231,9 @@ public:
     //! Verification status of this block. See enum BlockStatus
     uint32_t nStatus;
 
+    //! hash modifier of proof-of-stake
+    uint256 nStakeModifier;
+    
     //! block header
     int32_t nVersion;
     uint256 hashMerkleRoot;
@@ -252,6 +260,7 @@ public:
         nTx = 0;
         nChainTx = 0;
         nStatus = 0;
+        nStakeModifier = uint256();
         nSequenceId = 0;
         nTimeMax = 0;
 
@@ -307,10 +316,13 @@ public:
 
     uint256 GetBlockHash() const { return *phashBlock; }
 
+    uint256 GetBlockPoWHash() const { return GetBlockHeader().GetPoWHash(); }
+
     int64_t GetBlockTime() const { return int64_t(nTime); }
 
     int64_t GetBlockTimeMax() const { return int64_t(nTimeMax); }
 
+private:
     enum { nMedianTimeSpan = 11 };
 
     int64_t GetMedianTimePast() const {
@@ -327,6 +339,18 @@ public:
         std::sort(pbegin, pend);
         return pbegin[(pend - pbegin) / 2];
     }
+
+public:
+    int64_t GetPastTimeLimit() const {
+        if (Params().GetConsensus().IsProtocolV2(GetBlockTime()))
+            return GetBlockTime();
+        else
+            return GetMedianTimePast();
+    }
+
+    bool IsProofOfWork() const { return !IsProofOfStake(); }
+    bool IsProofOfStake() const { return (nStatus & BLOCK_PROOF_OF_STAKE); }
+    void SetProofOfStake() { nStatus |= BLOCK_PROOF_OF_STAKE; }
 
     std::string ToString() const {
         return strprintf(
@@ -389,16 +413,26 @@ int64_t GetBlockProofEquivalentTime(const CBlockIndex &to,
                                     const CBlockIndex &from,
                                     const CBlockIndex &tip,
                                     const Consensus::Params &);
+/**
+ * Find the forking point between two chain tips.
+ */
+const CBlockIndex *LastCommonAncestor(const CBlockIndex *pa,
+                                      const CBlockIndex *pb);
 
 /** Used to marshal pointers into hashes for db storage. */
 class CDiskBlockIndex : public CBlockIndex {
 public:
     uint256 hashPrev;
+    uint256 nHashBlock;
 
-    CDiskBlockIndex() { hashPrev = uint256(); }
+    CDiskBlockIndex() {
+        hashPrev = uint256();
+        nHashBlock = uint256();
+    }
 
     explicit CDiskBlockIndex(const CBlockIndex *pindex) : CBlockIndex(*pindex) {
         hashPrev = (pprev ? pprev->GetBlockHash() : uint256());
+        nHashBlock = *pindex->phashBlock;
     }
 
     ADD_SERIALIZE_METHODS;
@@ -412,6 +446,8 @@ public:
 
         READWRITE(VARINT(nHeight));
         READWRITE(VARINT(nStatus));
+        READWRITE(nStakeModifier);
+        READWRITE(nHashBlock);
         READWRITE(VARINT(nTx));
         if (nStatus & (BLOCK_HAVE_DATA | BLOCK_HAVE_UNDO)) {
             READWRITE(VARINT(nFile));
@@ -433,14 +469,7 @@ public:
     }
 
     uint256 GetBlockHash() const {
-        CBlockHeader block;
-        block.nVersion = nVersion;
-        block.hashPrevBlock = hashPrev;
-        block.hashMerkleRoot = hashMerkleRoot;
-        block.nTime = nTime;
-        block.nBits = nBits;
-        block.nNonce = nNonce;
-        return block.GetHash();
+        return nHashBlock;
     }
 
     std::string ToString() const {
@@ -534,5 +563,7 @@ public:
      */
     CBlockIndex *FindEarliestAtLeast(int64_t nTime) const;
 };
+
+const CBlockIndex *GetLastBlockIndex(const CBlockIndex *pindex, bool fProofOfStake);
 
 #endif // BITCOIN_CHAIN_H

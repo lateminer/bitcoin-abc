@@ -3,17 +3,6 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-from test_framework.blockstore import BlockStore
-from test_framework.test_framework import ComparisonTestFramework
-from test_framework.util import *
-from test_framework.mininode import CTransaction, NetworkThread
-from test_framework.blocktools import create_coinbase, create_block
-from test_framework.comptool import TestInstance, TestManager
-from test_framework.script import CScript, OP_1NEGATE, OP_CHECKSEQUENCEVERIFY, OP_DROP
-from io import BytesIO
-import time
-import itertools
-
 '''
 This test is meant to exercise BIP forks
 Connect to a single node.
@@ -28,13 +17,23 @@ test that enforcement has not triggered (which triggers ACTIVE)
 test that enforcement has triggered
 '''
 
+from test_framework.test_framework import ComparisonTestFramework
+from test_framework.util import *
+from test_framework.mininode import CTransaction, NetworkThread
+from test_framework.blocktools import create_coinbase, create_block
+from test_framework.comptool import TestInstance, TestManager
+from test_framework.script import CScript, OP_1NEGATE, OP_CHECKSEQUENCEVERIFY, OP_DROP
+from io import BytesIO
+import time
+import shutil
+import itertools
+
 
 class BIP9SoftForksTest(ComparisonTestFramework):
-
-    def __init__(self):
-        super().__init__()
+    def set_test_params(self):
         self.num_nodes = 1
         self.extra_args = [['-whitelist=127.0.0.1']]
+        self.setup_clean_chain = True
 
     def run_test(self):
         self.test = TestManager(self, self.options.tmpdir)
@@ -210,15 +209,15 @@ class BIP9SoftForksTest(ComparisonTestFramework):
         yield TestInstance([[block, False]])
 
         # Restart all
-        self.test.block_store.close()
-        stop_nodes(self.nodes)
-        shutil.rmtree(self.options.tmpdir)
+        self.test.clear_all_connections()
+        self.stop_nodes()
+        self.nodes = []
+        shutil.rmtree(self.options.tmpdir + "/node0")
         self.setup_chain()
         self.setup_network()
-        self.test.block_store = BlockStore(self.options.tmpdir)
-        self.test.clear_all_connections()
         self.test.add_all_connections(self.nodes)
-        NetworkThread().start()  # Start up network handling in another thread
+        NetworkThread().start()
+        self.test.test_nodes[0].wait_for_verack()
 
     def get_tests(self):
         for test in itertools.chain(

@@ -22,23 +22,19 @@ from decimal import Decimal
 import http.client
 import subprocess
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import (
+    BitcoinTestFramework, BITCOIND_PROC_WAIT_TIMEOUT)
 from test_framework.util import (
     assert_equal,
     assert_raises,
     assert_raises_jsonrpc,
     assert_is_hex_string,
     assert_is_hash_string,
-    start_node,
-    bitcoind_processes,
-    BITCOIND_PROC_WAIT_TIMEOUT,
 )
 
 
 class BlockchainTest(BitcoinTestFramework):
-    def __init__(self):
-        super().__init__()
-        self.setup_clean_chain = False
+    def set_test_params(self):
         self.num_nodes = 1
         self.extra_args = [['-stopatheight=207']]
 
@@ -169,14 +165,14 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(self.nodes[0].getblockcount(), 206)
         self.log.debug('Node should not stop at this height')
         assert_raises(subprocess.TimeoutExpired,
-                      lambda: bitcoind_processes[0].wait(timeout=3))
+                      lambda: self.nodes[0].process.wait(timeout=3))
         try:
             self.nodes[0].generate(1)
         except (ConnectionError, http.client.BadStatusLine):
             pass  # The node already shut down before response
         self.log.debug('Node should stop at this height...')
-        bitcoind_processes[0].wait(timeout=BITCOIND_PROC_WAIT_TIMEOUT)
-        self.nodes[0] = start_node(0, self.options.tmpdir)
+        self.nodes[0].process.wait(timeout=BITCOIND_PROC_WAIT_TIMEOUT)
+        self.start_node(0)
         assert_equal(self.nodes[0].getblockcount(), 207)
 
 

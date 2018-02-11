@@ -132,7 +132,7 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream &s, Operation ser_action) {
         READWRITE(prevout);
-        READWRITE(*(CScriptBase *)(&scriptSig));
+        READWRITE(scriptSig);
         READWRITE(nSequence);
     }
 
@@ -164,7 +164,7 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream &s, Operation ser_action) {
         READWRITE(nValue);
-        READWRITE(*(CScriptBase *)(&scriptPubKey));
+        READWRITE(scriptPubKey);
     }
 
     void SetNull() {
@@ -173,6 +173,14 @@ public:
     }
 
     bool IsNull() const { return (nValue == Amount(-1)); }
+
+    void SetEmpty() {
+        nValue = Amount(0);
+        scriptPubKey.clear();
+    }
+
+    bool IsEmpty() const { return (nValue == Amount(0) && scriptPubKey.empty()); }
+    bool IsUnspendable() const { return IsEmpty() || (scriptPubKey.size() > 0 && *scriptPubKey.begin() == OP_RETURN); }
 
     Amount GetDustThreshold(const CFeeRate &minRelayTxFee) const {
         /**
@@ -216,6 +224,7 @@ class CMutableTransaction;
 /**
  * Basic transaction serialization format:
  * - int32_t nVersion
+ * - uint32_t nTime
  * - std::vector<CTxIn> vin
  * - std::vector<CTxOut> vout
  * - uint32_t nLockTime
@@ -223,6 +232,7 @@ class CMutableTransaction;
 template <typename Stream, typename TxType>
 inline void UnserializeTransaction(TxType &tx, Stream &s) {
     s >> tx.nVersion;
+    s >> tx.nTime;
     tx.vin.clear();
     tx.vout.clear();
     /* Try to read the vin. In case the dummy is there, this will be read as an
@@ -236,6 +246,7 @@ inline void UnserializeTransaction(TxType &tx, Stream &s) {
 template <typename Stream, typename TxType>
 inline void SerializeTransaction(const TxType &tx, Stream &s) {
     s << tx.nVersion;
+    s << tx.nTime;
     s << tx.vin;
     s << tx.vout;
     s << tx.nLockTime;
@@ -248,7 +259,7 @@ inline void SerializeTransaction(const TxType &tx, Stream &s) {
 class CTransaction {
 public:
     // Default transaction version.
-    static const int32_t CURRENT_VERSION = 2;
+    static const int32_t CURRENT_VERSION = 1;
 
     // Changing the default transaction version requires a two step process:
     // first adapting relay policy by bumping MAX_STANDARD_VERSION, and then
@@ -262,6 +273,7 @@ public:
     // and bypass the constness. This is safe, as they update the entire
     // structure, including the hash.
     const int32_t nVersion;
+    const uint32_t nTime;
     const std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
     const uint32_t nLockTime;
@@ -321,6 +333,11 @@ public:
         return (vin.size() == 1 && vin[0].prevout.IsNull());
     }
 
+    bool IsCoinStake() const {
+        // the coin stake transaction is marked with the first output empty
+        return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
+    }
+
     friend bool operator==(const CTransaction &a, const CTransaction &b) {
         return a.hash == b.hash;
     }
@@ -338,6 +355,7 @@ public:
 class CMutableTransaction {
 public:
     int32_t nVersion;
+    uint32_t nTime;
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
     uint32_t nLockTime;
@@ -365,6 +383,8 @@ public:
      */
     TxId GetId() const;
     TxHash GetHash() const;
+
+    uint256 GetNormalizedHash() const;
 
     friend bool operator==(const CMutableTransaction &a,
                            const CMutableTransaction &b) {

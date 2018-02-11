@@ -34,11 +34,12 @@ public:
 
     template <typename Stream> void Serialize(Stream &s) const {
         ::Serialize(
-            s, VARINT(pcoin->GetHeight() * 2 + (pcoin->IsCoinBase() ? 1 : 0)));
+            s, VARINT(pcoin->GetHeight() * 4 + (pcoin->IsCoinBase() ? 1 : 0) + (pcoin->IsCoinStake() ? 2 : 0)));
         if (pcoin->GetHeight() > 0) {
             // Required to maintain compatibility with older undo format.
             ::Serialize(s, uint8_t(0));
         }
+        ::Serialize(s, nTime);
         ::Serialize(s, CTxOutCompressor(REF(pcoin->GetTxOut())));
     }
 };
@@ -52,8 +53,9 @@ public:
     template <typename Stream> void Unserialize(Stream &s) {
         uint32_t nCode = 0;
         ::Unserialize(s, VARINT(nCode));
-        uint32_t nHeight = nCode / 2;
+        uint32_t nHeight = nCode / 4;
         bool fCoinBase = nCode & 1;
+        bool fCoinStake = nCode & 2;
         if (nHeight > 0) {
             // Old versions stored the version number for the last spend of a
             // transaction's outputs. Non-final spends were indicated with
@@ -62,6 +64,7 @@ public:
             ::Unserialize(s, VARINT(nVersionDummy));
         }
 
+        ::Unserialize(s, nTime);
         CTxOut txout;
         ::Unserialize(s, REF(CTxOutCompressor(REF(txout))));
 

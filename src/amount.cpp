@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "amount.h"
+#include "math.h"
 
 #include "tinyformat.h"
 
@@ -29,7 +30,7 @@ Amount CFeeRate::GetFee(size_t nBytes_) const {
     assert(nBytes_ <= uint64_t(std::numeric_limits<int64_t>::max()));
     int64_t nSize = int64_t(nBytes_);
 
-    Amount nFee = nSize * nSatoshisPerK / 1000;
+    Amount nFee = nSatoshisPerK * ceil(1 + nSize / 1000);
 
     if (nFee == Amount(0) && nSize != 0) {
         if (nSatoshisPerK > Amount(0)) {

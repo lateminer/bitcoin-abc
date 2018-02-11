@@ -15,9 +15,7 @@ from test_framework.cdefs import LEGACY_MAX_BLOCK_SIZE, COINBASE_MATURITY
 
 class HighPriorityTransactionTest(BitcoinTestFramework):
 
-    def __init__(self):
-        super().__init__()
-        self.setup_clean_chain = True
+    def set_test_params(self):
         self.num_nodes = 1
         self.extra_args = [["-blockprioritypercentage=0", "-limitfreerelay=2"]]
 
@@ -79,9 +77,10 @@ class HighPriorityTransactionTest(BitcoinTestFramework):
         assert_equal(self.nodes[0].getmempoolinfo()['bytes'], mempool_size_pre)
 
         # restart with default blockprioritypercentage
-        stop_nodes(self.nodes)
-        self.nodes = start_nodes(self.num_nodes, self.options.tmpdir,
-                                 [["-limitfreerelay=2"]])
+        self.stop_nodes()
+        self.nodes = []
+        self.add_nodes(self.num_nodes, [["-limitfreerelay=2"]])
+        self.start_nodes()
 
         # second test step: default reserved prio space in block (100K).
         # the mempool size is about 25K this means that all txns will be

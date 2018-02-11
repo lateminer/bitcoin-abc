@@ -39,7 +39,7 @@ static int AppInitRawTx(int argc, char *argv[]) {
     //
     // Parameters
     //
-    ParseParameters(argc, argv);
+    gArgs.ParseParameters(argc, argv);
 
     // Check for -testnet or -regtest parameter (Params() calls are only valid
     // after this clause)
@@ -50,9 +50,10 @@ static int AppInitRawTx(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    fCreateBlank = GetBoolArg("-create", false);
+    fCreateBlank = gArgs.GetBoolArg("-create", false);
 
-    if (argc < 2 || IsArgSet("-?") || IsArgSet("-h") || IsArgSet("-help")) {
+    if (argc < 2 || gArgs.IsArgSet("-?") || gArgs.IsArgSet("-h") ||
+        gArgs.IsArgSet("-help")) {
         // First part of help message is specific to this utility
         std::string strUsage =
             strprintf(_("%s bitcoin-tx utility version"), _(PACKAGE_NAME)) +
@@ -81,6 +82,7 @@ static int AppInitRawTx(int argc, char *argv[]) {
         strUsage += HelpMessageOpt("in=TXID:VOUT(:SEQUENCE_NUMBER)",
                                    _("Add input to TX"));
         strUsage += HelpMessageOpt("locktime=N", _("Set TX lock time to N"));
+        strUsage += HelpMessageOpt("time=N", _("Set TX time to N"));
         strUsage += HelpMessageOpt("nversion=N", _("Set TX version to N"));
         strUsage += HelpMessageOpt("outaddr=VALUE:ADDRESS",
                                    _("Add address-based output to TX"));
@@ -223,6 +225,15 @@ static void MutateTxLocktime(CMutableTransaction &tx,
     }
 
     tx.nLockTime = (unsigned int)newLocktime;
+}
+
+static void MutateTxTime(CMutableTransaction &tx, const std::string &cmdVal)
+{
+    int64_t newTime = atoi64(cmdVal);
+    if (newTime < 0LL || newTime > 0xffffffffLL)
+        throw runtime_error("Invalid TX time requested");
+
+    tx.nTime = (unsigned int)newTime;
 }
 
 static void MutateTxAddInput(CMutableTransaction &tx,
@@ -720,6 +731,8 @@ static void MutateTx(CMutableTransaction &tx, const std::string &command,
         MutateTxVersion(tx, commandVal);
     } else if (command == "locktime") {
         MutateTxLocktime(tx, commandVal);
+    } else if (command == "time") {
+        MutateTxTime(tx, commandVal);
     } else if (command == "delin") {
         MutateTxDelInput(tx, commandVal);
     } else if (command == "in") {
@@ -773,9 +786,9 @@ static void OutputTxHex(const CTransaction &tx) {
 }
 
 static void OutputTx(const CTransaction &tx) {
-    if (GetBoolArg("-json", false)) {
+    if (gArgs.GetBoolArg("-json", false)) {
         OutputTxJSON(tx);
-    } else if (GetBoolArg("-txid", false)) {
+    } else if (gArgs.GetBoolArg("-txid", false)) {
         OutputTxHash(tx);
     } else {
         OutputTxHex(tx);

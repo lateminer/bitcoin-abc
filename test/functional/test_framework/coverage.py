@@ -17,7 +17,7 @@ import os
 REFERENCE_FILENAME = 'rpc_interface.txt'
 
 
-class AuthServiceProxyWrapper(object):
+class AuthServiceProxyWrapper():
     """
     An object that wraps AuthServiceProxy to record specific RPC calls.
 
@@ -59,6 +59,9 @@ class AuthServiceProxyWrapper(object):
     @property
     def url(self):
         return self.auth_service_proxy_instance.url
+
+    def __truediv__(self, relative_uri):
+        return AuthServiceProxyWrapper(self.auth_service_proxy_instance / relative_uri)
 
 
 def get_filename(dirname, n_node):

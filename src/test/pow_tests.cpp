@@ -25,7 +25,7 @@ BOOST_AUTO_TEST_CASE(get_next_work) {
     pindexLast.nTime = 1262152739; // Block #32255
     pindexLast.nBits = 0x1d00ffff;
     BOOST_CHECK_EQUAL(
-        CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, config),
+        CalculateNextTargetRequired(&pindexLast, nLastRetargetTime, config),
         0x1d00d86a);
 }
 
@@ -40,7 +40,7 @@ BOOST_AUTO_TEST_CASE(get_next_work_pow_limit) {
     pindexLast.nTime = 1233061996; // Block #2015
     pindexLast.nBits = 0x1d00ffff;
     BOOST_CHECK_EQUAL(
-        CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, config),
+        CalculateNextTargetRequired(&pindexLast, nLastRetargetTime, config),
         0x1d00ffff);
 }
 
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(get_next_work_lower_limit_actual) {
     pindexLast.nTime = 1279297671; // Block #68543
     pindexLast.nBits = 0x1c05a3f4;
     BOOST_CHECK_EQUAL(
-        CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, config),
+        CalculateNextTargetRequired(&pindexLast, nLastRetargetTime, config),
         0x1c0168fd);
 }
 
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(get_next_work_upper_limit_actual) {
     pindexLast.nTime = 1269211443; // Block #46367
     pindexLast.nBits = 0x1c387f6f;
     BOOST_CHECK_EQUAL(
-        CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, config),
+        CalculateNextTargetRequired(&pindexLast, nLastRetargetTime, config),
         0x1d00e1fd);
 }
 
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(GetBlockProofEquivalentTime_test) {
     for (int i = 0; i < 10000; i++) {
         blocks[i].pprev = i ? &blocks[i - 1] : nullptr;
         blocks[i].nHeight = i;
-        blocks[i].nTime = 1269211443 + i * params.nPowTargetSpacing;
+        blocks[i].nTime = 1269211443 + i * params.nTargetSpacing;
         blocks[i].nBits = 0x207fffff; /* target 0x7fffff000... */
         blocks[i].nChainWork =
             i ? blocks[i - 1].nChainWork + GetBlockProof(blocks[i])
@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(retargeting_test) {
 
     // Pile up some blocks.
     for (size_t i = 1; i < 100; i++) {
-        blocks[i] = GetBlockIndex(&blocks[i - 1], params.nPowTargetSpacing,
+        blocks[i] = GetBlockIndex(&blocks[i - 1], params.nTargetSpacing,
                                   initialBits);
     }
 

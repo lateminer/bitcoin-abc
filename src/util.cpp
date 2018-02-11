@@ -87,8 +87,11 @@
 #include <openssl/conf.h>
 #include <openssl/rand.h>
 
-const char *const BITCOIN_CONF_FILENAME = "bitcoin.conf";
-const char *const BITCOIN_PID_FILENAME = "bitcoind.pid";
+// Application startup time (used for uptime calculation)
+const int64_t nStartupTime = GetTime();
+
+const char *const BITCOIN_CONF_FILENAME = "lore.conf";
+const char *const BITCOIN_PID_FILENAME = "lored.pid";
 
 ArgsManager gArgs;
 bool fPrintToConsole = false;
@@ -481,7 +484,7 @@ static std::string FormatException(const std::exception *pex,
     char pszModule[MAX_PATH] = "";
     GetModuleFileNameA(nullptr, pszModule, sizeof(pszModule));
 #else
-    const char *pszModule = "bitcoin";
+    const char *pszModule = "lore";
 #endif
     if (pex)
         return strprintf("EXCEPTION: %s       \n%s       \n%s in %s       \n",
@@ -499,13 +502,13 @@ void PrintExceptionContinue(const std::exception *pex, const char *pszThread) {
 }
 
 fs::path GetDefaultDataDir() {
-// Windows < Vista: C:\Documents and Settings\Username\Application Data\Bitcoin
-// Windows >= Vista: C:\Users\Username\AppData\Roaming\Bitcoin
-// Mac: ~/Library/Application Support/Bitcoin
-// Unix: ~/.bitcoin
+// Windows < Vista: C:\Documents and Settings\Username\Application Data\Lore
+// Windows >= Vista: C:\Users\Username\AppData\Roaming\Lore
+// Mac: ~/Library/Application Support/Lore
+// Unix: ~/.lore
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "Bitcoin";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "Lore";
 #else
     fs::path pathRet;
     char *pszHome = getenv("HOME");
@@ -515,10 +518,10 @@ fs::path GetDefaultDataDir() {
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/Bitcoin";
+    return pathRet / "Library/Application Support/Lore";
 #else
     // Unix
-    return pathRet / ".bitcoin";
+    return pathRet / ".lore";
 #endif
 #endif
 }
@@ -536,8 +539,8 @@ const fs::path &GetDataDir(bool fNetSpecific) {
     // value so we don't have to do memory allocations after that.
     if (!path.empty()) return path;
 
-    if (IsArgSet("-datadir")) {
-        path = fs::system_complete(GetArg("-datadir", ""));
+    if (gArgs.IsArgSet("-datadir")) {
+        path = fs::system_complete(gArgs.GetArg("-datadir", ""));
         if (!fs::is_directory(path)) {
             path = "";
             return path;
@@ -599,7 +602,7 @@ void ArgsManager::ReadConfigFile(const std::string &confPath) {
 
 #ifndef WIN32
 fs::path GetPidFile() {
-    fs::path pathPidFile(GetArg("-pid", BITCOIN_PID_FILENAME));
+    fs::path pathPidFile(gArgs.GetArg("-pid", BITCOIN_PID_FILENAME));
     if (!pathPidFile.is_complete()) pathPidFile = GetDataDir() / pathPidFile;
     return pathPidFile;
 }
@@ -857,11 +860,16 @@ std::string CopyrightHolders(const std::string &strPrefix) {
         strPrefix +
         strprintf(_(COPYRIGHT_HOLDERS), _(COPYRIGHT_HOLDERS_SUBSTITUTION));
 
-    // Check for untranslated substitution to make sure Bitcoin ABC copyright
+    // Check for untranslated substitution to make sure Bitcoin Core copyright
     // is not removed by accident.
     if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION)
-            .find("Bitcoin ABC") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + "The Bitcoin ABC developers";
+            .find("Bitcoin Core") == std::string::npos) {
+        strCopyrightHolders += "\n" + strPrefix + "The Bitcoin Core developers";
     }
     return strCopyrightHolders;
+}
+
+// Obtain the application startup time (used for uptime calculation)
+int64_t GetStartupTime() {
+    return nStartupTime;
 }

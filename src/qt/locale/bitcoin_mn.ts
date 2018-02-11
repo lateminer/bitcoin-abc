@@ -127,7 +127,7 @@
     </message>
     <message>
         <source>Bitcoin</source>
-        <translation>Биткойн</translation>
+        <translation>Blackcoin</translation>
     </message>
     <message>
         <source>Wallet</source>

@@ -8,20 +8,16 @@
 import configparser
 import os
 import struct
-import sys
 
-from test_framework.test_framework import BitcoinTestFramework
+from test_framework.test_framework import BitcoinTestFramework, SkipTest
 from test_framework.util import (
     assert_equal,
     bytes_to_hex_str,
-    start_nodes,
 )
 
 
 class ZMQTest (BitcoinTestFramework):
-
-    def __init__(self):
-        super().__init__()
+    def set_test_params(self):
         self.num_nodes = 2
 
     def setup_nodes(self):
@@ -29,9 +25,7 @@ class ZMQTest (BitcoinTestFramework):
         try:
             import zmq
         except ImportError:
-            self.log.warning(
-                "python3-zmq module not available. Skipping zmq tests!")
-            sys.exit(self.TEST_EXIT_SKIPPED)
+            raise SkipTest("python3-zmq module not available.")
 
         # Check that bitcoin has been built with ZMQ enabled
         config = configparser.ConfigParser()
@@ -41,21 +35,20 @@ class ZMQTest (BitcoinTestFramework):
         config.read_file(open(self.options.configfile))
 
         if not config["components"].getboolean("ENABLE_ZMQ"):
-            self.log.warning(
-                "bitcoind has not been built with zmq enabled. Skipping zmq tests!")
-            sys.exit(self.TEST_EXIT_SKIPPED)
+            raise SkipTest("bitcoind has not been built with zmq enabled.")
 
         self.zmqContext = zmq.Context()
         self.zmqSubSocket = self.zmqContext.socket(zmq.SUB)
         self.zmqSubSocket.set(zmq.RCVTIMEO, 60000)
         self.zmqSubSocket.setsockopt(zmq.SUBSCRIBE, b"hashblock")
         self.zmqSubSocket.setsockopt(zmq.SUBSCRIBE, b"hashtx")
+
         ip_address = "tcp://127.0.0.1:28332"
         self.zmqSubSocket.connect(ip_address)
-        extra_args = [['-zmqpubhashtx=%s' %
-                       ip_address, '-zmqpubhashblock=%s' % ip_address], []]
-        self.nodes = start_nodes(
-            self.num_nodes, self.options.tmpdir, extra_args)
+        self.extra_args = [['-zmqpubhashtx=%s' %
+                            ip_address, '-zmqpubhashblock=%s' % ip_address], []]
+        self.add_nodes(self.num_nodes, self.extra_args)
+        self.start_nodes()
 
     def run_test(self):
         try:

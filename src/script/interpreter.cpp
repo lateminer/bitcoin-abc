@@ -59,7 +59,7 @@ static inline void popstack(std::vector<valtype> &stack) {
     stack.pop_back();
 }
 
-static bool IsCompressedOrUncompressedPubKey(const valtype &vchPubKey) {
+bool IsCompressedOrUncompressedPubKey(const std::vector<unsigned char> &vchPubKey) {
     if (vchPubKey.size() < 33) {
         //  Non-canonical public key: too short
         return false;
@@ -104,7 +104,7 @@ static bool IsCompressedPubKey(const valtype &vchPubKey) {
  *
  * This function is consensus-critical since BIP66.
  */
-static bool IsValidSignatureEncoding(const std::vector<uint8_t> &sig) {
+static bool IsValidSignatureEncoding(const std::vector<uint8_t> &sig, bool haveHashType = true) {
     // Format: 0x30 [total-length] 0x02 [R-length] [R] 0x02 [S-length] [S]
     // [sighash]
     // * total-length: 1-byte length descriptor of everything that follows,
@@ -127,7 +127,7 @@ static bool IsValidSignatureEncoding(const std::vector<uint8_t> &sig) {
     if (sig[0] != 0x30) return false;
 
     // Make sure the length covers the entire signature.
-    if (sig[1] != sig.size() - 3) return false;
+    if (sig[1] != sig.size() - (haveHashType ? 3 : 2)) return false;
 
     // Extract the length of the R element.
     unsigned int lenR = sig[3];
@@ -140,7 +140,7 @@ static bool IsValidSignatureEncoding(const std::vector<uint8_t> &sig) {
 
     // Verify that the length of the signature matches the sum of the length
     // of the elements.
-    if ((size_t)(lenR + lenS + 7) != sig.size()) return false;
+    if ((size_t)(lenR + lenS + (haveHashType ? 7 : 6)) != sig.size()) return false;
 
     // Check whether the R element is an integer.
     if (sig[2] != 0x02) return false;
@@ -173,15 +173,19 @@ static bool IsValidSignatureEncoding(const std::vector<uint8_t> &sig) {
     return true;
 }
 
-static bool IsLowDERSignature(const valtype &vchSig, ScriptError *serror) {
-    if (!IsValidSignatureEncoding(vchSig)) {
+bool IsLowDERSignature(const valtype &vchSig, ScriptError *serror, bool haveHashType) {
+    if (!IsValidSignatureEncoding(vchSig, haveHashType)) {
         return set_error(serror, SCRIPT_ERR_SIG_DER);
     }
-    std::vector<uint8_t> vchSigCopy(vchSig.begin(),
-                                    vchSig.begin() + vchSig.size() - 1);
-    if (!CPubKey::CheckLowS(vchSigCopy)) {
+    unsigned int nLenR = vchSig[3];
+    unsigned int nLenS = vchSig[5+nLenR];
+    const unsigned char *S = &vchSig[6+nLenR];
+    // If the S value is above the order of the curve divided by two, its
+    // complement modulo the order could have been used instead, which is
+    // one byte shorter when encoded correctly.
+    if (!CPubKey::CheckSignatureElement(S, nLenS, true))
         return set_error(serror, SCRIPT_ERR_SIG_HIGH_S);
-    }
+
     return true;
 }
 
@@ -249,7 +253,7 @@ bool CheckSignatureEncoding(const std::vector<uint8_t> &vchSig, uint32_t flags,
 
 static bool CheckPubKeyEncoding(const valtype &vchPubKey, uint32_t flags,
                                 ScriptError *serror) {
-    if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 &&
+    if ((flags & (SCRIPT_VERIFY_DERKEY | SCRIPT_VERIFY_STRICTENC)) != 0 &&
         !IsCompressedOrUncompressedPubKey(vchPubKey)) {
         return set_error(serror, SCRIPT_ERR_PUBKEYTYPE);
     }
@@ -1220,9 +1224,10 @@ private:
 public:
     CTransactionSignatureSerializer(const CTransaction &txToIn,
                                     const CScript &scriptCodeIn,
-                                    unsigned int nInIn, uint32_t nHashTypeIn)
+                                    unsigned int nInIn,
+                                    SigHashType sigHashTypeIn)
         : txTo(txToIn), scriptCode(scriptCodeIn), nIn(nInIn),
-          sigHashType(nHashTypeIn) {}
+          sigHashType(sigHashTypeIn) {}
 
     /** Serialize the passed scriptCode, skipping OP_CODESEPARATORs */
     template <typename S> void SerializeScriptCode(S &s) const {
@@ -1260,7 +1265,7 @@ public:
         // Serialize the script
         if (nInput != nIn) {
             // Blank out other inputs' signatures
-            ::Serialize(s, CScriptBase());
+            ::Serialize(s, CScript());
         } else {
             SerializeScriptCode(s);
         }
@@ -1291,6 +1296,8 @@ public:
     template <typename S> void Serialize(S &s) const {
         // Serialize nVersion
         ::Serialize(s, txTo.nVersion);
+        // Serialize nTime
+        ::Serialize(s, txTo.nTime);
         // Serialize vin
         unsigned int nInputs =
             sigHashType.hasAnyoneCanPay() ? 1 : txTo.vin.size();
@@ -1387,7 +1394,7 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
         // amount). The prevout may already be contained in hashPrevout, and the
         // nSequence may already be contain in hashSequence.
         ss << txTo.vin[nIn].prevout;
-        ss << static_cast<const CScriptBase &>(scriptCode);
+        ss << scriptCode;
         ss << amount.GetSatoshis();
         ss << txTo.vin[nIn].nSequence;
         // Outputs (none/one/all, depending on flags)
@@ -1416,8 +1423,7 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
 
     // Wrapper to serialize only the necessary parts of the transaction being
     // signed
-    CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn,
-                                          sigHashType.getRawSigHashType());
+    CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn, sigHashType);
 
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);

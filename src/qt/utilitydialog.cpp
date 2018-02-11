@@ -69,7 +69,7 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about)
         ui->helpMessage->setVisible(false);
     } else {
         setWindowTitle(tr("Command-line options"));
-        QString header = tr("Usage:") + "\n" + "  bitcoin-qt [" +
+        QString header = tr("Usage:") + "\n" + "  lore-qt [" +
                          tr("command-line options") + "]                     " +
                          "\n";
         QTextCursor cursor(ui->helpMessage->document());
@@ -79,7 +79,7 @@ HelpMessageDialog::HelpMessageDialog(QWidget *parent, bool about)
         cursor.insertBlock();
 
         std::string strUsage = HelpMessage(HMM_BITCOIN_QT);
-        const bool showDebug = GetBoolArg("-help-debug", false);
+        const bool showDebug = gArgs.GetBoolArg("-help-debug", false);
         strUsage += HelpMessageGroup(tr("UI Options:").toStdString());
         if (showDebug) {
             strUsage += HelpMessageOpt(

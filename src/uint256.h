@@ -111,6 +111,7 @@ public:
      * a network adversary could provide values to trigger worst-case behavior.
      */
     uint64_t GetCheapHash() const { return ReadLE64(data); }
+    uint64_t GetLow64() const;
 };
 
 /**
