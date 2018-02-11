@@ -898,7 +898,7 @@ bool CWallet::CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int
         {
             boost::this_thread::interruption_point();
             COutPoint prevoutStake = COutPoint(pcoin.first->GetHash(), pcoin.second);
-            acheKernel(stakeCache, prevoutStake); //this will do a 2 disk loads per op
+            CacheKernel(stakeCache, prevoutStake); //this will do a 2 disk loads per op
         }
 
     }
