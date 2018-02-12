@@ -158,7 +158,7 @@ public:
     BlockAssembler(const Config &_config);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
     std::unique_ptr<CBlockTemplate>
-    CreateNewBlock(const CScript &scriptPubKeyIn, Amount *nFees = Amount(0), bool fProofOfStake = false);
+    CreateNewBlock(const CScript &scriptPubKeyIn, Amount *nFees = 0, bool fProofOfStake = false);
 
     uint64_t GetMaxGeneratedBlockSize() const { return nMaxGeneratedBlockSize; }
 

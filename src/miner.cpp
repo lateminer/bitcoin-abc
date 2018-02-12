@@ -772,7 +772,7 @@ void ThreadStakeMiner(CWallet *pwallet, const Config &config)
         if (fTryToSync)
         {
             fTryToSync = false;
-            if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL < 3 || pindexBestHeader->GetBlockTime() < GetTime() - 10 * 60)
+            if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) < 3 || pindexBestHeader->GetBlockTime() < GetTime() - 10 * 60)
             {
                 MilliSleep(60000);
                 continue;
