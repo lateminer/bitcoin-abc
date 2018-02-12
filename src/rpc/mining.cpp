@@ -270,14 +270,18 @@ static UniValue getmininginfo(const Config &config,
 
 static UniValue getstakinginfo(const Config &config,
                               const JSONRPCRequest &request) {
+#ifdef ENABLE_WALLET
+    CWallet *const pwallet = GetWalletForJSONRPCRequest(request);
+#endif
+
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
             "getstakinginfo\n"
             "Returns an object containing staking-related information.");
 
     uint64_t nWeight = 0;
-    if (pwalletMain)
-        nWeight = pwalletMain->GetStakeWeight();
+    if (pwallet)
+        nWeight = pwallet->GetStakeWeight();
 
     uint64_t nNetworkWeight = GetPoSKernelPS();
     bool staking = nLastCoinStakeSearchInterval && nWeight;
@@ -285,7 +289,7 @@ static UniValue getstakinginfo(const Config &config,
 
     UniValue obj(UniValue::VOBJ);
 
-    obj.push_back(Pair("enabled", GetBoolArg("-staking", true)));
+    obj.push_back(Pair("enabled", gArgs.GetBoolArg("-staking", true)));
     obj.push_back(Pair("staking", staking));
     obj.push_back(Pair("errors", GetWarnings("statusbar")));
 
@@ -929,16 +933,20 @@ static UniValue submitblock(const Config &config,
 
 static UniValue checkkernel(const Config &config,
                             const JSONRPCRequest &request) {
+#ifdef ENABLE_WALLET
+    CWallet *const pwallet = GetWalletForJSONRPCRequest(request);
+#endif
+
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
             throw std::runtime_error(
                 "checkkernel [{\"txid\":txid,\"vout\":n},...] [createblocktemplate=false]\n"
                 "Check if one of given inputs is a kernel input at the moment.\n"
             );
 
-        RPCTypeCheck(params, boost::assign::list_of(UniValue::VARR)(UniValue::VBOOL));
+        RPCTypeCheck(request.params, {UniValue::VARR, UniValue::VBOOL});
 
-        UniValue inputs = params[0].get_array();
-        bool fCreateBlockTemplate = params.size() > 1 ? params[1].get_bool() : false;
+        UniValue inputs = request.params[0].get_array();
+        bool fCreateBlockTemplate = request.params.size() > 1 ? request.params[1].get_bool() : false;
 
         if (vNodes.empty())
             throw JSONRPCError(-9, "BlackCoin is not connected!");
@@ -949,7 +957,7 @@ static UniValue checkkernel(const Config &config,
         COutPoint kernel;
         CBlockIndex* pindexPrev = chainActive.Tip();
         CBlockHeader blockHeader = pindexPrev->GetBlockHeader();
-        unsigned int nBits = GetNextTargetRequired(pindexPrev, &blockHeader, true, Params().GetConsensus());
+        unsigned int nBits = GetNextTargetRequired(pindexPrev, &blockHeader, true, config);
         int64_t nTime = GetAdjustedTime();
         nTime &= ~Params().GetConsensus().nStakeTimestampMask;
 
@@ -995,11 +1003,11 @@ static UniValue checkkernel(const Config &config,
             return result;
 
         int64_t nFees;
-        if (!pwalletMain->IsLocked())
-            pwalletMain->TopUpKeyPool();
+        if (!pwallet->IsLocked())
+            pwallet->TopUpKeyPool();
 
-        CReserveKey pMiningKey(pwalletMain);
-        std::unique_ptr<CBlockTemplate> pblocktemplate(CreateNewBlock(Params(), pMiningKey.reserveScript, &nFees, true));
+        CReserveKey pMiningKey(pwallet);
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(config).CreateNewBlock(pMiningKey.reserveScript, &nFees, true));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 

@@ -297,7 +297,7 @@ CalculateSequenceLocks(const CTransaction &tx, int flags,
 static bool EvaluateSequenceLocks(const CBlockIndex &block,
                                   std::pair<int, int64_t> lockPair) {
     assert(block.pprev);
-    int64_t nBlockTime = block.pprev->GetMedianTimePast();
+    int64_t nBlockTime = block.pprev->GetPastTimeLimit();
     if (lockPair.first >= block.nHeight || lockPair.second >= nBlockTime)
         return false;
 
@@ -459,7 +459,7 @@ static bool CheckTransactionCommon(const CTransaction &tx,
     // Check for negative or overflow output values
     Amount nValueOut(0);
     for (const auto &txout : tx.vout) {
-        if (txout.empty() && !tx.IsCoinBase() && !tx.IsCoinStake()) {
+        if (txout.IsEmpty() && !tx.IsCoinBase() && !tx.IsCoinStake()) {
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-vout-empty");
         }
@@ -1230,11 +1230,11 @@ bool ReadFromDisk(CTransaction &tx, CDiskTxPos &txindex)
 }
 
 Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusParams) {
-    return 10000 * COIN;
+    return Amount(10000);
 }
 
 Amount GetProofOfStakeSubsidy(int nHeight, const Consensus::Params &consensusParams) {
-    return COIN * 3 / 2;
+    return Amount(3 / 2);
 }
 
 bool IsInitialBlockDownload() {
@@ -1945,7 +1945,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     }
 
     // Check difficulty
-    if (block.nBits != GetNextTargetRequired(pindex->pprev, &block, block.IsProofOfStake(), chainparams.GetConsensus()))
+    if (block.nBits != GetNextTargetRequired(pindex->pprev, &block, block.IsProofOfStake(), config))
         return state.DoS(100, error("%s: incorrect difficulty", __func__),
                                 REJECT_INVALID, "bad-diffbits");
 
@@ -2128,8 +2128,8 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                                         REJECT_INVALID, "bad-cb-amount");
     }
 
-    if (block.IsProofOfStake() && block.GetBlockTime() > chainparams.GetConsensus().nProtocolV3Time) {
-        Amount blockReward = nFees + GetProofOfStakeSubsidy(pindex->nHeight, chainparams.GetConsensus());
+    if (block.IsProofOfStake() && block.GetBlockTime() > consensusParams.nProtocolV3Time) {
+        Amount blockReward = nFees + GetProofOfStakeSubsidy(pindex->nHeight, consensusParams);
         if (nActualStakeReward > blockReward)
             return state.DoS(100, error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d)",
                                        nActualStakeReward, blockReward),
@@ -3091,8 +3091,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 // guaranteed to be in main chain by sync-checkpoint. This rule is
 // introduced to help nodes establish a consistent view of the coin
 // age (trust score) of competing branches.
-bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *pindexPrev, uint64_t &nCoinAge)
-{
+bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *pindexPrev, uint64_t &nCoinAge) {
     arith_uint256 bnCentSecond = 0;  // coin age in the unit of cent-seconds
         nCoinAge = 0;
 
@@ -3100,7 +3099,6 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
             return true;
 
         for (const CTxIn &txin : tx->vin) {
-        {
             // First try finding the previous transaction in database
             CTransaction txPrev;
             CDiskTxPos txindex;
@@ -3600,7 +3598,7 @@ static bool ContextualCheckBlockHeader(const Config &config,
         return state.DoS(1, error("%s: forked chain older than max reorganization depth (height %d)", __func__, nHeight));
 
     // Preliminary check difficulty in pos-only stage
-    if (chainActive.Height() > consensusParams.nLastPOWBlock && nHeight > consensusParams.nLastPOWBlock && block.nBits != GetNextTargetRequired(pindexPrev, &block, true, consensusParams))
+    if (chainActive.Height() > consensusParams.nLastPOWBlock && nHeight > consensusParams.nLastPOWBlock && block.nBits != GetNextTargetRequired(pindexPrev, &block, true, config))
          return state.DoS(100, error("%s: incorrect difficulty", __func__),
                             REJECT_INVALID, "bad-diffbits");
 
@@ -3777,11 +3775,11 @@ static bool AcceptBlockHeader(const Config &config, const CBlockHeader &block,
 bool ProcessNewBlockHeaders(const Config &config,
                             const std::vector<CBlockHeader> &headers,
                             CValidationState &state,
-                            const uint256 &hash,
                             const CBlockIndex **ppindex) {
     {
         LOCK(cs_main);
         for (const CBlockHeader &header : headers) {
+            uint256 hash = header.GetHash();
             // Use a temp pindex instead of ppindex to avoid a const_cast
             CBlockIndex *pindex = nullptr;
             if (!AcceptBlockHeader(config, header, state, hash, &pindex)) {

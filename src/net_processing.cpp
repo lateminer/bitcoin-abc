@@ -1379,8 +1379,6 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n",
              SanitizeString(strCommand), vRecv.size(), pfrom->id);
 
-    uint256 hash = block.GetHash();
-
     if (gArgs.IsArgSet("-dropmessagestest") &&
         GetRand(gArgs.GetArg("-dropmessagestest", 0)) == 0) {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
@@ -1591,7 +1589,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         int64_t nTimeOffset = nTime - GetTime();
         pfrom->nTimeOffset = nTimeOffset;
 
-        if (GetBoolArg("-synctime", false))
+        if (gArgs.GetBoolArg("-synctime", false))
             AddTimeData(pfrom->addr, nTimeOffset);
 
         // Feeler connections exist only to verify if address is online.
@@ -2264,7 +2262,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
 
         const CBlockIndex *pindex = nullptr;
         CValidationState state;
-        if (!ProcessNewBlockHeaders(config, {cmpctblock.header}, state, &hash, &pindex)) {
+        if (!ProcessNewBlockHeaders(config, {cmpctblock.header}, state, &pindex)) {
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0) {
@@ -2475,6 +2473,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
                                        std::make_pair(pfrom->GetId(), false));
             }
             bool fNewBlock = false;
+            uint256 hash = pblock->GetHash();
             ProcessNewBlock(config, pblock, true, &fNewBlock, hash);
             if (fNewBlock) {
                 pfrom->nLastBlockTime = GetTime();
@@ -2570,6 +2569,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         } // Don't hold cs_main when we call into ProcessNewBlock
         if (fBlockRead) {
             bool fNewBlock = false;
+            uint256 hash = pblock->GetHash();
             // Since we requested this block (it was in mapBlocksInFlight),
             // force it to be processed, even if it would not be a candidate for
             // new tip (missing previous block, chain not long enough, etc)
@@ -2663,8 +2663,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         }
 
         CValidationState state;
-        uint256 hash = header.GetHash();
-        if (!ProcessNewBlockHeaders(config, headers, state, hash, &pindexLast)) {
+        if (!ProcessNewBlockHeaders(config, headers, state, &pindexLast)) {
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0) {
@@ -2793,7 +2792,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
         // block may still be processed, subject to the conditions in
         // AcceptBlock().
         bool forceProcessing = pfrom->fWhitelisted && !IsInitialBlockDownload();
-        const uint256 hash(pblock->GetHash());
+        uint256 hash = pblock->GetHash();
         {
             LOCK(cs_main);
             // Also always process if we requested the block explicitly, as we

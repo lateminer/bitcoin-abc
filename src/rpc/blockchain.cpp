@@ -403,7 +403,7 @@ UniValue getdifficulty(const Config &config, const JSONRPCRequest &request) {
 
     LOCK(cs_main);
     UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("proof-of-work",  GetDifficulty()));
+    obj.push_back(Pair("proof-of-work",  GetDifficulty(nullptr)));
     obj.push_back(Pair("proof-of-stake", GetDifficulty(GetLastBlockIndex(chainActive.Tip(), true))));
 }
 
@@ -1333,7 +1333,7 @@ UniValue getblockchaininfo(const Config &config,
     LOCK(cs_main);
 
     UniValue diff(UniValue::VOBJ);
-    diff.push_back(Pair("proof-of-work",  (double)GetDifficulty()));
+    diff.push_back(Pair("proof-of-work",  (double)GetDifficulty(nullptr)));
     diff.push_back(Pair("proof-of-stake", (double)GetDifficulty(GetLastBlockIndex(chainActive.Tip(), true))));
 
     UniValue obj(UniValue::VOBJ);
@@ -1743,7 +1743,7 @@ UniValue getchaintxstats(const Config &config, const JSONRPCRequest &request) {
     const CBlockIndex *pindexPast =
         pindex->GetAncestor(pindex->nHeight - blockcount);
     int nTimeDiff =
-        pindex->GetMedianTimePast() - pindexPast->GetMedianTimePast();
+        pindex->GetPastTimeLimit() - pindexPast->GetPastTimeLimit();
     int nTxDiff = pindex->nChainTx - pindexPast->nChainTx;
 
     UniValue ret(UniValue::VOBJ);

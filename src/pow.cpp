@@ -51,7 +51,7 @@ uint32_t GetNextTargetRequired(const CBlockIndex *pindexLast, const CBlockHeader
     if (pindexPrevPrev->pprev == NULL)
         return nTargetLimit; // second block
 
-    return CalculateNextTargetRequired(pindexPrev, pindexPrevPrev->GetBlockTime(), params);
+    return CalculateNextTargetRequired(pindexPrev, pindexPrevPrev->GetBlockTime(), config);
 }
 
 uint32_t CalculateNextTargetRequired(const CBlockIndex *pindexLast, int64_t nFirstBlockTime, const Config &config)

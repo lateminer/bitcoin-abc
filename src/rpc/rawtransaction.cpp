@@ -727,7 +727,7 @@ UniValue getnormalizedtxid(const Config &config,
             "Return the normalized transaction ID.");
     // parse hex string from parameter
     CTransaction tx;
-    if (!DecodeHexTx(tx, params[0].get_str()))
+    if (!DecodeHexTx(tx, request.params[0].get_str()))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
 
     uint256 hashNormalized = CMutableTransaction(tx).GetNormalizedHash();

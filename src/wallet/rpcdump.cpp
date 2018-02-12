@@ -1226,7 +1226,7 @@ UniValue importmulti(const Config &config, const JSONRPCRequest &mainRequest) {
 
     // Verify all timestamps are present before importing any keys.
     const int64_t now =
-        chainActive.Tip() ? chainActive.Tip()->GetMedianTimePast() : 0;
+        chainActive.Tip() ? chainActive.Tip()->GetPastTimeLimit() : 0;
     for (const UniValue &data : requests.getValues()) {
         GetImportTimestamp(data, now);
     }

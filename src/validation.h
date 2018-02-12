@@ -281,7 +281,6 @@ bool ProcessNewBlock(const Config &config,
 bool ProcessNewBlockHeaders(const Config &config,
                             const std::vector<CBlockHeader> &block,
                             CValidationState &state,
-                            const uint256 &hash,
                             const CBlockIndex **ppindex = nullptr);
 
 /** Check whether enough disk space is available for an incoming block */

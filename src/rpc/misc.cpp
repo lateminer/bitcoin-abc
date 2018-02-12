@@ -98,7 +98,7 @@ static UniValue getinfo(const Config &config, const JSONRPCRequest &request) {
     GetProxy(NET_IPV4, proxy);
 
     UniValue diff(UniValue::VOBJ);
-    diff.push_back(Pair("proof-of-work",  (double)GetDifficulty()));
+    diff.push_back(Pair("proof-of-work",  (double)GetDifficulty(nullptr)));
     diff.push_back(Pair("proof-of-stake", (double)GetDifficulty(GetLastBlockIndex(chainActive.Tip(), true))));
 
     UniValue obj(UniValue::VOBJ);
@@ -628,6 +628,64 @@ static UniValue echo(const Config &config, const JSONRPCRequest &request) {
     }
 
     return request.params;
+}
+
+bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &address)
+{
+    if (type == 2) {
+        address = EncodeDestination(CScriptID(hash));
+    } else if (type == 1) {
+        address = EncodeDestination(CKeyID(hash));
+    } else {
+        return false;
+    }
+    return true;
+}
+
+bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, int> > &addresses)
+{
+    if (params[0].isStr()) {
+        CTxDestination dest = DecodeDestination(params[0].get_str());
+        uint160 hashBytes;
+        int type = 0;
+        if (IsValidDestination(dest)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        }
+        addresses.push_back(std::make_pair(hashBytes, type));
+    } else if (params[0].isObject()) {
+
+        UniValue addressValues = find_value(params[0].get_obj(), "addresses");
+        if (!addressValues.isArray()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Addresses is expected to be an array");
+        }
+
+        std::vector<UniValue> values = addressValues.getValues();
+
+        for (std::vector<UniValue>::iterator it = values.begin(); it != values.end(); ++it) {
+
+            CTxDestination dest = DecodeDestination(it->get_str());
+            uint160 hashBytes;
+            int type = 0;
+            if (IsValidDestination(dest)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+            }
+            addresses.push_back(std::make_pair(hashBytes, type));
+        }
+    } else {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+    }
+
+    return true;
+}
+
+bool heightSort(std::pair<CAddressUnspentKey, CAddressUnspentValue> a,
+                std::pair<CAddressUnspentKey, CAddressUnspentValue> b) {
+    return a.second.blockHeight < b.second.blockHeight;
+}
+
+bool timestampSort(std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta> a,
+                   std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta> b) {
+    return a.second.time < b.second.time;
 }
 
 UniValue getaddressmempool(const Config &config, const JSONRPCRequest &request) {

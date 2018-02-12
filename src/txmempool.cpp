@@ -595,9 +595,9 @@ void CTxMemPool::removeForReorg(const Config &config,
                 }
 
                 if (coin.IsSpent() ||
-                    (coin.IsCoinBase() || coin.IsCoinStake() &&
-                     int64_t(nMemPoolHeight) - coin.GetHeight() <
-                         chainparams.GetConsensus().nCoinbaseMaturity)) {
+                    ((coin.IsCoinBase() || coin.IsCoinStake()) &&
+                     (int64_t(nMemPoolHeight) - coin.GetHeight()) <
+                        Params().GetConsensus().nCoinbaseMaturity)) {
                     txToRemove.insert(it);
                     break;
                 }
