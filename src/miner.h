@@ -158,7 +158,7 @@ public:
     BlockAssembler(const Config &_config);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
     std::unique_ptr<CBlockTemplate>
-    CreateNewBlock(const CScript &scriptPubKeyIn, int64_t *nFees = 0, bool fProofOfStake = false);
+    CreateNewBlock(const CScript &scriptPubKeyIn, Amount *nFees = 0, bool fProofOfStake = false);
 
     uint64_t GetMaxGeneratedBlockSize() const { return nMaxGeneratedBlockSize; }
 
@@ -214,7 +214,7 @@ void IncrementExtraNonce(const Config &config, CBlock *pblock,
                          const CBlockIndex *pindexPrev,
                          unsigned int &nExtraNonce);
 int64_t UpdateTime(CBlock *pblock, const Config &config, const CBlockIndex *pindexPrev);
-bool SignBlock(CBlock &block, CWallet &wallet, int64_t &nFees);
+bool SignBlock(CBlock &block, CWallet &wallet, Amount &nFees);
 void ThreadStakeMiner(CWallet *pwallet, const Config &config);
 bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config);
 #endif // BITCOIN_MINER_H

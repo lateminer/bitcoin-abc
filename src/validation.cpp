@@ -1949,18 +1949,18 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
         return state.DoS(100, error("%s: incorrect difficulty", __func__),
                                 REJECT_INVALID, "bad-diffbits");
 
-    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1].vin[0].prevout.hash : hash);
+    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : hash);
 
     // Check proof-of-stake
-    if (block.IsProofOfStake() && block.GetBlockTime() > chainparams.GetConsensus().nProtocolV3Time) {
-         const COutPoint &prevout = block.vtx[1].vin[0].prevout;
+    if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
+         const COutPoint &prevout = block.vtx[1]->vin[0].prevout;
          const CCoins *coin = view.AccessCoin(prevout.hash);
           if (!coins)
               return state.DoS(100, error("%s: kernel input unavailable", __func__),
                                 REJECT_INVALID, "bad-cs-kernel");
 
          // Check proof-of-stake min confirmations
-         if (pindex->nHeight - coin.GetHeight() < chainparams.GetConsensus().nStakeMinConfirmations)
+         if (pindex->nHeight - coin.GetHeight() < Params().GetConsensus().nStakeMinConfirmations)
               return state.DoS(100,
                   error("%s: tried to stake at depth %d", __func__, pindex->nHeight - coin.GetHeight()),
                     REJECT_INVALID, "bad-cs-premature");
@@ -2080,9 +2080,8 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                 nActualStakeReward = tx.GetValueOut() - view.GetValueIn(tx);
             }
             else {
-                Amount fee = view.GetValueIn(tx) - tx.GetValueOut();
+                nFees += view.GetValueIn(tx) - tx.GetValueOut();
             }
-            nFees += fee;
 
             // Don't cache results if we're actually connecting blocks (still
             // consult the cache, though).
@@ -3486,17 +3485,17 @@ bool CheckBlock(const Config &config, const CBlock &block,
     if (block.IsProofOfStake())
     {
         // Coinbase output must be empty if proof-of-stake block
-        if (block.vtx[0].vout.size() != 1 || !block.vtx[0].vout[0].IsEmpty())
+        if (block.vtx[0]->vout.size() != 1 || !block.vtx[0]->vout[0].IsEmpty())
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-not-empty", false,
                              "coinbase output not empty for proof-of-stake block");
 
         // Second transaction must be coinstake, the rest must not be
-        if (block.vtx.size() < 2 || !block.vtx[1].IsCoinStake())
+        if (block.vtx.size() < 2 || !block.vtx[1]->IsCoinStake())
             return state.DoS(100, false, REJECT_INVALID, "bad-cs-missing", false,
                              "second tx is not coinstake");
 
         for (unsigned int i = 2; i < block.vtx.size(); i++)
-            if (block.vtx[i].IsCoinStake())
+            if (block.vtx[i]->IsCoinStake())
                 return state.DoS(100, false, REJECT_INVALID, "bad-cs-multiple", false,
                               "more than one coinstake");
     }

@@ -2251,11 +2251,11 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
         LogPrintf("Staking disabled\n");
 
     for (CWalletRef pwallet : vpwallets) {
-        pwallet->postInitProcess(scheduler);
+        // Mine proof-of-stake blocks in the background
+        if (pwallet)
+            threadGroup.create_thread(boost::bind(&ThreadStakeMiner, pwallet, std::ref(config)));
 
-    // Mine proof-of-stake blocks in the background
-    if (pwallet)
-        threadGroup.create_thread(boost::bind(&ThreadStakeMiner, pwallet, config));
+        pwallet->postInitProcess(scheduler);
     }
 #endif
 
