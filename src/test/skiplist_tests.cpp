@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(findearliestatleast_test) {
             vBlocksMain[i].nTimeMax = i;
         } else {
             // randomly choose something in the range [MTP, MTP*2]
-            int64_t medianTimePast = vBlocksMain[i].GetMedianTimePast();
+            int64_t medianTimePast = vBlocksMain[i].GetPastTimeLimit();
             int r = InsecureRandRange(medianTimePast);
             vBlocksMain[i].nTime = r + medianTimePast;
             vBlocksMain[i].nTimeMax =

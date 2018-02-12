@@ -17,7 +17,7 @@
 #include "hash.h"
 #include "net.h"
 #include "policy/policy.h"
-#include "pos.h
+#include "pos.h"
 #include "pow.h"
 #include "primitives/transaction.h"
 #include "script/standard.h"
@@ -233,7 +233,7 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn, int64_t *pFees, bo
 
     // Fill in header.
     pblock->hashPrevBlock = pindexPrev->GetBlockHash();
-    pblock->nTime = max(pindexPrev->GetPastTimeLimit()+1, GetMaxTransactionTime(pblock));
+    pblock->nTime = std::max(pindexPrev->GetPastTimeLimit()+1, GetMaxTransactionTime(pblock));
     if (!fProofOfStake)
        UpdateTime(pblock, *config, pindexPrev);
     pblock->nBits = GetNextTargetRequired(pindexPrev, pblock, fProofOfStake, *config);
@@ -724,7 +724,7 @@ bool SignBlock(CBlock &block, CWallet &wallet, int64_t &nFees)
 
                 // we have to make sure that we have no future timestamps in
                 //    our transactions set
-                for (vector<CTransaction>::iterator it = block.vtx.begin(); it != block.vtx.end();)
+                for (std::vector<CTransaction>::iterator it = block.vtx.begin(); it != block.vtx.end();)
                     if (it->nTime > block.nTime) { it = block.vtx.erase(it); } else { ++it; }
 
                 block.vtx.insert(block.vtx.begin() + 1, txCoinStake);
@@ -782,7 +782,7 @@ void ThreadStakeMiner(CWallet *pwallet, const Config &config)
         // Create new block
         //
         int64_t nFees;
-        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(config, Params()).CreateNewBlock(reservekey.reserveScript, &nFees, true));
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(config).CreateNewBlock(reservekey.reserveScript, &nFees, true));
         if (!pblocktemplate.get())
              return;
 

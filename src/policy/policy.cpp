@@ -88,8 +88,8 @@ bool IsStandardTx(const CTransaction &tx, std::string &reason) {
 
         if (whichType == TX_NULL_DATA)
             nDataOut++;
-        else if (txout.nValue == 0) {
-        	reason = "dust";
+        else if (txout.nValue == Amount(0)) {
+            reason = "dust";
             return false;
         }
         if (!txout.scriptPubKey.HasCanonicalPushes()) {
@@ -99,7 +99,7 @@ bool IsStandardTx(const CTransaction &tx, std::string &reason) {
         else if ((whichType == TX_MULTISIG) && (!fIsBareMultisigStd)) {
             reason = "bare-multisig";
             return false;
-        } else if (txout.nValue == 0) {
+        } else if (txout.nValue == Amount(0)) {
             reason = "dust";
             return false;
         }
@@ -146,6 +146,15 @@ bool AreInputsStandard(const CTransaction &tx,
     }
 
     return true;
+}
+
+int64_t FutureDrift(int64_t nTime)
+{
+    // loose policy for FutureDrift in regtest mode
+    if (Params().GetConsensus().fPowNoRetargeting && chainActive.Height() <= Params().GetConsensus().nLastPOWBlock) {
+            return nTime + 24 * 60 * 60;
+    }
+    return Params().GetConsensus().IsProtocolV2(nTime) ? nTime + 15 : nTime + 10 * 60;
 }
 
 CFeeRate incrementalRelayFee = CFeeRate(DEFAULT_INCREMENTAL_RELAY_FEE);
