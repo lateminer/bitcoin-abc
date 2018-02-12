@@ -145,13 +145,13 @@ getExcessiveBlockSizeSig(const Config &config) {
 
 int64_t GetMaxTransactionTime(CBlock* pblock) {
     int64_t maxTransactionTime = 0;
-    for (std::vector<CTransaction>::const_iterator it(pblock->vtx.begin()); it != pblock->vtx.end(); ++it)
+    for (auto it = pblock->vtx.begin(); it != pblock->vtx.end(); ++it)
         maxTransactionTime = std::max(maxTransactionTime, (int64_t)it->nTime);
     return maxTransactionTime;
 }
 
 std::unique_ptr<CBlockTemplate>
-BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn, int64_t *pFees, bool fProofOfStake) {
+BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn, Amount *pFees, bool fProofOfStake) {
     int64_t nTimeStart = GetTimeMicros();
 
     resetBlock();
@@ -684,13 +684,13 @@ void IncrementExtraNonce(const Config &config, CBlock *pblock,
 
 #ifdef ENABLE_WALLET
 // novacoin: attempt to generate suitable proof-of-stake
-bool SignBlock(CBlock &block, CWallet &wallet, int64_t &nFees)
+bool SignBlock(CBlock &block, CWallet &wallet, Amount &nFees)
 {
     // if we are trying to sign
     //    something except proof-of-stake block template
-    if (!block.vtx[0].vout[0].IsEmpty()){
-    	LogPrintf("something except proof-of-stake block\n");
-    	return false;
+    if (!block.vtx[0]->vout[0].IsEmpty()){
+        LogPrintf("something except proof-of-stake block\n");
+        return false;
     }
 
     // if we are trying to sign
@@ -724,8 +724,8 @@ bool SignBlock(CBlock &block, CWallet &wallet, int64_t &nFees)
 
                 // we have to make sure that we have no future timestamps in
                 //    our transactions set
-                for (std::vector<CTransaction>::iterator it = block.vtx.begin(); it != block.vtx.end();)
-                    if (it->nTime > block.nTime) { it = block.vtx.erase(it); } else { ++it; }
+                for (auto it = block.vtx.begin(); it != block.vtx.end();)
+                    if ((*it)->nTime > block.nTime) { it = block.vtx.erase(it); } else { ++it; }
 
                 block.vtx.insert(block.vtx.begin() + 1, txCoinStake);
 
@@ -745,9 +745,10 @@ bool SignBlock(CBlock &block, CWallet &wallet, int64_t &nFees)
 
 void ThreadStakeMiner(CWallet *pwallet, const Config &config)
 {
-    SetThreadPriority(THREAD_PRIORITY_LOWEST);
     // Make this thread recognisable as the mining thread
     RenameThread("blackcoin-miner");
+
+    SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
     CReserveKey reservekey(pwallet);
 
@@ -761,7 +762,7 @@ void ThreadStakeMiner(CWallet *pwallet, const Config &config)
             MilliSleep(1000);
         }
 
-        while (vNodes.empty() || IsInitialBlockDownload())
+        while (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || IsInitialBlockDownload())
         {
             nLastCoinStakeSearchInterval = 0;
             fTryToSync = true;
@@ -771,7 +772,7 @@ void ThreadStakeMiner(CWallet *pwallet, const Config &config)
         if (fTryToSync)
         {
             fTryToSync = false;
-            if (vNodes.size() < 3 || pindexBestHeader->GetBlockTime() < GetTime() - 10 * 60)
+            if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL < 3 || pindexBestHeader->GetBlockTime() < GetTime() - 10 * 60)
             {
                 MilliSleep(60000);
                 continue;
@@ -781,7 +782,7 @@ void ThreadStakeMiner(CWallet *pwallet, const Config &config)
         //
         // Create new block
         //
-        int64_t nFees;
+        Amount nFees;
         std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(config).CreateNewBlock(reservekey.reserveScript, &nFees, true));
         if (!pblocktemplate.get())
              return;
@@ -808,12 +809,12 @@ bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config) {
 
     CValidationState state;
     // verify hash target and signature of coinstake tx
-    if (!CheckProofOfStake(mapBlockIndex[pblock->hashPrevBlock], pblock->vtx[1], pblock->nBits, state))
+    if (!CheckProofOfStake(mapBlockIndex[pblock->hashPrevBlock], *pblock->vtx[1], pblock->nBits, state))
         return error("CheckStake() : proof-of-stake checking failed");
 
     //// debug print
     LogPrintf("%s\n", pblock->ToString());
-    LogPrintf("out %s\n", FormatMoney(pblock->vtx[1].GetValueOut()));
+    LogPrintf("out %s\n", FormatMoney(pblock->vtx[1]->GetValueOut()));
 
     // Found a solution
     {

@@ -840,13 +840,13 @@ bool CWallet::SelectCoinsForStaking(Amount &nTargetValue, std::set<std::pair<con
 }
 
 // miner's coin stake reward
-int64_t GetProofOfStakeReward(const CBlockIndex *pindexPrev, int64_t nCoinAge, int64_t nFees)
+Amount GetProofOfStakeReward(const CBlockIndex *pindexPrev, int64_t nCoinAge, Amount nFees)
 {
-    int64_t nSubsidy;
+    Amount nSubsidy;
     if (Params().GetConsensus().IsProtocolV3(pindexPrev->nTime))
-        nSubsidy = COIN * 3 / 2;
+        nSubsidy = Amount(3 / 2);
     else
-        nSubsidy = nCoinAge * 1 * CENT * 33 / (365 * 33 + 8);
+        nSubsidy = nCoinAge * Amount((33 / (365 * 33 + 8)) / 100);
 
     LogPrint("creation", "GetProofOfStakeReward(): create=%s nCoinAge=%d\n", FormatMoney(nSubsidy), nCoinAge);
 
