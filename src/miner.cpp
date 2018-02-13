@@ -145,7 +145,7 @@ getExcessiveBlockSizeSig(const Config &config) {
 
 int64_t GetMaxTransactionTime(CBlock* pblock) {
     int64_t maxTransactionTime = 0;
-    for (auto it = pblock->vtx.begin(); it != pblock->vtx.end(); ++it)
+    for (std::vector<CTransaction>::const_iterator it(pblock->vtx.begin()); it != pblock->vtx.end(); ++it)
         maxTransactionTime = std::max(maxTransactionTime, (int64_t)it->nTime);
     return maxTransactionTime;
 }
@@ -724,8 +724,8 @@ bool SignBlock(CBlock &block, CWallet &wallet, Amount &nFees)
 
                 // we have to make sure that we have no future timestamps in
                 //    our transactions set
-                for (auto it = block.vtx.begin(); it != block.vtx.end();)
-                    if ((*it)->nTime > block.nTime) { it = block.vtx.erase(it); } else { ++it; }
+                for (std::vector<CTransaction>::iterator it = block.vtx.begin(); it != block.vtx.end();)
+                    if (it->nTime > block.nTime) { it = block.vtx.erase(it); } else { ++it; }
 
                 block.vtx.insert(block.vtx.begin() + 1, txCoinStake);
 
