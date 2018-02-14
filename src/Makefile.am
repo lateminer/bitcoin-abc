@@ -13,7 +13,7 @@ if EMBEDDED_UNIVALUE
 LIBUNIVALUE = univalue/libunivalue.la
 
 $(LIBUNIVALUE): $(wildcard univalue/lib/*) $(wildcard univalue/include/*)
-	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
+    $(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C $(@D) $(@F)
 else
 LIBUNIVALUE = $(UNIVALUE_LIBS)
 endif
@@ -218,7 +218,6 @@ libbitcoin_server_a_SOURCES = \
   policy/policy.cpp \
   pow.cpp \
   rest.cpp \
-  rpc/abc.cpp \
   rpc/blockchain.cpp \
   rpc/mining.cpp \
   rpc/misc.cpp \

@@ -178,7 +178,6 @@ add_library(server
 	policy/policy.cpp
 	pow.cpp
 	rest.cpp
-	rpc/abc.cpp
 	rpc/blockchain.cpp
 	rpc/mining.cpp
 	rpc/misc.cpp
