@@ -350,13 +350,13 @@ public:
     //! empty constructor
     CCoins() : fCoinBase(false), fCoinStake(false), vout(0), nHeight(0), nVersion(0), nTime(0) {}
 
-    template <typename Stream> void Unserialize(Stream &s) {
+    template <typename Stream> void Unserialize(Stream &s, int nType, int nVersion) {
         uint32_t nCode = 0;
         // version
         int nVersionDummy;
-        ::Unserialize(s, VARINT(nVersionDummy));
+        ::Unserialize(s, VARINT(this->nVersion), nType, nVersion);
         // header code
-        ::Unserialize(s, VARINT(nCode));
+        ::Unserialize(s, VARINT(nCode), nType, nVersion);
         fCoinBase = nCode & 1;
         fCoinStake = nCode & 8;
         std::vector<bool> vAvail(2, false);
@@ -366,7 +366,7 @@ public:
         // spentness bitmask
         while (nMaskCode > 0) {
             uint8_t chAvail = 0;
-            ::Unserialize(s, chAvail);
+            ::Unserialize(s, chAvail, nType, nVersion);
             for (unsigned int p = 0; p < 8; p++) {
                 bool f = (chAvail & (1 << p)) != 0;
                 vAvail.push_back(f);
@@ -379,13 +379,13 @@ public:
         vout.assign(vAvail.size(), CTxOut());
         for (size_t i = 0; i < vAvail.size(); i++) {
             if (vAvail[i]) {
-                ::Unserialize(s, REF(CTxOutCompressor(vout[i])));
+                ::Unserialize(s, REF(CTxOutCompressor(vout[i])), nType, nVersion);
             }
         }
         // coinbase height
-        ::Unserialize(s, VARINT(nHeight));
+        ::Unserialize(s, VARINT(nHeight), nType, nVersion);
         // time
-        ::Unserialize(s, nTime);
+        ::Unserialize(s, nTime, nType, nVersion);
     }
 };
 } // namespace

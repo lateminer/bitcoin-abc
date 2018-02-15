@@ -45,7 +45,7 @@ struct CCoin {
     CTxOut out;
 
     CCoin() : nHeight(0) {}
-    CCoin(Coin in) : nHeight(in.GetHeight()), out(std::move(in.GetTxOut())) {}
+    CCoin(Coin in) : nHeight(in.nHeight()), out(std::move(in.GetTxOut())) {}
 
     ADD_SERIALIZE_METHODS;
 

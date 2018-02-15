@@ -19,6 +19,7 @@
 #include "init.h"
 #include "policy/fees.h"
 #include "policy/policy.h"
+#include "pos.h"
 #include "pow.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"
@@ -1440,13 +1441,13 @@ bool CheckTxInputs(const CTransaction &tx, CValidationState &state,
 
         // If prev is coinbase or coinstake, check that it's matured
         if (coin.IsCoinBase() || coin.IsCoinStake()) {
-            if (nSpendHeight - coin.GetHeight() < Params().nCoinbaseMaturity) {
+            if (uint32_t(nSpendHeight) - coin.GetHeight() <  uint32_t(Params().nCoinbaseMaturity)) {
                 return state.Invalid(
                     false, REJECT_INVALID,
                     "bad-txns-premature-spend-of-coinbase",
                     strprintf("tried to spend %s at depth %d",
                               coin.IsCoinBase() ? "coinbase" : "coinstake",
-                              nSpendHeight - coin.GetHeight()));
+                              uint32_t(nSpendHeight) - coin.GetHeight()));
             }
         }
 
@@ -1965,7 +1966,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                   error("%s: tried to stake at depth %d", __func__, pindex->nHeight - coin.GetHeight()),
                     REJECT_INVALID, "bad-cs-premature");
 
-         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, coin, prevout, block.vtx[1].nTime))
+         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, coin, prevout, block.vtx[1]->nTime))
               return state.DoS(100, error("%s: proof-of-stake hash doesn't match nBits", __func__),
                                  REJECT_INVALID, "bad-cs-proofhash");
     }
@@ -3473,14 +3474,14 @@ bool CheckBlock(const Config &config, const CBlock &block,
     auto nMaxSigOpsCount = GetMaxBlockSigOpsCount(currentBlockSize);
 
     // Check coinbase timestamp
-    if (block.GetBlockTime() > FutureDrift(block.vtx[0].nTime))
+    if (block.GetBlockTime() > FutureDrift(block.vtx[0]->nTime))
         return state.DoS(25, false, REJECT_INVALID, "bad-cb-time", false,
                          "coinbase timestamp is too early");
 
     // Check coinstake timestamp
-    if (block.IsProofOfStake() && !CheckCoinStakeTimestamp(block.GetBlockTime(), block.vtx[1].nTime))
+    if (block.IsProofOfStake() && !CheckCoinStakeTimestamp(block.GetBlockTime(), block.vtx[1]->nTime))
         return state.DoS(50, false, REJECT_INVALID, "bad-cs-time", false,
-                        strprintf("coinstake timestamp violation nTimeBlock=%d nTimeTx=%u", block.GetBlockTime(), block.vtx[1].nTime));
+                        strprintf("coinstake timestamp violation nTimeBlock=%d nTimeTx=%u", block.GetBlockTime(), block.vtx[1]->nTime));
 
     if (block.IsProofOfStake())
     {
@@ -3539,7 +3540,7 @@ bool CheckBlock(const Config &config, const CBlock &block,
         }
 
         // check transaction timestamp
-        if (block.GetBlockTime() < (int64_t)tx.nTime)
+        if (block.GetBlockTime() < (int64_t)tx->nTime)
             return state.DoS(100, false, REJECT_INVALID, "bad-tx-time", false,
                                     "block timestamp earlier than transaction timestamp");
     }
@@ -3884,7 +3885,6 @@ static bool AcceptBlock(const Config &config,
     }
 
     int nHeight = pindex->nHeight;
-    const CChainParams &chainparams = config.GetChainParams();
 
     // Write block to history file
     try {
@@ -3936,7 +3936,7 @@ bool ProcessNewBlock(const Config &config,
 
         const CChainParams &chainparams = config.GetChainParams();
 
-        if (!IsCanonicalBlockSignature(pblock)) {
+        if (!IsCanonicalBlockSignature(*pblock)) {
             if (pblock && pblock->nVersion >= CANONICAL_BLOCK_SIG_VERSION)
                 return state.DoS(100, error("ProcessNewBlock(): bad block signature encoding"),
                                  REJECT_INVALID, "bad-block-signature-encoding");
