@@ -537,7 +537,7 @@ bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, const 
 bool GetSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
 bool HashOnchainActive(const uint256 &hash);
 bool GetAddressIndex(uint160 addressHash, int type,
-                     std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
+                     std::vector<std::pair<CAddressIndexKey, Amount> > &addressIndex,
                      int start = 0, int end = 0);
 bool GetAddressUnspent(uint160 addressHash, int type,
                        std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs);

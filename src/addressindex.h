@@ -54,7 +54,7 @@ struct CAddressUnspentKey {
 };
 
 struct CAddressUnspentValue {
-    CAmount satoshis;
+    Amount satoshis;
     CScript script;
     int blockHeight;
 
@@ -67,7 +67,7 @@ struct CAddressUnspentValue {
         READWRITE(blockHeight);
     }
 
-    CAddressUnspentValue(CAmount sats, CScript scriptPubKey, int height) {
+    CAddressUnspentValue(Amount sats, CScript scriptPubKey, int height) {
         satoshis = sats;
         script = scriptPubKey;
         blockHeight = height;
@@ -78,13 +78,13 @@ struct CAddressUnspentValue {
     }
 
     void SetNull() {
-        satoshis = -1;
+        satoshis(-1);
         script.clear();
         blockHeight = 0;
     }
 
     bool IsNull() const {
-        return (satoshis == -1);
+        return (satoshis == Amount(-1));
     }
 };
 
@@ -225,18 +225,18 @@ struct CAddressIndexIteratorHeightKey {
 struct CMempoolAddressDelta
 {
     int64_t time;
-    CAmount amount;
+    Amount amount;
     uint256 prevhash;
     unsigned int prevout;
 
-    CMempoolAddressDelta(int64_t t, CAmount a, uint256 hash, unsigned int out) {
+    CMempoolAddressDelta(int64_t t, Amount a, uint256 hash, unsigned int out) {
         time = t;
         amount = a;
         prevhash = hash;
         prevout = out;
     }
 
-    CMempoolAddressDelta(int64_t t, CAmount a) {
+    CMempoolAddressDelta(int64_t t, Amount a) {
         time = t;
         amount = a;
         prevhash.SetNull();

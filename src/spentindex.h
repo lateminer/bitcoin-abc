@@ -41,7 +41,7 @@ struct CSpentIndexValue {
     uint256 txid;
     unsigned int inputIndex;
     int blockHeight;
-    CAmount satoshis;
+    Amount satoshis;
     int addressType;
     uint160 addressHash;
 
@@ -57,7 +57,7 @@ struct CSpentIndexValue {
         READWRITE(addressHash);
     }
 
-    CSpentIndexValue(uint256 t, unsigned int i, int h, CAmount s, int type, uint160 a) {
+    CSpentIndexValue(uint256 t, unsigned int i, int h, Amount s, int type, uint160 a) {
         txid = t;
         inputIndex = i;
         blockHeight = h;
