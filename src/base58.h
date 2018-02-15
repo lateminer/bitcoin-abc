@@ -112,6 +112,7 @@ class CBitcoinSecret : public CBase58Data {
 public:
     void SetKey(const CKey &vchSecret);
     CKey GetKey();
+    bool GetIndexKey(uint160 &hashBytes, int &type) const;
     bool IsValid() const;
     bool SetString(const char *pszSecret);
     bool SetString(const std::string &strSecret);

@@ -76,6 +76,11 @@ BASE_SCRIPTS = [
     'bip68-112-113-p2p.py',
     'rawtransactions.py',
     'reindex.py',
+    # Bitcore tests
+    'addressindex.py',
+    'timestampindex.py',
+    'spentindex.py',
+    'txindex.py',
     # vv Tests less than 30s vv
     'keypool-topup.py',
     'zmq_test.py',

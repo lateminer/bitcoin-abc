@@ -14,6 +14,7 @@
 #include "rpc/blockchain.h"
 #include "rpc/server.h"
 #include "timedata.h"
+#include "txmempool.h"
 #include "util.h"
 #include "utilstrencodings.h"
 #include "validation.h"
@@ -633,9 +634,9 @@ static UniValue echo(const Config &config, const JSONRPCRequest &request) {
 bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &address)
 {
     if (type == 2) {
-        address = EncodeDestination(CScriptID(hash));
+        address = CBitcoinAddress(CScriptID(hash)).ToString();
     } else if (type == 1) {
-        address = EncodeDestination(CKeyID(hash));
+        address = CBitcoinAddress(CKeyID(hash)).ToString();
     } else {
         return false;
     }
@@ -645,10 +646,10 @@ bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &addr
 bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, int> > &addresses)
 {
     if (params[0].isStr()) {
-        CTxDestination dest = DecodeDestination(params[0].get_str());
+        CBitcoinAddress address(params[0].get_str());
         uint160 hashBytes;
         int type = 0;
-        if (IsValidDestination(dest)) {
+        if (!address.GetIndexKey(hashBytes, type)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
         }
         addresses.push_back(std::make_pair(hashBytes, type));
@@ -663,10 +664,10 @@ bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint16
 
         for (std::vector<UniValue>::iterator it = values.begin(); it != values.end(); ++it) {
 
-            CTxDestination dest = DecodeDestination(it->get_str());
+            CBitcoinAddress address(it->get_str());
             uint160 hashBytes;
             int type = 0;
-            if (IsValidDestination(dest)) {
+            if (!address.GetIndexKey(hashBytes, type)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
             addresses.push_back(std::make_pair(hashBytes, type));
@@ -688,9 +689,10 @@ bool timestampSort(std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta> a,
     return a.second.time < b.second.time;
 }
 
-UniValue getaddressmempool(const Config &config, const JSONRPCRequest &request) {
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
+UniValue getaddressmempool(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
             "getaddressmempool\n"
             "\nReturns all mempool deltas for an address (requires addressindex to be enabled).\n"
             "\nArguments:\n"
@@ -720,7 +722,7 @@ UniValue getaddressmempool(const Config &config, const JSONRPCRequest &request) 
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
@@ -758,10 +760,10 @@ UniValue getaddressmempool(const Config &config, const JSONRPCRequest &request) 
     return result;
 }
 
-UniValue getaddressutxos(const Config &config, const JSONRPCRequest &request) {
+UniValue getaddressutxos(const UniValue& params, bool fHelp)
 {
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
             "getaddressutxos\n"
             "\nReturns all unspent outputs for an address (requires addressindex to be enabled).\n"
             "\nArguments:\n"
@@ -790,8 +792,8 @@ UniValue getaddressutxos(const Config &config, const JSONRPCRequest &request) {
             );
 
     bool includeChainInfo = false;
-    if (request.params[0].isObject()) {
-        UniValue chainInfo = find_value(request.params[0].get_obj(), "chainInfo");
+    if (params[0].isObject()) {
+        UniValue chainInfo = find_value(params[0].get_obj(), "chainInfo");
         if (chainInfo.isBool()) {
             includeChainInfo = chainInfo.get_bool();
         }
@@ -799,7 +801,7 @@ UniValue getaddressutxos(const Config &config, const JSONRPCRequest &request) {
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
@@ -828,7 +830,6 @@ UniValue getaddressutxos(const Config &config, const JSONRPCRequest &request) {
         output.push_back(Pair("script", HexStr(it->second.script.begin(), it->second.script.end())));
         output.push_back(Pair("satoshis", it->second.satoshis));
         output.push_back(Pair("height", it->second.blockHeight));
-        output.push_back(Pair("txtime", it->second.nTime));
         utxos.push_back(output);
     }
 
@@ -845,10 +846,10 @@ UniValue getaddressutxos(const Config &config, const JSONRPCRequest &request) {
     }
 }
 
-UniValue getaddressdeltas(const Config &config, const JSONRPCRequest &request) {
+UniValue getaddressdeltas(const UniValue& params, bool fHelp)
 {
-    if (request.fHelp || request.params.size() != 1 || !request.params[0].isObject())
-        throw std::runtime_error(
+    if (fHelp || params.size() != 1 || !params[0].isObject())
+        throw runtime_error(
             "getaddressdeltas\n"
             "\nReturns all changes for an address (requires addressindex to be enabled).\n"
             "\nArguments:\n"
@@ -878,10 +879,10 @@ UniValue getaddressdeltas(const Config &config, const JSONRPCRequest &request) {
         );
 
 
-    UniValue startValue = find_value(request.params[0].get_obj(), "start");
-    UniValue endValue = find_value(request.params[0].get_obj(), "end");
+    UniValue startValue = find_value(params[0].get_obj(), "start");
+    UniValue endValue = find_value(params[0].get_obj(), "end");
 
-    UniValue chainInfo = find_value(request.params[0].get_obj(), "chainInfo");
+    UniValue chainInfo = find_value(params[0].get_obj(), "chainInfo");
     bool includeChainInfo = false;
     if (chainInfo.isBool()) {
         includeChainInfo = chainInfo.get_bool();
@@ -903,7 +904,7 @@ UniValue getaddressdeltas(const Config &config, const JSONRPCRequest &request) {
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
@@ -970,10 +971,10 @@ UniValue getaddressdeltas(const Config &config, const JSONRPCRequest &request) {
     }
 }
 
-UniValue getaddressbalance(const Config &config, const JSONRPCRequest &request) {
+UniValue getaddressbalance(const UniValue& params, bool fHelp)
 {
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
             "getaddressbalance\n"
             "\nReturns the balance for an address(es) (requires addressindex to be enabled).\n"
             "\nArguments:\n"
@@ -996,7 +997,7 @@ UniValue getaddressbalance(const Config &config, const JSONRPCRequest &request) 
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
@@ -1026,10 +1027,10 @@ UniValue getaddressbalance(const Config &config, const JSONRPCRequest &request) 
 
 }
 
-UniValue getaddresstxids(const Config &config, const JSONRPCRequest &request) {
+UniValue getaddresstxids(const UniValue& params, bool fHelp)
 {
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
             "getaddresstxids\n"
             "\nReturns the txids for an address(es) (requires addressindex to be enabled).\n"
             "\nArguments:\n"
@@ -1054,15 +1055,15 @@ UniValue getaddresstxids(const Config &config, const JSONRPCRequest &request) {
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
     int start = 0;
     int end = 0;
-    if (request.params[0].isObject()) {
-        UniValue startValue = find_value(request.params[0].get_obj(), "start");
-        UniValue endValue = find_value(request.params[0].get_obj(), "end");
+    if (params[0].isObject()) {
+        UniValue startValue = find_value(params[0].get_obj(), "start");
+        UniValue endValue = find_value(params[0].get_obj(), "end");
         if (startValue.isNum() && endValue.isNum()) {
             start = startValue.get_int();
             end = endValue.get_int();
@@ -1109,10 +1110,10 @@ UniValue getaddresstxids(const Config &config, const JSONRPCRequest &request) {
 
 }
 
-UniValue getspentinfo(const Config &config, const JSONRPCRequest &request) {
+UniValue getspentinfo(const UniValue& params, bool fHelp)
 {
 
-    if (request.fHelp || request.params.size() != 1 || !request.params[0].isObject())
+    if (fHelp || params.size() != 1 || !params[0].isObject())
         throw runtime_error(
             "getspentinfo\n"
             "\nReturns the txid and index where an output is spent.\n"
@@ -1132,8 +1133,8 @@ UniValue getspentinfo(const Config &config, const JSONRPCRequest &request) {
             + HelpExampleRpc("getspentinfo", "{\"txid\": \"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9\", \"index\": 0}")
         );
 
-    UniValue txidValue = find_value(request.params[0].get_obj(), "txid");
-    UniValue indexValue = find_value(request.params[0].get_obj(), "index");
+    UniValue txidValue = find_value(params[0].get_obj(), "txid");
+    UniValue indexValue = find_value(params[0].get_obj(), "index");
 
     if (!txidValue.isStr() || !indexValue.isNum()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid txid or index");
@@ -1169,14 +1170,14 @@ static const CRPCCommand commands[] = {
     { "util",               "signmessagewithprivkey", signmessagewithprivkey, true,  {"privkey","message"} },
 
     /* Address index */
-    { "addressindex",       "getaddressmempool",      getaddressmempool,      true,  {} },
-    { "addressindex",       "getaddressutxos",        getaddressutxos,        false,  {} },
-    { "addressindex",       "getaddressdeltas",       getaddressdeltas,       false,  {} },
-    { "addressindex",       "getaddresstxids",        getaddresstxids,        false,  {} },
-    { "addressindex",       "getaddressbalance",      getaddressbalance,      false,  {} },
+    { "addressindex",       "getaddressmempool",      getaddressmempool,      true,  {"addresses"} },
+    { "addressindex",       "getaddressutxos",        getaddressutxos,        false,  {"addresses"} },
+    { "addressindex",       "getaddressdeltas",       getaddressdeltas,       false,  {"addresses"} },
+    { "addressindex",       "getaddresstxids",        getaddresstxids,        false,  {"addresses"} },
+    { "addressindex",       "getaddressbalance",      getaddressbalance,      false,  {"addresses"} },
 
     /* Blockchain */
-    { "blockchain",         "getspentinfo",           getspentinfo,           false,  {} },
+    { "blockchain",         "getspentinfo",           getspentinfo,           false,  {"txid","index"} },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            setmocktime,            true,  {"timestamp"}},
