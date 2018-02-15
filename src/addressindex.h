@@ -78,7 +78,7 @@ struct CAddressUnspentValue {
     }
 
     void SetNull() {
-        satoshis(-1);
+        satoshis = Amount(-1);
         script.clear();
         blockHeight = 0;
     }

@@ -37,7 +37,7 @@ public:
     uint32_t fCoinStake : 1;
 
     //! at which height this containing transaction was included in the active block chain
-    uint32_t nHeight : 0;
+    uint32_t nHeight : 30;
 
     //! Empty constructor
     Coin() : fCoinBase(false), fCoinStake(false) {}
