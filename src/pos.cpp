@@ -92,16 +92,16 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, con
 
 bool IsConfirmedInNPrevBlocks(const CDiskTxPos& txindex, const CBlockIndex* pindexFrom, int nMaxDepth, int& nActualDepth)
 {
-	for (const CBlockIndex* pindex = pindexFrom; pindex && pindexFrom->nHeight - pindex->nHeight < nMaxDepth; pindex = pindex->pprev)
-	    {
-	        if (pindex->nDataPos == txindex.nPos && pindex->nFile == txindex.nFile)
-	        {
-	            nActualDepth = pindexFrom->nHeight - pindex->nHeight;
-	            return true;
-	        }
-	    }
+    for (const CBlockIndex* pindex = pindexFrom; pindex && pindexFrom->nHeight - pindex->nHeight < nMaxDepth; pindex = pindex->pprev)
+        {
+            if (pindex->nDataPos == txindex.nPos && pindex->nFile == txindex.nFile)
+            {
+                nActualDepth = pindexFrom->nHeight - pindex->nHeight;
+                return true;
+            }
+        }
 
-	  return false;
+    return false;
 }
 
 // Check kernel hash target and coinstake signature
@@ -127,7 +127,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     // Read block header
     CBlock block;
     const CDiskBlockPos& pos = CDiskBlockPos(txindex.nFile, txindex.nPos);
-    if (!ReadBlockFromDisk(block, pos, Params().GetConsensus()))
+    if (!ReadBlockFromDisk(block, pos, GetConfig()))
        return fDebug? error("CheckProofOfStake() : read block failed") : false; // unable to read block of previous transaction
 
     // Min age requirement
@@ -166,31 +166,31 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
     auto it=cache.find(prevout);
 
     if(it == cache.end()) {
-    	CTransaction txPrev;
-		CDiskTxPos txindex;
-		if (!ReadFromDisk(txPrev, txindex, *pblocktree, prevout))
-			return false;
+        CTransaction txPrev;
+        CDiskTxPos txindex;
+        if (!ReadFromDisk(txPrev, txindex, *pblocktree, prevout))
+            return false;
 
-		// Read block header
-		CBlock block;
-		const CDiskBlockPos& pos = CDiskBlockPos(txindex.nFile, txindex.nPos);
-		if (!ReadBlockFromDisk(block, pos, Params().GetConsensus()))
-			return false;
+        // Read block header
+        CBlock block;
+        const CDiskBlockPos& pos = CDiskBlockPos(txindex.nFile, txindex.nPos);
+        if (!ReadBlockFromDisk(block, pos, GetConfig()))
+            return false;
 
-		int nDepth;
-		if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, Params().GetConsensus().nStakeMinConfirmations - 1, nDepth))
-			return false;
+        int nDepth;
+        if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, Params().GetConsensus().nStakeMinConfirmations - 1, nDepth))
+            return false;
 
-		if (pBlockTime)
-			*pBlockTime = block.GetBlockTime();
+        if (pBlockTime)
+            *pBlockTime = block.GetBlockTime();
 
-		return CheckStakeKernelHash(pindexPrev, nBits, new CCoins(txPrev, pindexPrev->nHeight), prevout, nTime);
-    }else{
-    	//found in cache
-    	const CStakeCache& stake = it->second;
-    	if (pBlockTime)
-    		*pBlockTime = stake.blockFrom.GetBlockTime();
-    	return CheckStakeKernelHash(pindexPrev, nBits, new CCoins(stake.txPrev, pindexPrev->nHeight), prevout, nTime);
+        return CheckStakeKernelHash(pindexPrev, nBits, new CCoins(txPrev, pindexPrev->nHeight), prevout, nTime);
+    } else{
+        //found in cache
+        const CStakeCache& stake = it->second;
+        if (pBlockTime)
+            *pBlockTime = stake.blockFrom.GetBlockTime();
+        return CheckStakeKernelHash(pindexPrev, nBits, new CCoins(stake.txPrev, pindexPrev->nHeight), prevout, nTime);
     }
 
 }
@@ -207,7 +207,7 @@ void CacheKernel(std::map<COutPoint, CStakeCache>& cache, const COutPoint& prevo
     // Read block
     CBlock block;
     const CDiskBlockPos& pos = CDiskBlockPos(txindex.nFile, txindex.nPos);
-    if (!ReadBlockFromDisk(block, pos, Params().GetConsensus()))
+    if (!ReadBlockFromDisk(block, pos, GetConfig()))
         return;
     CStakeCache c(block, txindex, txPrev);
     cache.insert({prevout, c});

@@ -1819,7 +1819,7 @@ DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
                 const CTxOut &out = tx.vout[k];
 
                 if (out.scriptPubKey.IsPayToScriptHash()) {
-                    vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
+                    std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
 
                     // undo receiving activity
                     addressIndex.push_back(make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, hash, k, false), out.nValue));
@@ -1828,7 +1828,7 @@ DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
                     addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(2, uint160(hashBytes), hash, k), CAddressUnspentValue()));
 
                 } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
-                    vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
+                    std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
 
                     // undo receiving activity
                     addressIndex.push_back(make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, hash, k, false), out.nValue));
@@ -1891,7 +1891,7 @@ DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
             if (fAddressIndex) {
                 const CTxOut &prevout = view.GetOutputFor(tx.vin[j]);
                 if (prevout.scriptPubKey.IsPayToScriptHash()) {
-                vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
+                    std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
 
                     // undo spending activity
                     addressIndex.push_back(make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, hash, j, true), prevout.nValue * -1));
@@ -1901,7 +1901,7 @@ DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
 
 
                 } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
-                    vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23);
+                     std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23);
 
                      // undo spending activity
                      addressIndex.push_back(make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, hash, j, true), prevout.nValue * -1));
@@ -2295,7 +2295,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                 const CTxOut &out = tx.vout[k];
 
                 if (out.scriptPubKey.IsPayToScriptHash()) {
-                    vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
+                    std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
 
                     // record receiving activity
                     addressIndex.push_back(make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
@@ -2304,7 +2304,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                     addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(2, uint160(hashBytes), txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
 
                 } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
-                    vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
+                    std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
 
                     // record receiving activity
                     addressIndex.push_back(make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
@@ -3599,7 +3599,7 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
     if (block.vchBlockSig.empty())
         return false;
 
-    vector<vector<unsigned char> > vSolutions;
+    std::vector<vector<unsigned char> > vSolutions;
     txnouttype whichType;
 
     const CTxOut& txout = block.vtx[1].vout[1];
@@ -3609,7 +3609,7 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
 
     if (whichType == TX_PUBKEY)
     {
-        vector<unsigned char>& vchPubKey = vSolutions[0];
+        std::vector<unsigned char>& vchPubKey = vSolutions[0];
         return CPubKey(vchPubKey).Verify(hash, block.vchBlockSig);
     }
     else
@@ -3620,7 +3620,7 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
         const CScript& script = txout.scriptPubKey;
         CScript::const_iterator pc = script.begin();
         opcodetype opcode;
-        vector<unsigned char> vchPushValue;
+        std::vector<unsigned char> vchPushValue;
 
         if (!script.GetOp(pc, opcode, vchPushValue))
             return false;

@@ -949,10 +949,10 @@ static UniValue checkkernel(const Config &config,
         bool fCreateBlockTemplate = request.params.size() > 1 ? request.params[1].get_bool() : false;
 
         if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
-            throw JSONRPCError(-9, "BlackCoin is not connected!");
+            throw JSONRPCError(-9, "Blackcoin is not connected!");
 
         if (IsInitialBlockDownload())
-            throw JSONRPCError(-10, "BlackCoin is downloading blocks...");
+            throw JSONRPCError(-10, "Blackcoin is downloading blocks...");
 
         COutPoint kernel;
         CBlockIndex* pindexPrev = chainActive.Tip();

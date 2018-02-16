@@ -803,7 +803,7 @@ void CWallet::AvailableCoinsForStaking(std::vector<COutput> &vCoins) const
 // Select some coins without random shuffle or best subset approximation
 bool CWallet::SelectCoinsForStaking(Amount &nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> > &setCoinsRet, Amount &nValueRet) const
 {
-    vector<COutput> vCoins;
+    std::vector<COutput> vCoins;
     AvailableCoinsForStaking(vCoins);
 
     setCoinsRet.clear();
@@ -874,7 +874,7 @@ bool CWallet::CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int
     if (nBalance <= nReserveBalance)
         return false;
 
-    vector<const CWalletTx*> vwtxPrev;
+    std::vector<const CWalletTx*> vwtxPrev;
 
     set<pair<const CWalletTx*,unsigned int> > setCoins;
     Amount nValueIn(0);
@@ -920,7 +920,7 @@ bool CWallet::CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int
             {
                 // Found a kernel
                 LogPrint("coinstake", "CreateCoinStake : kernel found\n");
-                vector<vector<unsigned char> > vSolutions;
+                std::vector<vector<unsigned char> > vSolutions;
                 txnouttype whichType;
                 CScript scriptPubKeyOut;
                 scriptPubKeyKernel = pcoin.first->vout[pcoin.second].scriptPubKey;
@@ -4221,7 +4221,7 @@ uint64_t CWallet::GetStakeWeight() const
     if (nBalance <= nReserveBalance)
         return 0;
 
-    vector<const CWalletTx*> vwtxPrev;
+    std::vector<const CWalletTx*> vwtxPrev;
 
     set<pair<const CWalletTx*,unsigned int> > setCoins;
     Amount nValueIn (0);
