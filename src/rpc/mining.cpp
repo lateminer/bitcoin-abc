@@ -948,7 +948,7 @@ static UniValue checkkernel(const Config &config,
         UniValue inputs = request.params[0].get_array();
         bool fCreateBlockTemplate = request.params.size() > 1 ? request.params[1].get_bool() : false;
 
-        if (vNodes.empty())
+        if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
             throw JSONRPCError(-9, "BlackCoin is not connected!");
 
         if (IsInitialBlockDownload())
@@ -1002,7 +1002,7 @@ static UniValue checkkernel(const Config &config,
         if (!fCreateBlockTemplate)
             return result;
 
-        int64_t nFees;
+        Amount nFees(0);
         if (!pwallet->IsLocked())
             pwallet->TopUpKeyPool();
 
@@ -1012,13 +1012,13 @@ static UniValue checkkernel(const Config &config,
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
 
         CBlock *pblock = &pblocktemplate->block;
-        pblock->nTime = pblock->vtx[0].nTime = nTime;
+        pblock->nTime = pblock->vtx[0]->nTime = nTime;
 
         CDataStream ss(SER_DISK, PROTOCOL_VERSION);
         ss << *pblock;
 
         result.push_back(Pair("blocktemplate", HexStr(ss.begin(), ss.end())));
-        result.push_back(Pair("blocktemplatefees", nFees));
+        result.push_back(Pair("blocktemplatefees", nFees.ToString()));
 
         CPubKey pubkey;
         if (!pMiningKey.GetReservedKey(pubkey))

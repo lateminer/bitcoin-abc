@@ -32,15 +32,14 @@ class TxInUndoSerializer {
 public:
     TxInUndoSerializer(const Coin *pcoinIn) : pcoin(pcoinIn) {}
 
-    template <typename Stream> void Serialize(Stream &s) const {
+    template <typename Stream> void Serialize(Stream &s, int nType, int nVersion) const {
         ::Serialize(
-            s, VARINT(pcoin->GetHeight() * 4 + (pcoin->IsCoinBase() ? 1 : 0) + (pcoin->IsCoinStake() ? 2 : 0)));
+            s, VARINT(pcoin->GetHeight() * 4 + (pcoin->IsCoinBase() ? 1 : 0) + (pcoin->IsCoinStake() ? 2 : 0)), nType, nVersion);
         if (pcoin->GetHeight() > 0) {
-            // Required to maintain compatibility with older undo format.
-            ::Serialize(s, uint8_t(0));
+            ::Serialize(s, VARINT(this->nVersion), nType, nVersion);
         }
-        ::Serialize(s, nTime);
-        ::Serialize(s, CTxOutCompressor(REF(pcoin->GetTxOut())));
+        ::Serialize(s, this->nTime, nType, nVersion);
+        ::Serialize(s, CTxOutCompressor(REF(pcoin->GetTxOut())), nType, nVersion);
     }
 };
 
@@ -50,25 +49,21 @@ class TxInUndoDeserializer {
 public:
     TxInUndoDeserializer(Coin *pcoinIn) : pcoin(pcoinIn) {}
 
-    template <typename Stream> void Unserialize(Stream &s) {
+    template <typename Stream> void Unserialize(Stream &s, int nType, int nVersion) {
         uint32_t nCode = 0;
-        ::Unserialize(s, VARINT(nCode));
+        ::Unserialize(s, VARINT(nCode), nType, nVersion);
         uint32_t nHeight = nCode / 4;
         bool fCoinBase = nCode & 1;
         bool fCoinStake = nCode & 2;
         if (nHeight > 0) {
-            // Old versions stored the version number for the last spend of a
-            // transaction's outputs. Non-final spends were indicated with
-            // height = 0.
-            int nVersionDummy;
-            ::Unserialize(s, VARINT(nVersionDummy));
+            ::Unserialize(s, VARINT(this->nVersion), nType, nVersion);
         }
 
-        ::Unserialize(s, nTime);
+        ::Unserialize(s, this->nTime, nType, nVersion);
         CTxOut txout;
-        ::Unserialize(s, REF(CTxOutCompressor(REF(txout))));
+        ::Unserialize(s, REF(CTxOutCompressor(REF(txout))), nType, nVersion);
 
-        *pcoin = Coin(std::move(txout), nHeight, fCoinBase);
+        *pcoin = Coin(std::move(txout), nHeight, fCoinBase, fCoinStake);
     }
 };
 

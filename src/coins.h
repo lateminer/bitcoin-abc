@@ -22,46 +22,67 @@
  *
  * Serialized format:
  * - VARINT((coinbase ? 1 : 0) | (height << 1))
+ * - VARINT((coinstake ? 2 : 0) | (height << 2))
  * - the non-spent CTxOut (via CTxOutCompressor)
  */
 class Coin {
+public:
     //! Unspent transaction output.
     CTxOut out;
 
-    //! Whether containing transaction was a coinbase and height at which the
-    //! transaction was included into a block.
-    uint32_t nHeightAndIsCoinBase;
+    //! whether transaction is a coinbase
+    uint32_t fCoinBase : 1;
 
-public:
+    //! whether transaction is a coinstake
+    uint32_t fCoinStake : 1;
+
+    //! at which height this containing transaction was included in the active block chain
+    uint32_t nHeight : 30;
+
     //! Empty constructor
-    Coin() : nHeightAndIsCoinBase(0) {}
+    Coin() : fCoinBase(false), fCoinStake(false) {}
 
     //! Constructor from a CTxOut and height/coinbase information.
-    Coin(CTxOut outIn, uint32_t nHeightIn, bool IsCoinbase)
-        : out(std::move(outIn)),
-          nHeightAndIsCoinBase((nHeightIn << 1) | IsCoinbase) {}
+    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
+    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) : out(outIn), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
 
-    uint32_t GetHeight() const { return nHeightAndIsCoinBase >> 1; }
-    bool IsCoinBase() const { return nHeightAndIsCoinBase & 0x01; }
     bool IsSpent() const { return out.IsNull(); }
-    uint32_t GetTime() const { return 0; }
 
     CTxOut &GetTxOut() { return out; }
     const CTxOut &GetTxOut() const { return out; }
 
+    bool IsCoinBase() const {
+        return fCoinBase;
+    }
+
+    bool IsCoinStake() const {
+        return fCoinStake;
+    }
+
+    uint32_t GetHeight() const {
+        return nHeight;
+    }
+
     void Clear() {
         out.SetNull();
-        nHeightAndIsCoinBase = 0;
+        fCoinBase = false;
+        fCoinStake = false;
+        nHeight = 0;
     }
 
     template <typename Stream> void Serialize(Stream &s) const {
         assert(!IsSpent());
-        ::Serialize(s, VARINT(nHeightAndIsCoinBase));
+        uint32_t code = (nHeight << 2) + (fCoinBase ? 1 : 0) + (fCoinStake ? 2 : 0);
+        ::Serialize(s, VARINT(code));
         ::Serialize(s, CTxOutCompressor(REF(out)));
     }
 
     template <typename Stream> void Unserialize(Stream &s) {
-        ::Unserialize(s, VARINT(nHeightAndIsCoinBase));
+        uint32_t code = 0;
+        ::Unserialize(s, VARINT(code));
+        nHeight = code >> 2;
+        fCoinBase = code & 1;
+        fCoinStake = (code >> 1) & 1;
         ::Unserialize(s, REF(CTxOutCompressor(out)));
     }
 

@@ -4216,7 +4216,7 @@ void CWallet::ListLockedCoins(std::vector<COutPoint> &vOutpts) {
 uint64_t CWallet::GetStakeWeight() const
 {
     // Choose coins to use
-    CAmount nBalance = GetBalance();
+    Amount nBalance = GetBalance();
 
     if (nBalance <= nReserveBalance)
         return 0;
@@ -4224,9 +4224,9 @@ uint64_t CWallet::GetStakeWeight() const
     vector<const CWalletTx*> vwtxPrev;
 
     set<pair<const CWalletTx*,unsigned int> > setCoins;
-    CAmount nValueIn = 0;
+    Amount nValueIn (0);
 
-    CAmount nTargetValue = nBalance - nReserveBalance;
+    Amount nTargetValue = nBalance - nReserveBalance;
     if (!SelectCoinsForStaking(nTargetValue, setCoins, nValueIn))
         return 0;
 
