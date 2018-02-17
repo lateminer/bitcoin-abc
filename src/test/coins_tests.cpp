@@ -165,10 +165,10 @@ BOOST_AUTO_TEST_CASE(coins_cache_simulation_test) {
                     // Random sizes so we can test memory usage accounting
                     txout.scriptPubKey.assign(InsecureRandBits(6), 0);
                     (coin.IsSpent() ? added_an_entry : updated_an_entry) = true;
-                    coin = Coin(txout, 1, false);
+                    coin = Coin(txout, 1, false, false);
                 }
 
-                Coin newcoin(txout, 1, false);
+                Coin newcoin(txout, 1, false, false);
                 stack.back()->AddCoin(COutPoint(txid, 0), newcoin,
                                       !coin.IsSpent() || insecure_rand() & 1);
             } else {
@@ -572,7 +572,7 @@ static void SetCoinValue(const Amount value, Coin &coin) {
     if (value != PRUNED) {
         CTxOut out;
         out.nValue = value;
-        coin = Coin(std::move(out), 1, false);
+        coin = Coin(std::move(out), 1, false, false);
         assert(!coin.IsSpent());
     }
 }

@@ -32,14 +32,14 @@ class TxInUndoSerializer {
 public:
     TxInUndoSerializer(const Coin *pcoinIn) : pcoin(pcoinIn) {}
 
-    template <typename Stream> void Serialize(Stream &s, int nType, int nVersion) const {
+    template <typename Stream> void Serialize(Stream &s) const {
         ::Serialize(
-            s, VARINT(pcoin->GetHeight() * 4 + (pcoin->IsCoinBase() ? 1 : 0) + (pcoin->IsCoinStake() ? 2 : 0)), nType, nVersion);
+            s, VARINT(pcoin->GetHeight() * 4 + (pcoin->IsCoinBase() ? 1 : 0) + (pcoin->IsCoinStake() ? 2 : 0)));
         if (pcoin->GetHeight() > 0) {
-            ::Serialize(s, VARINT(this->nVersion), nType, nVersion);
+            ::Serialize(s, VARINT(this->nVersion));
         }
-        ::Serialize(s, this->nTime, nType, nVersion);
-        ::Serialize(s, CTxOutCompressor(REF(pcoin->GetTxOut())), nType, nVersion);
+        ::Serialize(s, this->nTime);
+        ::Serialize(s, CTxOutCompressor(REF(pcoin->GetTxOut())));
     }
 };
 
@@ -49,19 +49,19 @@ class TxInUndoDeserializer {
 public:
     TxInUndoDeserializer(Coin *pcoinIn) : pcoin(pcoinIn) {}
 
-    template <typename Stream> void Unserialize(Stream &s, int nType, int nVersion) {
+    template <typename Stream> void Unserialize(Stream &s) {
         uint32_t nCode = 0;
-        ::Unserialize(s, VARINT(nCode), nType, nVersion);
+        ::Unserialize(s, VARINT(nCode));
         uint32_t nHeight = nCode / 4;
         bool fCoinBase = nCode & 1;
         bool fCoinStake = nCode & 2;
         if (nHeight > 0) {
-            ::Unserialize(s, VARINT(this->nVersion), nType, nVersion);
+            ::Unserialize(s, VARINT(this->nVersion));
         }
 
-        ::Unserialize(s, this->nTime, nType, nVersion);
+        ::Unserialize(s, this->nTime);
         CTxOut txout;
-        ::Unserialize(s, REF(CTxOutCompressor(REF(txout))), nType, nVersion);
+        ::Unserialize(s, REF(CTxOutCompressor(REF(txout))));
 
         *pcoin = Coin(std::move(txout), nHeight, fCoinBase, fCoinStake);
     }
