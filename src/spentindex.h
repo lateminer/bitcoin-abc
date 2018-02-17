@@ -74,7 +74,7 @@ struct CSpentIndexValue {
         txid.SetNull();
         inputIndex = 0;
         blockHeight = 0;
-        satoshis = 0;
+        satoshis = Amount(0);
         addressType = 0;
         addressHash.SetNull();
     }
