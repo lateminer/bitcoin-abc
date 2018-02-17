@@ -160,7 +160,7 @@ UniValue blockToDeltasJSON(const CBlock& block, const CBlockIndex* blockindex)
     UniValue deltas(UniValue::VARR);
 
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
-        const CTransaction &tx = block.vtx[i];
+        const CTransaction &tx = *block.vtx[i];
         const uint256 txhash = tx.GetHash();
 
         UniValue entry(UniValue::VOBJ);
@@ -210,11 +210,11 @@ UniValue blockToDeltasJSON(const CBlock& block, const CBlockIndex* blockindex)
             UniValue delta(UniValue::VOBJ);
 
             if (out.scriptPubKey.IsPayToScriptHash()) {
-                vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
+                std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
                 delta.push_back(Pair("address", CBitcoinAddress(CScriptID(uint160(hashBytes))).ToString()));
 
             } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
-                vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
+                std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
                 delta.push_back(Pair("address", CBitcoinAddress(CKeyID(uint160(hashBytes))).ToString()));
             } else {
                 continue;
@@ -232,7 +232,7 @@ UniValue blockToDeltasJSON(const CBlock& block, const CBlockIndex* blockindex)
     }
     result.push_back(Pair("deltas", deltas));
     result.push_back(Pair("time", block.GetBlockTime()));
-    result.push_back(Pair("mediantime", (int64_t)blockindex->GetMedianTimePast()));
+    result.push_back(Pair("mediantime", (int64_t)blockindex->GetPastTimeLimit()));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
     result.push_back(Pair("bits", strprintf("%08x", block.nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
@@ -809,12 +809,11 @@ UniValue getmempoolentry(const Config &config, const JSONRPCRequest &request) {
     return info;
 }
 
-UniValue getblockdeltas(const UniValue& params, bool fHelp)
-{
-    if (fHelp || params.size() != 1)
-        throw runtime_error("");
+UniValue getblockdeltas(const Config &config, const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error("");
 
-    std::string strHash = params[0].get_str();
+    std::string strHash = request.params[0].get_str();
     uint256 hash(uint256S(strHash));
 
     if (mapBlockIndex.count(hash) == 0)
@@ -826,16 +825,15 @@ UniValue getblockdeltas(const UniValue& params, bool fHelp)
     if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Block not available (pruned data)");
 
-    if(!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
+    if(!ReadBlockFromDisk(block, pblockindex, config))
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
 
     return blockToDeltasJSON(block, pblockindex);
 }
 
-UniValue getblockhashes(const UniValue& params, bool fHelp)
-{
-    if (fHelp || params.size() < 2)
-        throw runtime_error(
+UniValue getblockhashes(const Config &config, const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() < 2)
+        throw std::runtime_error(
             "getblockhashes timestamp\n"
             "\nReturns array of hashes of blocks within the timestamp range provided.\n"
             "\nArguments:\n"
@@ -862,15 +860,15 @@ UniValue getblockhashes(const UniValue& params, bool fHelp)
             + HelpExampleCli("getblockhashes", "1231614698 1231024505 '{\"noOrphans\":false, \"logicalTimes\":true}'")
             );
 
-    unsigned int high = params[0].get_int();
-    unsigned int low = params[1].get_int();
+    unsigned int high = request.params[0].get_int();
+    unsigned int low = request.params[1].get_int();
     bool fActiveOnly = false;
     bool fLogicalTS = false;
 
-    if (params.size() > 2) {
-        if (params[2].isObject()) {
-            UniValue noOrphans = find_value(params[2].get_obj(), "noOrphans");
-            UniValue returnLogical = find_value(params[2].get_obj(), "logicalTimes");
+    if (request.params.size() > 2) {
+        if (request.params[2].isObject()) {
+            UniValue noOrphans = find_value(request.params[2].get_obj(), "noOrphans");
+            UniValue returnLogical = find_value(request.params[2].get_obj(), "logicalTimes");
 
             if (noOrphans.isBool())
                 fActiveOnly = noOrphans.get_bool();
@@ -1973,12 +1971,12 @@ static const CRPCCommand commands[] = {
     //  category            name                      actor (function)        okSafe argNames
     //  ------------------- ------------------------  ----------------------  ------ ----------
     { "blockchain",         "getblockchaininfo",      getblockchaininfo,      true,  {} },
-    { "blockchain",         "getchaintxstats",        getchaintxstats,       true,  {"nblocks", "blockhash"} },
+    { "blockchain",         "getchaintxstats",        getchaintxstats,        true,  {"nblocks", "blockhash"} },
     { "blockchain",         "getbestblockhash",       getbestblockhash,       true,  {} },
     { "blockchain",         "getblockcount",          getblockcount,          true,  {} },
     { "blockchain",         "getblock",               getblock,               true,  {"blockhash","verbose"} },
-    { "blockchain",         "getblockdeltas",         getblockdeltas,         false  {"blockhash"} },
-    { "blockchain",         "getblockhashes",         getblockhashes,         true   {"high","low","options"} },
+    { "blockchain",         "getblockdeltas",         getblockdeltas,         false, {"blockhash"} },
+    { "blockchain",         "getblockhashes",         getblockhashes,         true,  {"high","low","options"} },
     { "blockchain",         "getblockhash",           getblockhash,           true,  {"height"} },
     { "blockchain",         "getblockheader",         getblockheader,         true,  {"blockhash","verbose"} },
     { "blockchain",         "getchaintips",           getchaintips,           true,  {} },

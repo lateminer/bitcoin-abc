@@ -44,13 +44,13 @@ static std::string urlDecode(const std::string &urlEncoded) {
 
 static void accountingDeprecationCheck()
 {
-    if (!GetBoolArg("-enableaccounts", false))
+    if (!gArgs.GetBoolArg("-enableaccounts", false))
         throw std::runtime_error(
             "Accounting API is deprecated and will be removed in future.\n"
             "It can easily result in negative or odd balances if misused or misunderstood, which has happened in the field.\n"
             "If you still want to enable it, add to your config file iknowaccountsarebroken=1\n");
 
-    if (GetBoolArg("-staking", true))
+    if (gArgs.GetBoolArg("-staking", true))
         throw std::runtime_error("If you want to use accounting API, staking must be disabled, add to your config file staking=0\n");
 }
 
