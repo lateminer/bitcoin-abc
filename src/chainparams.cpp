@@ -289,8 +289,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000002888c34d61b53a244a");
-        consensus.defaultAssumeValid = uint256S("0x000000000000b41f1f2ddf130df8824e2b61c0af809ff86dd5cadb361d984ca7");
+        consensus.nMinimumChainWork = uint256S("0x00");
+        consensus.defaultAssumeValid = uint256S("0x00");
         
         consensus.nProtocolV1RetargetingFixedTime = 1395631999;
         consensus.nProtocolV2Time = 1407053625;

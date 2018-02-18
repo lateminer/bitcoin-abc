@@ -971,7 +971,7 @@ bool CWallet::CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int
                 txNew.vin.push_back(CTxIn(pcoin.first->GetId(), pcoin.second));
                 nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
                 vwtxPrev.push_back(pcoin.first);
-                txNew.vout.push_back(CTxOut(Amount(00, scriptPubKeyOut));
+                txNew.vout.push_back(CTxOut(Amount(0), scriptPubKeyOut));
 
                 LogPrintf("coinstake", "CreateCoinStake : added kernel type=%d\n", whichType);
                 fKernelFound = true;
