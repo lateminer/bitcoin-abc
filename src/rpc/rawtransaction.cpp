@@ -64,13 +64,12 @@ void ScriptPubKeyToJSON(const Config &config, const CScript &scriptPubKey,
     out.push_back(Pair("addresses", a));
 }
 
-void TxToJSONExpanded(const CTransaction& tx, const uint256 hashBlock, UniValue& entry,
+void TxToJSONExpanded(const Config &config, const CTransaction &tx, const uint256 hashBlock, UniValue &entry,
                       int nHeight = 0, int nConfirmations = 0, int nBlockTime = 0)
 {
-
     uint256 txid = tx.GetHash();
-    entry.push_back(Pair("txid", txid.GetHex()));
-    entry.push_back(Pair("hash", tx.GetWitnessHash().GetHex()));
+    entry.push_back(Pair("txid", tx.GetId().GetHex()));
+    entry.push_back(Pair("hash", tx.GetHash().GetHex()));
     entry.push_back(Pair("size", (int)::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION)));
     entry.push_back(Pair("version", tx.nVersion));
     entry.push_back(Pair("locktime", (int64_t)tx.nLockTime));
@@ -93,11 +92,11 @@ void TxToJSONExpanded(const CTransaction& tx, const uint256 hashBlock, UniValue&
             CSpentIndexKey spentKey(txin.prevout.hash, txin.prevout.n);
             if (GetSpentIndex(spentKey, spentInfo)) {
                 in.push_back(Pair("value", ValueFromAmount(spentInfo.satoshis)));
-                in.push_back(Pair("valueSat", spentInfo.satoshis));
+                in.push_back(Pair("valueSat", spentInfo.satoshis.GetSatoshis()));
                 if (spentInfo.addressType == 1) {
-                    in.push_back(Pair("address", CBitcoinAddress(CKeyID(spentInfo.addressHash)).ToString()));
+                    in.push_back(Pair("address", EncodeDestination(CKeyID(spentInfo.addressHash))));
                 } else if (spentInfo.addressType == 2)  {
-                    in.push_back(Pair("address", CBitcoinAddress(CScriptID(spentInfo.addressHash)).ToString()));
+                    in.push_back(Pair("address", EncodeDestination(CScriptID(spentInfo.addressHash))));
                 }
             }
 
@@ -112,10 +111,10 @@ void TxToJSONExpanded(const CTransaction& tx, const uint256 hashBlock, UniValue&
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
-        out.push_back(Pair("valueSat", txout.nValue));
+        out.push_back(Pair("valueSat", txout.nValue.GetSatoshis()));
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
-        ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
+        ScriptPubKeyToJSON(config, txout.scriptPubKey, o, true);
         out.push_back(Pair("scriptPubKey", o));
 
         // Add spent information if spentindex is enabled
@@ -183,7 +182,7 @@ void TxToJSON(const Config &config, const CTransaction &tx,
         const CTxOut &txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
-        out.push_back(Pair("valueSat", txout.nValue));
+        out.push_back(Pair("valueSat", txout.nValue.GetSatoshis()));
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(config, txout.scriptPubKey, o, true);
@@ -1079,7 +1078,7 @@ static UniValue signrawtransaction(const Config &config,
                     throw JSONRPCError(RPC_INVALID_PARAMETER, "Missing amount");
                 }
 
-                view.AddCoin(out, Coin(txout, 1, false), true);
+                view.AddCoin(out, Coin(txout, 1, false, false), true);
             }
 
             // If redeemScript given and not using the local wallet (private

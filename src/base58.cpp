@@ -315,3 +315,8 @@ CTxDestination DecodeLegacyAddr(const std::string &str,
                                 const CChainParams &params) {
     return DecodeDestination(str, params);
 }
+
+bool GetDestinationIndexKey(const std::string &dest, uint160 &hashBytes, int &type) {
+    CBitcoinSecret addr(dest);
+    return addr.GetIndexKey(hashBytes, type);
+}

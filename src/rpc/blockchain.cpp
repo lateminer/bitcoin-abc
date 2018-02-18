@@ -13,6 +13,7 @@
 #include "coins.h"
 #include "config.h"
 #include "consensus/validation.h"
+#include "dstencode.h"
 #include "hash.h"
 #include "policy/policy.h"
 #include "primitives/transaction.h"
@@ -181,13 +182,13 @@ UniValue blockToDeltasJSON(const CBlock& block, const CBlockIndex* blockindex)
 
                 if (GetSpentIndex(spentKey, spentInfo)) {
                     if (spentInfo.addressType == 1) {
-                        delta.push_back(Pair("address", CBitcoinAddress(CKeyID(spentInfo.addressHash)).ToString()));
+                        delta.push_back(Pair("address", EncodeDestination(CKeyID(spentInfo.addressHash))));
                     } else if (spentInfo.addressType == 2)  {
-                        delta.push_back(Pair("address", CBitcoinAddress(CScriptID(spentInfo.addressHash)).ToString()));
+                        delta.push_back(Pair("address", EncodeDestination(CScriptID(spentInfo.addressHash))));
                     } else {
                         continue;
                     }
-                    delta.push_back(Pair("satoshis", -1 * spentInfo.satoshis));
+                    delta.push_back(Pair("satoshis", -1 * spentInfo.satoshis.GetSatoshis()));
                     delta.push_back(Pair("index", (int)j));
                     delta.push_back(Pair("prevtxid", input.prevout.hash.GetHex()));
                     delta.push_back(Pair("prevout", (int)input.prevout.n));
@@ -211,16 +212,16 @@ UniValue blockToDeltasJSON(const CBlock& block, const CBlockIndex* blockindex)
 
             if (out.scriptPubKey.IsPayToScriptHash()) {
                 std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
-                delta.push_back(Pair("address", CBitcoinAddress(CScriptID(uint160(hashBytes))).ToString()));
+                delta.push_back(Pair("address", EncodeDestination(CScriptID(uint160(hashBytes)))));
 
             } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
                 std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
-                delta.push_back(Pair("address", CBitcoinAddress(CKeyID(uint160(hashBytes))).ToString()));
+                delta.push_back(Pair("address", EncodeDestination(CKeyID(uint160(hashBytes)))));
             } else {
                 continue;
             }
 
-            delta.push_back(Pair("satoshis", out.nValue));
+            delta.push_back(Pair("satoshis", out.nValue.GetSatoshis()));
             delta.push_back(Pair("index", (int)k));
 
             outputs.push_back(delta);

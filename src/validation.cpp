@@ -1759,7 +1759,7 @@ DisconnectResult UndoCoinSpend(const Coin &undo, CCoinsViewCache &view,
         // useful when working from legacy on disck data. In any case, putting
         // the correct information in there doesn't hurt.
         const_cast<Coin &>(undo) = Coin(undo.GetTxOut(), alternate.GetHeight(),
-                                        alternate.IsCoinBase());
+                                        alternate.IsCoinBase(), alternate.IsCoinStake());
     }
 
     // The potential_overwrite parameter to AddCoin is only allowed to be false
@@ -1777,7 +1777,8 @@ DisconnectResult UndoCoinSpend(const Coin &undo, CCoinsViewCache &view,
  */
 static DisconnectResult DisconnectBlock(const CBlock &block,
                                         const CBlockIndex *pindex,
-                                        CCoinsViewCache &view) {
+                                        CCoinsViewCache &view,
+                                        bool ignoreAddressIndex = false) {
     CBlockUndo blockUndo;
     CDiskBlockPos pos = pindex->GetUndoPos();
     if (pos.IsNull()) {
@@ -1790,12 +1791,13 @@ static DisconnectResult DisconnectBlock(const CBlock &block,
         return DISCONNECT_FAILED;
     }
 
-    return ApplyBlockUndo(blockUndo, block, pindex, view);
+    return ApplyBlockUndo(blockUndo, block, pindex, view, ignoreAddressIndex);
 }
 
 DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
                                 const CBlock &block, const CBlockIndex *pindex,
-                                CCoinsViewCache &view) {
+                                CCoinsViewCache &view,
+                                bool ignoreAddressIndex) {
     bool fClean = true;
 
     if (blockUndo.vtxundo.size() + 1 != block.vtx.size()) {
@@ -1822,19 +1824,19 @@ DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
                     std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
 
                     // undo receiving activity
-                    addressIndex.push_back(make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, hash, k, false), out.nValue));
+                    addressIndex.push_back(std::make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, txid, k, false), out.nValue));
 
                     // undo unspent index
-                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(2, uint160(hashBytes), hash, k), CAddressUnspentValue()));
+                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(2, uint160(hashBytes), txid, k), CAddressUnspentValue()));
 
                 } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
                     std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
 
                     // undo receiving activity
-                    addressIndex.push_back(make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, hash, k, false), out.nValue));
+                    addressIndex.push_back(std::make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, txid, k, false), out.nValue));
 
                     // undo unspent index
-                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(1, uint160(hashBytes), hash, k), CAddressUnspentValue()));
+                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(1, uint160(hashBytes), txid, k), CAddressUnspentValue()));
 
                 } else {
                     continue;
@@ -1885,7 +1887,7 @@ DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
 
             if (fSpentIndex) {
                 // undo and delete the spent index
-                spentIndex.push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue()));
+                spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue()));
             }
 
             if (fAddressIndex) {
@@ -1894,20 +1896,19 @@ DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
                     std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
 
                     // undo spending activity
-                    addressIndex.push_back(make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, hash, j, true), prevout.nValue * -1));
+                    addressIndex.push_back(std::make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, txid, j, true), Amount(prevout.nValue.GetSatoshis() * -1)));
 
                     // restore unspent index
-                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(2, uint160(hashBytes), input.prevout.hash, input.prevout.n), CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, undo.nHeight)));
-
+                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(2, uint160(hashBytes), input.prevout.hash, input.prevout.n), CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, undo.GetHeight())));
 
                 } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
                      std::vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23);
 
-                     // undo spending activity
-                     addressIndex.push_back(make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, hash, j, true), prevout.nValue * -1));
+                    // undo spending activity
+                     addressIndex.push_back(std::make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, txid, j, true), Amount(prevout.nValue.GetSatoshis() * -1)));
 
-                     // restore unspent index
-                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(1, uint160(hashBytes), input.prevout.hash, input.prevout.n), CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, undo.nHeight)));
+                    // restore unspent index
+                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(1, uint160(hashBytes), input.prevout.hash, input.prevout.n), CAddressUnspentValue(prevout.nValue, prevout.scriptPubKey, undo.GetHeight())));
 
                 } else {
                     continue;
@@ -1918,13 +1919,18 @@ DisconnectResult ApplyBlockUndo(const CBlockUndo &blockUndo,
 
     // Move best block pointer to previous block.
     view.SetBestBlock(block.hashPrevBlock);
+    
+    // ApplyBlockUndo do not have the state parameter
+    CValidationState state;
 
-    if (fAddressIndex) {
+    if (!ignoreAddressIndex && fAddressIndex) {
         if (!pblocktree->EraseAddressIndex(addressIndex)) {
-            return AbortNode(state, "Failed to delete address index");
+            AbortNode(state, "Failed to delete address index");
+            return DISCONNECT_UNCLEAN;
         }
         if (!pblocktree->UpdateAddressUnspentIndex(addressUnspentIndex)) {
-            return AbortNode(state, "Failed to write address unspent index");
+            AbortNode(state, "Failed to write address unspent index");
+            return DISCONNECT_UNCLEAN;
         }
     }
 
@@ -2066,7 +2072,9 @@ static int64_t nTimeTotal = 0;
  */
 static bool ConnectBlock(const Config &config, const CBlock &block,
                          CValidationState &state, CBlockIndex *pindex,
-                         CCoinsViewCache &view, bool fJustCheck = false) {
+                         CCoinsViewCache &view,
+                         bool fJustCheck = false,
+                         bool ignoreAddressIndex = false) {
     AssertLockHeld(cs_main);
 
     int64_t nTimeStart = GetTimeMicros();
@@ -2105,13 +2113,13 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     // Check proof-of-stake
     if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
          const COutPoint &prevout = block.vtx[1]->vin[0].prevout;
-         const CCoins *coin = view.AccessCoin(prevout.hash);
-          if (!coins)
+         const Coin &coin = view.AccessCoin(prevout);
+          if (!coin)
               return state.DoS(100, error("%s: kernel input unavailable", __func__),
                                 REJECT_INVALID, "bad-cs-kernel");
 
          // Check proof-of-stake min confirmations
-         if (pindex->nHeight - coin.GetHeight() < Params().GetConsensus().nStakeMinConfirmations)
+         if (pindex->nHeight - coin.GetHeight() < (uint32_t)Params().GetConsensus().nStakeMinConfirmations)
               return state.DoS(100,
                   error("%s: tried to stake at depth %d", __func__, pindex->nHeight - coin.GetHeight()),
                     REJECT_INVALID, "bad-cs-premature");
@@ -2167,7 +2175,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     if (VersionBitsState(pindex->pprev, consensusParams,
                          Consensus::DEPLOYMENT_CSV,
                          versionbitscache) == THRESHOLD_ACTIVE) {
-        nLockTimeFlags |= LOCKTIME_VERIFY_SEQUENCE;
+
     }
 
     uint32_t flags = GetBlockScriptFlags(pindex, config);
@@ -2215,9 +2223,8 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                     100, error("ConnectBlock(): inputs missing/spent"),
                     REJECT_INVALID, "bad-txns-inputs-missingorspent");
             }
-            
-            if (fAddressIndex || fSpentIndex)
-            {
+
+            if (fAddressIndex || fSpentIndex) {
                 for (size_t j = 0; j < tx.vin.size(); j++) {
 
                     const CTxIn input = tx.vin[j];
@@ -2226,10 +2233,10 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                     int addressType;
 
                     if (prevout.scriptPubKey.IsPayToScriptHash()) {
-                        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
+                        hashBytes = uint160(std::vector <unsigned char>(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
                         addressType = 2;
                     } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
-                        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
+                        hashBytes = uint160(std::vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
                         addressType = 1;
                     } else {
                         hashBytes.SetNull();
@@ -2238,16 +2245,16 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
 
                     if (fAddressIndex && addressType > 0) {
                         // record spending activity
-                        addressIndex.push_back(make_pair(CAddressIndexKey(addressType, hashBytes, pindex->nHeight, i, txhash, j, true), prevout.nValue * -1));
+                        addressIndex.push_back(std::make_pair(CAddressIndexKey(addressType, hashBytes, pindex->nHeight, i, txhash, j, true), Amount(prevout.nValue.GetSatoshis() * -1)));
 
                         // remove address from unspent index
-                        addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(addressType, hashBytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
+                        addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(addressType, hashBytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
                     }
 
                     if (fSpentIndex) {
                         // add the spent index to determine the txid and input that spent an output
                         // and to find the amount and address from an input
-                        spentIndex.push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, addressType, hashBytes)));
+                        spentIndex.push_back(std::make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txhash, j, pindex->nHeight, prevout.nValue, addressType, hashBytes)));
                     }
                 }
             }
@@ -2298,19 +2305,19 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                     std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
 
                     // record receiving activity
-                    addressIndex.push_back(make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
+                    addressIndex.push_back(std::make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
 
                     // record unspent output
-                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(2, uint160(hashBytes), txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
+                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(2, uint160(hashBytes), txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
 
                 } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
                     std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
 
                     // record receiving activity
-                    addressIndex.push_back(make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
+                    addressIndex.push_back(std::make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
 
                     // record unspent output
-                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(1, uint160(hashBytes), txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
+                    addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(1, uint160(hashBytes), txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
 
                 } else {
                     continue;
@@ -2401,7 +2408,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
         return AbortNode(state, "Failed to write transaction index");
     }
 
-    if (fAddressIndex) {
+    if (!ignoreAddressIndex && fAddressIndex) {
         if (!pblocktree->WriteAddressIndex(addressIndex)) {
             return AbortNode(state, "Failed to write address index");
         }
@@ -2411,11 +2418,11 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
         }
     }
 
-    if (fSpentIndex)
+    if (!ignoreAddressIndex && fSpentIndex)
         if (!pblocktree->UpdateSpentIndex(spentIndex))
             return AbortNode(state, "Failed to write transaction index");
 
-    if (fTimestampIndex) {
+    if (!ignoreAddressIndex && fTimestampIndex) {
         unsigned int logicalTS = pindex->nTime;
         unsigned int prevLogicalTS = 0;
 
@@ -3352,7 +3359,7 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
         if (tx.IsCoinBase())
             return true;
 
-        for (const CTxIn &txin : tx->vin) {
+        for (const CTxIn &txin : tx.vin) {
             // First try finding the previous transaction in database
             CTransaction txPrev;
             CDiskTxPos txindex;
@@ -3375,13 +3382,13 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
                 // Read block header
                 CBlock block;
                 const CDiskBlockPos& pos = CDiskBlockPos(txindex.nFile, txindex.nPos);
-                if (!ReadBlockFromDisk(block, pos, Params().GetConsensus()))
+                if (!ReadBlockFromDisk(block, pos, GetConfig()))
                     return false; // unable to read block of previous transaction
                 if (block.GetBlockTime() + Params().GetConsensus().nStakeMinAge > tx.nTime)
                     continue; // only count coins meeting min age requirement
             }
 
-            int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue;
+            int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue.GetSatoshis();
             bnCentSecond += arith_uint256(nValueIn) * (tx.nTime-txPrev.nTime) / CENT;
 
             LogPrint("coinage", "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
@@ -3806,6 +3813,103 @@ bool CheckBlock(const Config &config, const CBlock &block,
     return true;
 }
 
+bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config) {
+    uint256 hashBlock = pblock->GetHash();
+
+    if(!pblock->IsProofOfStake())
+        return error("CheckStake() : %s is not a proof-of-stake block", hashBlock.GetHex());
+
+    CValidationState state;
+    // verify hash target and signature of coinstake tx
+    if (!CheckProofOfStake(mapBlockIndex[pblock->hashPrevBlock], *pblock->vtx[1], pblock->nBits, state))
+        return error("CheckStake() : proof-of-stake checking failed");
+
+    //// debug print
+    LogPrintf("%s\n", pblock->ToString());
+    LogPrintf("out %s\n", FormatMoney(pblock->vtx[1]->GetValueOut()));
+
+    // Found a solution
+    {
+        LOCK(cs_main);
+        if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash())
+            return error("CheckStake() : generated block is stale");
+
+        // Track how many getdata requests this block gets
+        {
+            LOCK(wallet.cs_wallet);
+            wallet.mapRequestCount[hashBlock] = 0;
+        }
+
+        // Process this block the same as if we had received it from another node
+        /*
+        if (!ProcessBlockFound(pblock, config, pblock->GetHash()))
+            return error("CheckStake() : ProcessBlock, block not accepted");
+        */
+    }
+
+    return true;
+}
+
+#ifdef ENABLE_WALLET
+// novacoin: attempt to generate suitable proof-of-stake
+bool SignBlock(CBlock *block, CWallet &wallet, Amount &nFees)
+{
+    // if we are trying to sign
+    //    something except proof-of-stake block template
+    if (!block->vtx[0]->vout[0].IsEmpty()){
+        LogPrintf("something except proof-of-stake block\n");
+        return false;
+    }
+
+    // if we are trying to sign
+    //    a complete proof-of-stake block
+    if (block->IsProofOfStake()){
+        LogPrintf("trying to sign a complete proof-of-stake block\n");
+        return true;
+    }
+
+    static int64_t nLastCoinStakeSearchTime = GetAdjustedTime(); // startup timestamp
+
+    CKey key;
+    CMutableTransaction txCoinBase(*block->vtx[0]);
+    CMutableTransaction txCoinStake;
+    txCoinStake.nTime = GetAdjustedTime();
+    txCoinStake.nTime &= ~Params().GetConsensus().nStakeTimestampMask;
+
+    int64_t nSearchTime = txCoinStake.nTime; // search to current time
+
+    if (nSearchTime > nLastCoinStakeSearchTime)
+    {
+        if (wallet.CreateCoinStake(wallet, block->nBits, 1, nFees, txCoinStake, key))
+        {
+            if (txCoinStake.nTime >= pindexBestHeader->GetPastTimeLimit()+1)
+            {
+                // make sure coinstake would meet timestamp protocol
+                //    as it would be the same as the block timestamp
+                txCoinBase.nTime = block->nTime = txCoinStake.nTime;
+                
+                block->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
+                block->hashMerkleRoot = BlockMerkleRoot(*block);
+    
+                // we have to make sure that we have no future timestamps in
+                //    our transactions set
+                for (std::vector<CTransactionRef>::const_iterator it = block->vtx.begin(); it != block->vtx.end();)
+                    if (it->nTime > block->nTime) { it = block->vtx.erase(it); } else { ++it; }
+
+                block->vtx.insert(block->vtx.begin() + 1, txCoinStake);
+
+                // append a signature to our block
+                return key.Sign(block->GetHash(), block->vchBlockSig);
+            }
+        }
+        nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
+        nLastCoinStakeSearchTime = nSearchTime;
+    }
+
+    return false;
+}
+#endif
+
 static bool CheckIndexAgainstCheckpoint(const CBlockIndex *pindexPrev,
                                         CValidationState &state,
                                         const CChainParams &chainparams,
@@ -4172,7 +4276,7 @@ static bool AcceptBlock(const Config &config,
     return true;
 }
 
-bool static IsCanonicalBlockSignature(const CBlock* pblock)
+bool static IsCanonicalBlockSignature(const std::shared_ptr<const CBlock> pblock)
 {
     if (pblock->IsProofOfWork()) {
         return pblock->vchBlockSig.empty();
@@ -4190,14 +4294,15 @@ bool ProcessNewBlock(const Config &config,
 
         const CChainParams &chainparams = config.GetChainParams();
 
-        if (!IsCanonicalBlockSignature(*pblock)) {
+        CValidationState state;
+        if (!IsCanonicalBlockSignature(pblock)) {
             if (pblock && pblock->nVersion >= CANONICAL_BLOCK_SIG_VERSION)
                 return state.DoS(100, error("ProcessNewBlock(): bad block signature encoding"),
                                  REJECT_INVALID, "bad-block-signature-encoding");
             return false;
         }
 
-        CValidationState state;
+
         // Ensure that CheckBlock() passes before calling AcceptBlock, as
         // belt-and-suspenders.
         bool ret = CheckBlock(config, *pblock, state, hash);
@@ -4757,7 +4862,7 @@ bool CVerifyDB::VerifyDB(const Config &config, CCoinsView *coinsview,
             (coins.DynamicMemoryUsage() + pcoinsTip->DynamicMemoryUsage()) <=
                 nCoinCacheUsage) {
             assert(coins.GetBestBlock() == pindex->GetBlockHash());
-            DisconnectResult res = DisconnectBlock(block, pindex, coins);
+            DisconnectResult res = DisconnectBlock(block, pindex, coins, true);
             if (res == DISCONNECT_FAILED) {
                 return error("VerifyDB(): *** irrecoverable inconsistency in "
                              "block data at %d, hash=%s",
@@ -4804,7 +4909,7 @@ bool CVerifyDB::VerifyDB(const Config &config, CCoinsView *coinsview,
                     "VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s",
                     pindex->nHeight, pindex->GetBlockHash().ToString());
             }
-            if (!ConnectBlock(config, block, state, pindex, coins)) {
+            if (!ConnectBlock(config, block, state, pindex, coins, false, true)) {
                 return error(
                     "VerifyDB(): *** found unconnectable block at %d, hash=%s",
                     pindex->nHeight, pindex->GetBlockHash().ToString());
