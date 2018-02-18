@@ -634,9 +634,9 @@ static UniValue echo(const Config &config, const JSONRPCRequest &request) {
 bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &address)
 {
     if (type == 2) {
-        address = CBitcoinAddress(CScriptID(hash)).ToString();
+        address = EncodeDestination(CScriptID(hash));
     } else if (type == 1) {
-        address = CBitcoinAddress(CKeyID(hash)).ToString();
+        address = EncodeDestination(CKeyID(hash));
     } else {
         return false;
     }
@@ -646,10 +646,10 @@ bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &addr
 bool getAddressesFromParams(const JSONRPCRequest &request, std::vector<std::pair<uint160, int> > &addresses)
 {
     if (request.params[0].isStr()) {
-        CBitcoinAddress address(request.params[0].get_str());
+        std::string address = request.params[0].get_str();
         uint160 hashBytes;
         int type = 0;
-        if (!address.GetIndexKey(hashBytes, type)) {
+        if (!GetDestinationIndexKey(address, hashBytes, type)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
         }
         addresses.push_back(std::make_pair(hashBytes, type));
@@ -664,10 +664,10 @@ bool getAddressesFromParams(const JSONRPCRequest &request, std::vector<std::pair
 
         for (std::vector<UniValue>::iterator it = values.begin(); it != values.end(); ++it) {
 
-            CBitcoinAddress address(it->get_str());
+            std::string address = it->get_str();
             uint160 hashBytes;
             int type = 0;
-            if (!address.GetIndexKey(hashBytes, type)) {
+            if (!GetDestinationIndexKey(address, hashBytes, type)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
             addresses.push_back(std::make_pair(hashBytes, type));
