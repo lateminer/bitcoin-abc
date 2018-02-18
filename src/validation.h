@@ -560,6 +560,8 @@ bool ReadFromDisk(CTransaction &tx, CDiskTxPos &txindex);
 bool CheckBlock(const Config &Config, const CBlock &block,
                 CValidationState &state, const uint256 &hash, bool fCheckPOW = true,
                 bool fCheckMerkleRoot = true, bool fCheckSig = true);
+bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config);
+bool SignBlock(CBlock *pblock, CWallet &wallet, Amount &nFees);
 
 /**
  * Context dependent validity checks for non coinbase transactions. This

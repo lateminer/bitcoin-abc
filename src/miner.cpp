@@ -145,7 +145,7 @@ getExcessiveBlockSizeSig(const Config &config) {
 
 int64_t GetMaxTransactionTime(CBlock* pblock) {
     int64_t maxTransactionTime = 0;
-    for (std::vector<CTransaction>::const_iterator it(pblock->vtx.begin()); it != pblock->vtx.end(); ++it)
+    for (std::vector<CTransactionRef>::const_iterator it(pblock->vtx.begin()); it != pblock->vtx.end(); ++it)
         maxTransactionTime = std::max(maxTransactionTime, (int64_t)it->nTime);
     return maxTransactionTime;
 }
@@ -682,67 +682,6 @@ void IncrementExtraNonce(const Config &config, CBlock *pblock,
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 }
 
-#ifdef ENABLE_WALLET
-// novacoin: attempt to generate suitable proof-of-stake
-bool SignBlock(CBlock &block, CWallet &wallet, Amount &nFees)
-{
-    // if we are trying to sign
-    //    something except proof-of-stake block template
-    if (!block.vtx[0]->vout[0].IsEmpty()){
-        LogPrintf("something except proof-of-stake block\n");
-        return false;
-    }
-
-    // if we are trying to sign
-    //    a complete proof-of-stake block
-    if (block.IsProofOfStake()){
-        LogPrintf("trying to sign a complete proof-of-stake block\n");
-        return true;
-    }
-
-    static int64_t nLastCoinStakeSearchTime = GetAdjustedTime(); // startup timestamp
-
-    CKey key;
-    CMutableTransaction txCoinBase(block.vtx[0]);
-    CMutableTransaction txCoinStake;
-    txCoinStake.nTime = GetAdjustedTime();
-    txCoinStake.nTime &= ~Params().GetConsensus().nStakeTimestampMask;
-
-    int64_t nSearchTime = txCoinStake.nTime; // search to current time
-
-
-    if (nSearchTime > nLastCoinStakeSearchTime)
-    {
-        if (wallet.CreateCoinStake(wallet, block.nBits, 1, nFees, txCoinStake, key))
-        {
-            if (txCoinStake.nTime >= pindexBestHeader->GetPastTimeLimit()+1)
-            {
-                // make sure coinstake would meet timestamp protocol
-                //    as it would be the same as the block timestamp
-                txCoinBase.nTime = block.nTime = txCoinStake.nTime;
-                block.vtx[0] = txCoinBase;
-
-                // we have to make sure that we have no future timestamps in
-                //    our transactions set
-                for (std::vector<CTransaction>::iterator it = block.vtx.begin(); it != block.vtx.end();)
-                    if (it->nTime > block.nTime) { it = block.vtx.erase(it); } else { ++it; }
-
-                block.vtx.insert(block.vtx.begin() + 1, txCoinStake);
-
-                block.hashMerkleRoot = BlockMerkleRoot(block);
-
-                // append a signature to our block
-                return key.Sign(block.GetHash(), block.vchBlockSig);
-            }
-        }
-        nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
-        nLastCoinStakeSearchTime = nSearchTime;
-    }
-
-    return false;
-}
-#endif
-
 void ThreadStakeMiner(CWallet *pwallet, const Config &config)
 {
     // Make this thread recognisable as the mining thread
@@ -799,41 +738,4 @@ void ThreadStakeMiner(CWallet *pwallet, const Config &config)
         else
             MilliSleep(nMinerSleep);
     }
-}
-
-bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config) {
-    uint256 hashBlock = pblock->GetHash();
-
-    if(!pblock->IsProofOfStake())
-        return error("CheckStake() : %s is not a proof-of-stake block", hashBlock.GetHex());
-
-    CValidationState state;
-    // verify hash target and signature of coinstake tx
-    if (!CheckProofOfStake(mapBlockIndex[pblock->hashPrevBlock], *pblock->vtx[1], pblock->nBits, state))
-        return error("CheckStake() : proof-of-stake checking failed");
-
-    //// debug print
-    LogPrintf("%s\n", pblock->ToString());
-    LogPrintf("out %s\n", FormatMoney(pblock->vtx[1]->GetValueOut()));
-
-    // Found a solution
-    {
-        LOCK(cs_main);
-        if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash())
-            return error("CheckStake() : generated block is stale");
-
-        // Track how many getdata requests this block gets
-        {
-            LOCK(wallet.cs_wallet);
-            wallet.mapRequestCount[hashBlock] = 0;
-        }
-
-        // Process this block the same as if we had received it from another node
-        /*
-        if (!ProcessBlockFound(pblock, config, pblock->GetHash()))
-            return error("CheckStake() : ProcessBlock, block not accepted");
-        */
-    }
-
-    return true;
 }
