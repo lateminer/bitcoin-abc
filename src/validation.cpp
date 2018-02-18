@@ -1525,7 +1525,7 @@ bool CheckTxInputs(const CTransaction &tx, CValidationState &state,
         }
 
         // Check transaction timestamp
-        if (coin.GetTime() > tx.nTime)
+        if (coin->nTime > tx.nTime)
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-time-earlier-than-input");
 
@@ -3373,7 +3373,7 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
                 int nSpendDepth;
                 if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, Params().GetConsensus().nStakeMinConfirmations - 1, nSpendDepth))
                 {
-                    LogPrint("coinage", "coin age skip nSpendDepth=%d\n", nSpendDepth + 1);
+                    LogPrintf("coinage", "coin age skip nSpendDepth=%d\n", nSpendDepth + 1);
                     continue; // only count coins meeting min confirmations requirement
                 }
             }
@@ -3391,11 +3391,11 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
             int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue.GetSatoshis();
             bnCentSecond += arith_uint256(nValueIn) * (tx.nTime - txPrev.nTime) / CENT.GetSatoshis();
 
-            LogPrint("coinage", "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
+            LogPrintf("coinage", "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
         }
 
         arith_uint256 bnCoinDay = bnCentSecond * CENT.GetSatoshis() / COIN.GetSatoshis() / (24 * 60 * 60);
-        LogPrint("coinage", "coin age bnCoinDay=%s\n", bnCoinDay.ToString());
+        LogPrintf("coinage", "coin age bnCoinDay=%s\n", bnCoinDay.ToString());
         nCoinAge = bnCoinDay.GetLow64();
         return true;
 }
@@ -5273,7 +5273,7 @@ bool LoadExternalBlockFile(const Config &config, FILE *fileIn,
                     (mapBlockIndex[hash]->nStatus & BLOCK_HAVE_DATA) == 0) {
                     LOCK(cs_main);
                     CValidationState state;
-                    if (AcceptBlock(config, pblock, state, nullptr, true, dbp,
+                    if (AcceptBlock(config, pblock, state, nullptr, true, dbp, hash,
                                     nullptr)) {
                         nLoaded++;
                     }
@@ -5325,7 +5325,7 @@ bool LoadExternalBlockFile(const Config &config, FILE *fileIn,
                             LOCK(cs_main);
                             CValidationState dummy;
                             if (AcceptBlock(config, pblockrecursive, dummy,
-                                            nullptr, true, &it->second,
+                                            nullptr, true, &it->second, hash,
                                             nullptr)) {
                                 nLoaded++;
                                 queue.push_back(pblockrecursive->GetHash());
