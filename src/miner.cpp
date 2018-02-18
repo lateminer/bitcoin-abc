@@ -728,7 +728,7 @@ void ThreadStakeMiner(CWallet *pwallet, const Config &config)
 
         CBlock *pblock = &pblocktemplate->block;
         // Trying to sign a block
-        if (SignBlock(*pblock, *pwallet, nFees))
+        if (SignBlock(pblock, *pwallet, nFees))
         {
             SetThreadPriority(THREAD_PRIORITY_NORMAL);
             CheckStake(pblock, *pwallet, config);

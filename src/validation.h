@@ -21,6 +21,7 @@
 #include "sync.h"
 #include "txdb.h"
 #include "versionbits.h"
+#include "wallet/wallet.h"
 #include "spentindex.h"
 #include "addressindex.h"
 #include "timestampindex.h"

@@ -92,7 +92,7 @@ void TxToJSONExpanded(const Config &config, const CTransaction &tx, const uint25
             CSpentIndexKey spentKey(txin.prevout.hash, txin.prevout.n);
             if (GetSpentIndex(spentKey, spentInfo)) {
                 in.push_back(Pair("value", ValueFromAmount(spentInfo.satoshis)));
-                in.push_back(Pair("valueSat", spentInfo.satoshis));
+                in.push_back(Pair("valueSat", spentInfo.satoshis.GetSatoshis()));
                 if (spentInfo.addressType == 1) {
                     in.push_back(Pair("address", EncodeDestination(CKeyID(spentInfo.addressHash))));
                 } else if (spentInfo.addressType == 2)  {
