@@ -4283,7 +4283,7 @@ bool static IsCanonicalBlockSignature(const std::shared_ptr<const CBlock> pblock
         return pblock->vchBlockSig.empty();
     }
 
-    return IsLowDERSignature(pblock->vchBlockSig, NULL, false);
+    return IsLowDERSignature(pblock->vchBlockSig, nullptr, false);
 }
 
 bool ProcessNewBlock(const Config &config,
