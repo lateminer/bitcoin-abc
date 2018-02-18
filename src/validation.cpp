@@ -2114,7 +2114,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
          const COutPoint &prevout = block.vtx[1]->vin[0].prevout;
          const Coin &coin = view.AccessCoin(prevout);
-          if (!coin)
+          if (coin.IsSpent())
               return state.DoS(100, error("%s: kernel input unavailable", __func__),
                                 REJECT_INVALID, "bad-cs-kernel");
 
@@ -3353,7 +3353,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 // introduced to help nodes establish a consistent view of the coin
 // age (trust score) of competing branches.
 bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *pindexPrev, uint64_t &nCoinAge) {
-    arith_uint256 bnCentSecond = 0;  // coin age in the unit of cent-seconds
+        arith_uint256 bnCentSecond = 0;  // coin age in the unit of cent-seconds
         nCoinAge = 0;
 
         if (tx.IsCoinBase())
@@ -3389,12 +3389,12 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
             }
 
             int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue.GetSatoshis();
-            bnCentSecond += arith_uint256(nValueIn) * (tx.nTime-txPrev.nTime) / CENT;
+            bnCentSecond += arith_uint256(nValueIn) * (tx.nTime - txPrev.nTime) / CENT.GetSatoshis();
 
             LogPrint("coinage", "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
         }
 
-        arith_uint256 bnCoinDay = bnCentSecond * CENT / COIN / (24 * 60 * 60);
+        arith_uint256 bnCoinDay = bnCentSecond * CENT.GetSatoshis() / COIN.GetSatoshis() / (24 * 60 * 60);
         LogPrint("coinage", "coin age bnCoinDay=%s\n", bnCoinDay.ToString());
         nCoinAge = bnCoinDay.GetLow64();
         return true;
@@ -3609,7 +3609,7 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
     std::vector<vector<unsigned char> > vSolutions;
     txnouttype whichType;
 
-    const CTxOut& txout = block.vtx[1].vout[1];
+    const CTxOut& txout = *block->vtx[1].vout[1];
 
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
         return false;
