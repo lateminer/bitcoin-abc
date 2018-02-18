@@ -1759,7 +1759,7 @@ DisconnectResult UndoCoinSpend(const Coin &undo, CCoinsViewCache &view,
         // useful when working from legacy on disck data. In any case, putting
         // the correct information in there doesn't hurt.
         const_cast<Coin &>(undo) = Coin(undo.GetTxOut(), alternate.GetHeight(),
-                                        alternate.IsCoinBase());
+                                        alternate.IsCoinBase(), alternate.IsCoinStake());
     }
 
     // The potential_overwrite parameter to AddCoin is only allowed to be false
@@ -2113,13 +2113,13 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     // Check proof-of-stake
     if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
          const COutPoint &prevout = block.vtx[1]->vin[0].prevout;
-         const Coin &coin = view.AccessCoin(prevout.hash);
+         const Coin &coin = view.AccessCoin(prevout);
           if (!coin)
               return state.DoS(100, error("%s: kernel input unavailable", __func__),
                                 REJECT_INVALID, "bad-cs-kernel");
 
          // Check proof-of-stake min confirmations
-         if (pindex->nHeight - coin.GetHeight() < Params().GetConsensus().nStakeMinConfirmations)
+         if (pindex->nHeight - coin.GetHeight() < (uint32_t)Params().GetConsensus().nStakeMinConfirmations)
               return state.DoS(100,
                   error("%s: tried to stake at depth %d", __func__, pindex->nHeight - coin.GetHeight()),
                     REJECT_INVALID, "bad-cs-premature");
@@ -2305,7 +2305,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                     std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
 
                     // record receiving activity
-                    addressIndex.push_back(std::make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue.GetSatoshis()));
+                    addressIndex.push_back(std::make_pair(CAddressIndexKey(2, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
 
                     // record unspent output
                     addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(2, uint160(hashBytes), txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
@@ -2314,7 +2314,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                     std::vector<unsigned char> hashBytes(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23);
 
                     // record receiving activity
-                    addressIndex.push_back(std::make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue.GetSatoshis()));
+                    addressIndex.push_back(std::make_pair(CAddressIndexKey(1, uint160(hashBytes), pindex->nHeight, i, txhash, k, false), out.nValue));
 
                     // record unspent output
                     addressUnspentIndex.push_back(std::make_pair(CAddressUnspentKey(1, uint160(hashBytes), txhash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
@@ -3382,7 +3382,7 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
                 // Read block header
                 CBlock block;
                 const CDiskBlockPos& pos = CDiskBlockPos(txindex.nFile, txindex.nPos);
-                if (!ReadBlockFromDisk(block, pos, Params().GetConsensus()))
+                if (!ReadBlockFromDisk(block, pos, GetConfig()))
                     return false; // unable to read block of previous transaction
                 if (block.GetBlockTime() + Params().GetConsensus().nStakeMinAge > tx.nTime)
                     continue; // only count coins meeting min age requirement
