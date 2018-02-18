@@ -4,18 +4,16 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "pos.h"
-
 #include "chain.h"
 #include "chainparams.h"
 #include "clientversion.h"
 #include "coins.h"
 #include "hash.h"
-#include "main.h"
 #include "uint256.h"
 #include "primitives/transaction.h"
 #include <stdio.h>
 #include "util.h"
-
+#include "config.h"
 
 // Stake Modifier (hash modifier of proof-of-stake):
 // The purpose of stake modifier is to prevent a txout (coin) owner from
@@ -146,6 +144,9 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
 {
     assert(nIn < txTo.vin.size());
     const CTxIn& txin = txTo.vin[nIn];
+    const Coin &coin = view.AccessCoin(txin.prevout);
+    const Amount amount = coin.GetTxOut().nValue;
+
     if (txin.prevout.n >= txFrom.vout.size())
         return false;
     const CTxOut& txout = txFrom.vout[txin.prevout.n];
@@ -153,7 +154,7 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
     if (txin.prevout.hash != txFrom.GetHash())
         return false;
 
-    return VerifyScript(txin.scriptSig, txout.scriptPubKey, flags, TransactionSignatureChecker(&txTo, nIn),  NULL);
+    return VerifyScript(txin.scriptSig, txout.scriptPubKey, flags, TransactionSignatureChecker(&txTo, nIn, amount), nullptr);
 }
 
 bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTimeBlock, const COutPoint& prevout, uint32_t* pBlockTime){

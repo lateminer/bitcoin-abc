@@ -270,6 +270,7 @@ public:
 
     const TxId GetId() const { return tx->GetId(); }
     bool IsCoinBase() const { return tx->IsCoinBase(); }
+    bool IsCoinStake() const { return tx->IsCoinStake(); }
 };
 
 /**
@@ -985,7 +986,7 @@ public:
         return m_pool_key_to_index;
     }
     /** Does the wallet have at least min_keys in the keypool? */
-    bool HasUnusedKeys(int min_keys) const;
+    bool HasUnusedKeys(int64_t min_keys) const;
 
     std::set<std::set<CTxDestination>> GetAddressGroupings();
     std::map<CTxDestination, Amount> GetAddressBalances();

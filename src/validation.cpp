@@ -69,6 +69,7 @@ CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
 std::atomic_bool fImporting(false);
 bool fReindex = false;
+bool fBIP37 = false;
 bool fTxIndex = false;
 bool fAddressIndex = false;
 bool fTimestampIndex = false;
@@ -3609,7 +3610,7 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
     std::vector<vector<unsigned char> > vSolutions;
     txnouttype whichType;
 
-    const CTxOut& txout = *block->vtx[1].vout[1];
+    const CTxOut& txout = block.vtx[1]->vout[1];
 
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
         return false;
