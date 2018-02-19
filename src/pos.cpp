@@ -43,7 +43,7 @@ bool CheckCoinStakeTimestamp(int64_t nTimeBlock, int64_t nTimeTx)
 // Simplified version of CheckCoinStakeTimestamp() to check header-only timestamp
 bool CheckStakeBlockTimestamp(int64_t nTimeBlock)
 {
-   return CheckCoinStakeTimestamp(nTimeBlock, nTimeBlock);
+    return CheckCoinStakeTimestamp(nTimeBlock, nTimeBlock);
 }
 
 // BlackCoin kernel protocol v3
@@ -68,7 +68,7 @@ bool CheckStakeBlockTimestamp(int64_t nTimeBlock)
 bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, const Coin &coin, const COutPoint &prevout, unsigned int nTimeTx)
 {
     // Weight
-    int64_t nValueIn = coin.out.nValue.GetSatoshis();
+    int64_t nValueIn = coin.out.nValue;
     if (nValueIn == 0)
         return false;
 
@@ -109,6 +109,9 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
         return error("CheckProofOfStake() : called on non-coinstake %s", tx.GetHash().ToString());
 
     // Kernel (input 0) must match the stake hash target per coin age (nBits)
+    CCoinsView viewDummy;
+    CCoinsViewCache view(&viewDummy);
+
     const CTxIn& txin = tx.vin[0];
     const Coin& coin = view.AccessCoin(txin.prevout);
 
@@ -127,7 +130,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     CBlock block;
     const CDiskBlockPos& pos = CDiskBlockPos(txindex.nFile, txindex.nPos);
     if (!ReadBlockFromDisk(block, pos, GetConfig()))
-       return fDebug? error("CheckProofOfStake() : read block failed") : false; // unable to read block of previous transaction
+       return state.DoS(100, error("CheckProofOfStake() : read block failed")); // unable to read block of previous transaction
 
     // Min age requirement
     int nDepth;
@@ -143,6 +146,10 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
 bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType)
 {
     assert(nIn < txTo.vin.size());
+
+    CCoinsView viewDummy;
+    CCoinsViewCache view(&viewDummy);
+
     const CTxIn& txin = txTo.vin[nIn];
     const Coin &coin = view.AccessCoin(txin.prevout);
     const Amount amount = coin.GetTxOut().nValue;
@@ -166,6 +173,9 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
 {
     uint256 hashProofOfStake, targetProofOfStake;
     auto it=cache.find(prevout);
+
+    CCoinsView viewDummy;
+    CCoinsViewCache view(&viewDummy);
 
     if(it == cache.end()) {
         CTransaction txPrev;
