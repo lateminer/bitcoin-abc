@@ -4,18 +4,16 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "pos.h"
-
 #include "chain.h"
 #include "chainparams.h"
 #include "clientversion.h"
 #include "coins.h"
 #include "hash.h"
-#include "main.h"
 #include "uint256.h"
 #include "primitives/transaction.h"
 #include <stdio.h>
 #include "util.h"
-
+#include "config.h"
 
 // Stake Modifier (hash modifier of proof-of-stake):
 // The purpose of stake modifier is to prevent a txout (coin) owner from
@@ -67,10 +65,10 @@ bool CheckStakeBlockTimestamp(int64_t nTimeBlock)
 //   quantities so as to generate blocks faster, degrading the system back into
 //   a proof-of-work situation.
 //
-bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, const CCoins* txPrev, const COutPoint& prevout, unsigned int nTimeTx)
+bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, const Coin &coin, const COutPoint &prevout, unsigned int nTimeTx)
 {
     // Weight
-    int64_t nValueIn = txPrev->vout[prevout.n].nValue;
+    int64_t nValueIn = coin.out.nValue.GetSatoshis();
     if (nValueIn == 0)
         return false;
 
@@ -80,7 +78,7 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, con
 
     // Calculate hash
     CHashWriter ss(SER_GETHASH, 0);
-    ss << pindexPrev->nStakeModifier << txPrev->nTime << prevout.hash << prevout.n << nTimeTx;
+    ss << pindexPrev->nStakeModifier << coin->nTime << prevout.hash << prevout.n << nTimeTx;
     uint256 hashProofOfStake = ss.GetHash();
 
     // Now check if proof-of-stake hash meets target protocol
@@ -112,6 +110,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
 
     // Kernel (input 0) must match the stake hash target per coin age (nBits)
     const CTxIn& txin = tx.vin[0];
+    const Coin& coin = view.AccessCoin(txin.prevout);
 
     // First try finding the previous transaction in database
     CTransaction txPrev;
@@ -135,7 +134,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, Params().GetConsensus().nStakeMinConfirmations - 1, nDepth))
        return state.DoS(100, error("CheckProofOfStake() : tried to stake at depth %d", nDepth + 1));
 
-    if (!CheckStakeKernelHash(pindexPrev, nBits, new CCoins(txPrev, pindexPrev->nHeight), txin.prevout, tx.nTime))
+    if (!CheckStakeKernelHash(pindexPrev, nBits, coin, txin.prevout, tx.nTime))
        return state.DoS(1, error("CheckProofOfStake() : INFO: check kernel failed on coinstake %s", tx.GetHash().ToString())); // may occur during initial download or if behind on block chain sync
 
     return true;
@@ -145,6 +144,9 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
 {
     assert(nIn < txTo.vin.size());
     const CTxIn& txin = txTo.vin[nIn];
+    const Coin &coin = view.AccessCoin(txin.prevout);
+    const Amount amount = coin.GetTxOut().nValue;
+
     if (txin.prevout.n >= txFrom.vout.size())
         return false;
     const CTxOut& txout = txFrom.vout[txin.prevout.n];
@@ -152,7 +154,7 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
     if (txin.prevout.hash != txFrom.GetHash())
         return false;
 
-    return VerifyScript(txin.scriptSig, txout.scriptPubKey, flags, TransactionSignatureChecker(&txTo, nIn),  NULL);
+    return VerifyScript(txin.scriptSig, txout.scriptPubKey, flags, TransactionSignatureChecker(&txTo, nIn, amount), nullptr);
 }
 
 bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTimeBlock, const COutPoint& prevout, uint32_t* pBlockTime){
@@ -168,6 +170,9 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
     if(it == cache.end()) {
         CTransaction txPrev;
         CDiskTxPos txindex;
+
+        const Coin &coin = view.AccessCoin(prevout);
+
         if (!ReadFromDisk(txPrev, txindex, *pblocktree, prevout))
             return false;
 
@@ -184,13 +189,15 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
         if (pBlockTime)
             *pBlockTime = block.GetBlockTime();
 
-        return CheckStakeKernelHash(pindexPrev, nBits, new CCoins(txPrev, pindexPrev->nHeight), prevout, nTime);
-    } else{
+        return CheckStakeKernelHash(pindexPrev, nBits, coin, prevout, nTime);
+    } else {
         //found in cache
         const CStakeCache& stake = it->second;
+        const Coin &coin = view.AccessCoin(stake.prevout);
+
         if (pBlockTime)
             *pBlockTime = stake.blockFrom.GetBlockTime();
-        return CheckStakeKernelHash(pindexPrev, nBits, new CCoins(stake.txPrev, pindexPrev->nHeight), prevout, nTime);
+        return CheckStakeKernelHash(pindexPrev, nBits, coin, prevout, nTime);
     }
 
 }

@@ -448,6 +448,7 @@ static void SendMoney(CWallet *const pwallet, const CTxDestination &address,
                       Amount nValue, bool fSubtractFeeFromAmount,
                       CWalletTx &wtxNew) {
     Amount curBalance = pwallet->GetBalance();
+    std::string strError;
 
     // Check amount
     if (nValue <= Amount(0)) {
@@ -466,7 +467,7 @@ static void SendMoney(CWallet *const pwallet, const CTxDestination &address,
 
     if (fWalletUnlockStakingOnly)
     {
-            string strError = _("Error: Wallet unlocked for staking only, unable to create transaction.");
+            strError = _("Error: Wallet unlocked for staking only, unable to create transaction.");
             throw JSONRPCError(RPC_WALLET_ERROR, strError);
     }
 
@@ -476,7 +477,6 @@ static void SendMoney(CWallet *const pwallet, const CTxDestination &address,
     // Create and send the transaction
     CReserveKey reservekey(pwallet);
     Amount nFeeRequired;
-    std::string strError;
     std::vector<CRecipient> vecSend;
     int nChangePosRet = -1;
     CRecipient recipient = {scriptPubKey, nValue, fSubtractFeeFromAmount};

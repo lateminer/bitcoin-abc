@@ -250,7 +250,7 @@ void GetOSRand(uint8_t *ent32) {
     }
 #elif defined(HAVE_GETENTROPY_RAND) && defined(MAC_OSX)
     // We need a fallback for OSX < 10.12
-    if (&getentropy != NULL) {
+    if (&getentropy != nullptr) {
         if (getentropy(ent32, NUM_OS_RANDOM_BYTES) != 0) {
             RandFailure();
         }

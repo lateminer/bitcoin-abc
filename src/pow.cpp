@@ -40,15 +40,15 @@ uint32_t GetNextTargetRequired(const CBlockIndex *pindexLast, const CBlockHeader
     unsigned int nTargetLimit = UintToArith256(params.powLimit).GetCompact();
 
     // Genesis block
-    if (pindexLast == NULL) {
+    if (pindexLast == nullptr) {
         return nTargetLimit;
     }
 
     const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, fProofOfStake);
-    if (pindexPrev->pprev == NULL)
+    if (pindexPrev->pprev == nullptr)
         return nTargetLimit; // first block
     const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, fProofOfStake);
-    if (pindexPrevPrev->pprev == NULL)
+    if (pindexPrevPrev->pprev == nullptr)
         return nTargetLimit; // second block
 
     return CalculateNextTargetRequired(pindexPrev, pindexPrevPrev->GetBlockTime(), config);

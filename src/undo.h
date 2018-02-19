@@ -36,9 +36,8 @@ public:
         ::Serialize(
             s, VARINT(pcoin->GetHeight() * 4 + (pcoin->IsCoinBase() ? 1 : 0) + (pcoin->IsCoinStake() ? 2 : 0)));
         if (pcoin->GetHeight() > 0) {
-            ::Serialize(s, VARINT(this->nVersion));
+            ::Serialize(s, (unsigned char)0);
         }
-        ::Serialize(s, this->nTime);
         ::Serialize(s, CTxOutCompressor(REF(pcoin->GetTxOut())));
     }
 };
@@ -56,10 +55,13 @@ public:
         bool fCoinBase = nCode & 1;
         bool fCoinStake = nCode & 2;
         if (nHeight > 0) {
-            ::Unserialize(s, VARINT(this->nVersion));
+            // Old versions stored the version number for the last spend of
+            // a transaction's outputs. Non-final spends were indicated with
+            // height = 0.
+            int nVersionDummy;
+            ::Unserialize(s, VARINT(nVersionDummy));
         }
 
-        ::Unserialize(s, this->nTime);
         CTxOut txout;
         ::Unserialize(s, REF(CTxOutCompressor(REF(txout))));
 

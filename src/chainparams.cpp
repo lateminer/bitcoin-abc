@@ -141,7 +141,7 @@ public:
         nDefaultPort = 15714;
         nPruneAfterHeight = 100000;
 
-        genesis = CreateGenesisBlock(1393221600, 164482, 0x1e0fffff, 1, 0);
+        genesis = CreateGenesisBlock(1393221600, 164482, 0x1e0fffff, 1, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock == uint256S("0x000001faef25dec4fbcf906e6242621df2c183bf232f263d0ba5b101911e4563"));
         assert(genesis.hashMerkleRoot == uint256S("0x12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90"));
@@ -212,8 +212,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000002888c34d61b53a244a");
-        consensus.defaultAssumeValid = uint256S("0x000000000000b41f1f2ddf130df8824e2b61c0af809ff86dd5cadb361d984ca7");
+        consensus.nMinimumChainWork = uint256S("0x00");
+        consensus.defaultAssumeValid = uint256S("0x00");
         
         consensus.nProtocolV1RetargetingFixedTime = 1395631999;
         consensus.nProtocolV2Time = 1407053625;
@@ -235,7 +235,7 @@ public:
         nDefaultPort = 25714;
         nPruneAfterHeight = 1000;
 
-        genesis = CreateGenesisBlock(1393221600, 216178, 0x1f00ffff, 1, 0);
+        genesis = CreateGenesisBlock(1393221600, 216178, 0x1f00ffff, 1, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock == uint256S("0x0000724595fb3b9609d441cbfb9577615c292abf07d996d3edabc48de843642d"));
         assert(genesis.hashMerkleRoot == uint256S("0x12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90"));
@@ -273,62 +273,49 @@ static CTestNetParams testNetParams;
 class CRegTestParams : public CChainParams {
 public:
     CRegTestParams() {
-        strNetworkID = "regtest";
-        consensus.nSubsidyHalvingInterval = 150;
-        // BIP34 has not activated on regtest (far in the future so block v1 are
-        // not rejected in tests)
-        consensus.BIP34Height = 100000000;
-        consensus.BIP34Hash = uint256();
-        // BIP65 activated on regtest (Used in rpc activation tests)
-        consensus.BIP65Height = 1351;
-        // BIP66 activated on regtest (Used in rpc activation tests)
-        consensus.BIP66Height = 1251;
-        consensus.powLimit = uint256S(
-            "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        // two weeks
-        consensus.nPowTargetTimespan = 14 * 24 * 60 * 60;
-        consensus.nPowTargetSpacing = 10 * 60;
+        consensus.nMaxReorganizationDepth = 50;
+        consensus.powLimit = uint256S("0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.posLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.posLimitV2 = uint256S("000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.nTargetTimespan = 16 * 60;
+        consensus.nTargetSpacingV1 = 60;
+        consensus.nTargetSpacing = 64;
         consensus.fPowAllowMinDifficultyBlocks = true;
-        consensus.fPowNoRetargeting = true;
-        // 75% for testchains
-        consensus.nRuleChangeActivationThreshold = 108;
-        // Faster than normal for regtest (144 instead of 2016)
-        consensus.nMinerConfirmationWindow = 144;
+        consensus.fPowNoRetargeting = false;
+        consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
+        consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
+        
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout =
-            999999999999ULL;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout =
-            999999999999ULL;
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
+        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
-        // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
-
-        // By default assume that the signatures in ancestors of this block are
-        // valid.
         consensus.defaultAssumeValid = uint256S("0x00");
+        
+        consensus.nProtocolV1RetargetingFixedTime = 1395631999;
+        consensus.nProtocolV2Time = 1407053625;
+        consensus.nProtocolV3Time = 1444028400;
+        consensus.nLastPOWBlock = 0x7fffffff;
+        consensus.nStakeTimestampMask = 0xf;
+        consensus.nCoinbaseMaturity = 50;
+        consensus.nStakeMinConfirmations = 50;
+        consensus.nStakeMinAge = 1 * 60 * 60;
 
-        diskMagic[0] = 0xfa;
-        diskMagic[1] = 0xbf;
-        diskMagic[2] = 0xb5;
-        diskMagic[3] = 0xda;
-        netMagic[0] = 0xda;
-        netMagic[1] = 0xb5;
-        netMagic[2] = 0xbf;
-        netMagic[3] = 0xfa;
-        nDefaultPort = 18444;
+        diskMagic[0] = 0xcd;
+        diskMagic[1] = 0xf2;
+        diskMagic[2] = 0xc0;
+        diskMagic[3] = 0xef;
+        netMagic[0] = 0xf4;
+        netMagic[1] = 0xe5;
+        netMagic[2] = 0xf3;
+        netMagic[3] = 0xf4;
+        nDefaultPort = 25714;
         nPruneAfterHeight = 1000;
 
-        genesis = CreateGenesisBlock(1296688602, 2, 0x207fffff, 1, 50 * COIN);
+        genesis = CreateGenesisBlock(1393221600, 216178, 0x1f00ffff, 1, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock ==
-               uint256S("0x0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b"
-                        "1a11466e2206"));
-        assert(genesis.hashMerkleRoot ==
-               uint256S("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab212"
-                        "7b7afdeda33b"));
+        assert(consensus.hashGenesisBlock == uint256S("0x0000724595fb3b9609d441cbfb9577615c292abf07d996d3edabc48de843642d"));
+        assert(genesis.hashMerkleRoot == uint256S("0x12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90"));
 
         //!< Regtest mode doesn't have any fixed seeds.
         vFixedSeeds.clear();

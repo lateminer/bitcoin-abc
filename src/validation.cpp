@@ -69,6 +69,7 @@ CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
 std::atomic_bool fImporting(false);
 bool fReindex = false;
+bool fBIP37 = false;
 bool fTxIndex = false;
 bool fAddressIndex = false;
 bool fTimestampIndex = false;
@@ -1525,7 +1526,7 @@ bool CheckTxInputs(const CTransaction &tx, CValidationState &state,
         }
 
         // Check transaction timestamp
-        if (coin.GetTime() > tx.nTime)
+        if (coin->nTime > tx.nTime)
             return state.DoS(100, false, REJECT_INVALID,
                              "bad-txns-time-earlier-than-input");
 
@@ -2114,7 +2115,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
          const COutPoint &prevout = block.vtx[1]->vin[0].prevout;
          const Coin &coin = view.AccessCoin(prevout);
-          if (!coin)
+          if (coin.IsSpent())
               return state.DoS(100, error("%s: kernel input unavailable", __func__),
                                 REJECT_INVALID, "bad-cs-kernel");
 
@@ -3353,7 +3354,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 // introduced to help nodes establish a consistent view of the coin
 // age (trust score) of competing branches.
 bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *pindexPrev, uint64_t &nCoinAge) {
-    arith_uint256 bnCentSecond = 0;  // coin age in the unit of cent-seconds
+        arith_uint256 bnCentSecond = 0;  // coin age in the unit of cent-seconds
         nCoinAge = 0;
 
         if (tx.IsCoinBase())
@@ -3373,7 +3374,7 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
                 int nSpendDepth;
                 if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, Params().GetConsensus().nStakeMinConfirmations - 1, nSpendDepth))
                 {
-                    LogPrint("coinage", "coin age skip nSpendDepth=%d\n", nSpendDepth + 1);
+                    LogPrintf("coinage", "coin age skip nSpendDepth=%d\n", nSpendDepth + 1);
                     continue; // only count coins meeting min confirmations requirement
                 }
             }
@@ -3389,13 +3390,13 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
             }
 
             int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue.GetSatoshis();
-            bnCentSecond += arith_uint256(nValueIn) * (tx.nTime-txPrev.nTime) / CENT;
+            bnCentSecond += arith_uint256(nValueIn) * (tx.nTime - txPrev.nTime) / CENT.GetSatoshis();
 
-            LogPrint("coinage", "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
+            LogPrintf("coinage", "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
         }
 
-        arith_uint256 bnCoinDay = bnCentSecond * CENT / COIN / (24 * 60 * 60);
-        LogPrint("coinage", "coin age bnCoinDay=%s\n", bnCoinDay.ToString());
+        arith_uint256 bnCoinDay = bnCentSecond * CENT.GetSatoshis() / COIN.GetSatoshis() / (24 * 60 * 60);
+        LogPrintf("coinage", "coin age bnCoinDay=%s\n", bnCoinDay.ToString());
         nCoinAge = bnCoinDay.GetLow64();
         return true;
 }
@@ -3609,7 +3610,7 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
     std::vector<vector<unsigned char> > vSolutions;
     txnouttype whichType;
 
-    const CTxOut& txout = block.vtx[1].vout[1];
+    const CTxOut& txout = block.vtx[1]->vout[1];
 
     if (!Solver(txout.scriptPubKey, whichType, vSolutions))
         return false;
@@ -4282,7 +4283,7 @@ bool static IsCanonicalBlockSignature(const std::shared_ptr<const CBlock> pblock
         return pblock->vchBlockSig.empty();
     }
 
-    return IsLowDERSignature(pblock->vchBlockSig, NULL, false);
+    return IsLowDERSignature(pblock->vchBlockSig, nullptr, false);
 }
 
 bool ProcessNewBlock(const Config &config,
@@ -5273,7 +5274,7 @@ bool LoadExternalBlockFile(const Config &config, FILE *fileIn,
                     (mapBlockIndex[hash]->nStatus & BLOCK_HAVE_DATA) == 0) {
                     LOCK(cs_main);
                     CValidationState state;
-                    if (AcceptBlock(config, pblock, state, nullptr, true, dbp,
+                    if (AcceptBlock(config, pblock, state, nullptr, true, dbp, hash,
                                     nullptr)) {
                         nLoaded++;
                     }
@@ -5325,7 +5326,7 @@ bool LoadExternalBlockFile(const Config &config, FILE *fileIn,
                             LOCK(cs_main);
                             CValidationState dummy;
                             if (AcceptBlock(config, pblockrecursive, dummy,
-                                            nullptr, true, &it->second,
+                                            nullptr, true, &it->second, hash,
                                             nullptr)) {
                                 nLoaded++;
                                 queue.push_back(pblockrecursive->GetHash());
