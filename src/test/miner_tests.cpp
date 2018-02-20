@@ -714,8 +714,7 @@ BOOST_AUTO_TEST_CASE(BlockAssembler_construction) {
     LOCK(cs_main);
 
     // Activate UAHF the dirty way
-    const int64_t uahfHeight =
-        config.GetChainParams().GetConsensus().uahfHeight;
+    const int64_t uahfHeight = 2000000;
     auto pindex = chainActive.Tip();
     for (size_t i = 0; pindex && i < 5; i++) {
         pindex->nHeight = uahfHeight + 5 - i;

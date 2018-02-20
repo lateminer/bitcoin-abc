@@ -382,7 +382,7 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test) {
             assert(tx.vout.size() == 1);
             const COutPoint outpoint(tx.GetId(), 0);
             result[outpoint] =
-                Coin(tx.vout[0], height, CTransaction(tx).IsCoinBase());
+                Coin(tx.vout[0], height, CTransaction(tx).IsCoinBase(), CTransaction(tx).IsCoinStake());
 
             // Call UpdateCoins on the top cache
             CTxUndo undo;
@@ -741,7 +741,7 @@ void CheckAddCoinBase(Amount base_value, Amount cache_value,
     try {
         CTxOut output;
         output.nValue = modify_value;
-        test.cache.AddCoin(OUTPOINT, Coin(std::move(output), 1, coinbase),
+        test.cache.AddCoin(OUTPOINT, Coin(std::move(output), 1, coinbase, false),
                            coinbase);
         test.cache.SelfTest();
         GetCoinMapEntry(test.cache.map(), result_value, result_flags);
