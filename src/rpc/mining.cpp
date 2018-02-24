@@ -212,7 +212,8 @@ static UniValue generatetoaddress(const Config &config,
         nMaxTries = request.params[2].get_int();
     }
 
-    CTxDestination destination = DecodeDestination(request.params[1].get_str());
+    CTxDestination destination =
+        DecodeDestination(request.params[1].get_str(), config.GetChainParams());
     if (!IsValidDestination(destination)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                            "Error: Invalid address");
@@ -264,7 +265,7 @@ static UniValue getmininginfo(const Config &config,
     obj.push_back(Pair("errors", GetWarnings("statusbar")));
     obj.push_back(Pair("networkhashps", getnetworkhashps(config, request)));
     obj.push_back(Pair("pooledtx", uint64_t(mempool.size())));
-    obj.push_back(Pair("chain", Params().NetworkIDString()));
+    obj.push_back(Pair("chain", config.GetChainParams().NetworkIDString()));
     return obj;
 }
 

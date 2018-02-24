@@ -121,8 +121,9 @@ static UniValue getinfo(const Config &config, const JSONRPCRequest &request) {
     obj.push_back(Pair("proxy", (proxy.IsValid() ? proxy.proxy.ToStringIPPort()
                                                  : std::string())));
     obj.push_back(Pair("difficulty", diff));
-    obj.push_back(Pair(
-        "testnet", Params().NetworkIDString() == CBaseChainParams::TESTNET));
+    obj.push_back(Pair("testnet",
+                       config.GetChainParams().NetworkIDString() ==
+                           CBaseChainParams::TESTNET));
 #ifdef ENABLE_WALLET
     if (pwallet) {
         obj.push_back(Pair("keypoololdest", pwallet->GetOldestKeyPoolTime()));
@@ -239,7 +240,8 @@ static UniValue validateaddress(const Config &config,
     LOCK(cs_main);
 #endif
 
-    CTxDestination dest = DecodeDestination(request.params[0].get_str());
+    CTxDestination dest =
+        DecodeDestination(request.params[0].get_str(), config.GetChainParams());
     bool isValid = IsValidDestination(dest);
 
     UniValue ret(UniValue::VOBJ);
@@ -318,23 +320,25 @@ CScript createmultisig_redeemScript(CWallet *const pwallet,
         const std::string &ks = keys[i].get_str();
 #ifdef ENABLE_WALLET
         // Case 1: Bitcoin address and we have full public key:
-        CTxDestination dest = DecodeDestination(ks);
-        if (pwallet && IsValidDestination(dest)) {
-            const CKeyID *keyID = boost::get<CKeyID>(&dest);
-            if (!keyID) {
-                throw std::runtime_error(
-                    strprintf("%s does not refer to a key", ks));
+        if (pwallet) {
+            CTxDestination dest = DecodeDestination(ks, pwallet->chainParams);
+            if (IsValidDestination(dest)) {
+                const CKeyID *keyID = boost::get<CKeyID>(&dest);
+                if (!keyID) {
+                    throw std::runtime_error(
+                        strprintf("%s does not refer to a key", ks));
+                }
+                CPubKey vchPubKey;
+                if (!pwallet->GetPubKey(*keyID, vchPubKey)) {
+                    throw std::runtime_error(
+                        strprintf("no full public key for address %s", ks));
+                }
+                if (!vchPubKey.IsFullyValid()) {
+                    throw std::runtime_error(" Invalid public key: " + ks);
+                }
+                pubkeys[i] = vchPubKey;
+                continue;
             }
-            CPubKey vchPubKey;
-            if (!pwallet->GetPubKey(*keyID, vchPubKey)) {
-                throw std::runtime_error(
-                    strprintf("no full public key for address %s", ks));
-            }
-            if (!vchPubKey.IsFullyValid()) {
-                throw std::runtime_error(" Invalid public key: " + ks);
-            }
-            pubkeys[i] = vchPubKey;
-            continue;
         }
 #endif
         // Case 2: hex public key
@@ -457,7 +461,8 @@ static UniValue verifymessage(const Config &config,
     std::string strSign = request.params[1].get_str();
     std::string strMessage = request.params[2].get_str();
 
-    CTxDestination destination = DecodeDestination(strAddress);
+    CTxDestination destination =
+        DecodeDestination(strAddress, config.GetChainParams());
     if (!IsValidDestination(destination)) {
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
     }
@@ -551,7 +556,7 @@ static UniValue setmocktime(const Config &config,
             "   Pass 0 to go back to using the system time.");
     }
 
-    if (!Params().MineBlocksOnDemand()) {
+    if (!config.GetChainParams().MineBlocksOnDemand()) {
         throw std::runtime_error(
             "setmocktime for regression testing (-regtest mode) only");
     }

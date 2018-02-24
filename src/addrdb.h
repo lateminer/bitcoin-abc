@@ -15,6 +15,7 @@
 class CSubNet;
 class CAddrMan;
 class CDataStream;
+class CChainParams;
 
 typedef enum BanReason {
     BanReasonUnknown = 0,
@@ -72,9 +73,10 @@ typedef std::map<CSubNet, CBanEntry> banmap_t;
 class CAddrDB {
 private:
     fs::path pathAddr;
+    const CChainParams &chainParams;
 
 public:
-    CAddrDB();
+    CAddrDB(const CChainParams &chainParams);
     bool Write(const CAddrMan &addr);
     bool Read(CAddrMan &addr);
     bool Read(CAddrMan &addr, CDataStream &ssPeers);
@@ -84,9 +86,10 @@ public:
 class CBanDB {
 private:
     fs::path pathBanlist;
+    const CChainParams &chainParams;
 
 public:
-    CBanDB();
+    CBanDB(const CChainParams &chainParams);
     bool Write(const banmap_t &banSet);
     bool Read(banmap_t &banSet);
 };

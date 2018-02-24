@@ -276,7 +276,8 @@ static void MutateTxAddInput(CMutableTransaction &tx,
 }
 
 static void MutateTxAddOutAddr(CMutableTransaction &tx,
-                               const std::string &strInput) {
+                               const std::string &strInput,
+                               const CChainParams &chainParams) {
     // Separate into VALUE:ADDRESS
     std::vector<std::string> vStrInputParts;
     boost::split(vStrInputParts, strInput, boost::is_any_of(":"));
@@ -290,7 +291,7 @@ static void MutateTxAddOutAddr(CMutableTransaction &tx,
 
     // extract and validate ADDRESS
     std::string strAddr = vStrInputParts[1];
-    CTxDestination destination = DecodeDestination(strAddr);
+    CTxDestination destination = DecodeDestination(strAddr, chainParams);
     if (!IsValidDestination(destination)) {
         throw std::runtime_error("invalid TX output address");
     }
@@ -572,7 +573,7 @@ static void MutateTxSign(CMutableTransaction &tx, const std::string &flagStr) {
     }
 
     std::vector<CTransaction> txVariants;
-    txVariants.push_back(tx);
+    txVariants.push_back(CTransaction(tx));
 
     // mergedTx will end up with all the signatures; it starts as a clone of the
     // raw tx:
@@ -724,7 +725,8 @@ public:
 };
 
 static void MutateTx(CMutableTransaction &tx, const std::string &command,
-                     const std::string &commandVal) {
+                     const std::string &commandVal,
+                     const CChainParams &chainParams) {
     std::unique_ptr<Secp256k1Init> ecc;
 
     if (command == "nversion") {
@@ -740,7 +742,7 @@ static void MutateTx(CMutableTransaction &tx, const std::string &command,
     } else if (command == "delout") {
         MutateTxDelOutput(tx, commandVal);
     } else if (command == "outaddr") {
-        MutateTxAddOutAddr(tx, commandVal);
+        MutateTxAddOutAddr(tx, commandVal, chainParams);
     } else if (command == "outpubkey") {
         MutateTxAddOutPubKey(tx, commandVal);
     } else if (command == "outmultisig") {
@@ -816,7 +818,8 @@ static std::string readStdin() {
     return ret;
 }
 
-static int CommandLineRawTx(int argc, char *argv[]) {
+static int CommandLineRawTx(int argc, char *argv[],
+                            const CChainParams &chainParams) {
     std::string strPrint;
     int nRet = 0;
     try {
@@ -863,10 +866,10 @@ static int CommandLineRawTx(int argc, char *argv[]) {
                 value = arg.substr(eqpos + 1);
             }
 
-            MutateTx(tx, key, value);
+            MutateTx(tx, key, value, chainParams);
         }
 
-        OutputTx(tx);
+        OutputTx(CTransaction(tx));
     }
 
     catch (const boost::thread_interrupted &) {
@@ -902,7 +905,7 @@ int main(int argc, char *argv[]) {
 
     int ret = EXIT_FAILURE;
     try {
-        ret = CommandLineRawTx(argc, argv);
+        ret = CommandLineRawTx(argc, argv, Params());
     } catch (const std::exception &e) {
         PrintExceptionContinue(&e, "CommandLineRawTx()");
     } catch (...) {

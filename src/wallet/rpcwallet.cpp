@@ -328,7 +328,8 @@ static UniValue setaccount(const Config &config,
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    CTxDestination dest = DecodeDestination(request.params[0].get_str());
+    CTxDestination dest =
+        DecodeDestination(request.params[0].get_str(), config.GetChainParams());
     if (!IsValidDestination(dest)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                            "Invalid Bitcoin address");
@@ -385,7 +386,8 @@ static UniValue getaccount(const Config &config,
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    CTxDestination dest = DecodeDestination(request.params[0].get_str());
+    CTxDestination dest =
+        DecodeDestination(request.params[0].get_str(), config.GetChainParams());
     if (!IsValidDestination(dest)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                            "Invalid Bitcoin address");
@@ -554,7 +556,8 @@ static UniValue sendtoaddress(const Config &config,
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    CTxDestination dest = DecodeDestination(request.params[0].get_str());
+    CTxDestination dest =
+        DecodeDestination(request.params[0].get_str(), config.GetChainParams());
     if (!IsValidDestination(dest)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
@@ -691,7 +694,8 @@ static UniValue signmessage(const Config &config,
     std::string strAddress = request.params[0].get_str();
     std::string strMessage = request.params[1].get_str();
 
-    CTxDestination dest = DecodeDestination(strAddress);
+    CTxDestination dest =
+        DecodeDestination(strAddress, config.GetChainParams());
     if (!IsValidDestination(dest)) {
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
     }
@@ -759,7 +763,8 @@ static UniValue getreceivedbyaddress(const Config &config,
     LOCK2(cs_main, pwallet->cs_wallet);
 
     // Bitcoin address
-    CTxDestination dest = DecodeDestination(request.params[0].get_str());
+    CTxDestination dest =
+        DecodeDestination(request.params[0].get_str(), config.GetChainParams());
     if (!IsValidDestination(dest)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                            "Invalid Bitcoin address");
@@ -1105,7 +1110,8 @@ static UniValue sendfrom(const Config &config, const JSONRPCRequest &request) {
     LOCK2(cs_main, pwallet->cs_wallet);
 
     std::string strAccount = AccountFromValue(request.params[0]);
-    CTxDestination dest = DecodeDestination(request.params[1].get_str());
+    CTxDestination dest =
+        DecodeDestination(request.params[1].get_str(), config.GetChainParams());
     if (!IsValidDestination(dest)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                            "Invalid Bitcoin address");
@@ -1259,7 +1265,7 @@ static UniValue sendmany(const Config &config, const JSONRPCRequest &request) {
     Amount totalAmount(0);
     std::vector<std::string> keys = sendTo.getKeys();
     for (const std::string &name_ : keys) {
-        CTxDestination dest = DecodeDestination(name_);
+        CTxDestination dest = DecodeDestination(name_, config.GetChainParams());
         if (!IsValidDestination(dest)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                                std::string("Invalid Bitcoin address: ") +
@@ -3164,7 +3170,8 @@ static UniValue listunspent(const Config &config,
         UniValue inputs = request.params[2].get_array();
         for (size_t idx = 0; idx < inputs.size(); idx++) {
             const UniValue &input = inputs[idx];
-            CTxDestination dest = DecodeDestination(input.get_str());
+            CTxDestination dest =
+                DecodeDestination(input.get_str(), config.GetChainParams());
             if (!IsValidDestination(dest)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
                                    std::string("Invalid Bitcoin address: ") +
@@ -3364,7 +3371,8 @@ static UniValue fundrawtransaction(const Config &config,
 
             if (options.exists("changeAddress")) {
                 CTxDestination dest =
-                    DecodeDestination(options["changeAddress"].get_str());
+                    DecodeDestination(options["changeAddress"].get_str(),
+                                      config.GetChainParams());
 
                 if (!IsValidDestination(dest)) {
                     throw JSONRPCError(
@@ -3451,7 +3459,7 @@ static UniValue fundrawtransaction(const Config &config,
     }
 
     UniValue result(UniValue::VOBJ);
-    result.push_back(Pair("hex", EncodeHexTx(tx)));
+    result.push_back(Pair("hex", EncodeHexTx(CTransaction(tx))));
     result.push_back(Pair("changepos", changePosition));
     result.push_back(Pair("fee", ValueFromAmount(nFeeOut)));
 

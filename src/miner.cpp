@@ -54,16 +54,6 @@ uint64_t nLastBlockSize = 0;
 int64_t nLastCoinStakeSearchInterval = 0;
 unsigned int nMinerSleep = 500;
 
-class ScoreCompare {
-public:
-    ScoreCompare() {}
-
-    bool operator()(const CTxMemPool::txiter a, const CTxMemPool::txiter b) {
-        // Convert to less than.
-        return CompareTxMemPoolEntryByScore()(*b, *a);
-    }
-};
-
 int64_t UpdateTime(CBlock *pblock, const Config &config,
                    const CBlockIndex *pindexPrev) {
     int64_t nOldTime = pblock->nTime;
