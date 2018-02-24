@@ -1311,7 +1311,7 @@ bool AppInitBasicSetup() {
 }
 
 bool AppInitParameterInteraction(Config &config) {
-    const CChainParams &chainparams = Params();
+    const CChainParams &chainparams = config.GetChainParams();
     // Step 2: parameter interactions
 
     // also see: InitParameterInteraction()
@@ -1692,7 +1692,7 @@ bool AppInitSanityChecks() {
 
 bool AppInitMain(Config &config, boost::thread_group &threadGroup,
                  CScheduler &scheduler) {
-    const CChainParams &chainparams = Params();
+    const CChainParams &chainparams = config.GetChainParams();
     // Step 4a: application initialization
 
     // After daemonization get the data directory lock again and hold on to it
@@ -1768,7 +1768,7 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
 
 // Step 5: verify wallet database integrity
 #ifdef ENABLE_WALLET
-    if (!CWallet::Verify()) {
+    if (!CWallet::Verify(chainparams)) {
         return false;
     }
 #endif
@@ -2123,7 +2123,9 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
                     LOCK(cs_main);
                     CBlockIndex *tip = chainActive.Tip();
                     RPCNotifyBlockChange(true, tip);
-                    if (tip && tip->nTime > GetAdjustedTime() + 2 * 60 * 60) {
+                    if (tip &&
+                        tip->nTime >
+                            GetAdjustedTime() + MAX_FUTURE_BLOCK_TIME) {
                         strLoadError =
                             _("The block database contains a block which "
                               "appears to be from the future. "
@@ -2199,7 +2201,7 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
 
 // Step 8: load wallet
 #ifdef ENABLE_WALLET
-    if (!CWallet::InitLoadWallet()) return false;
+    if (!CWallet::InitLoadWallet(chainparams)) return false;
 #else
     LogPrintf("No wallet support compiled in!\n");
 #endif

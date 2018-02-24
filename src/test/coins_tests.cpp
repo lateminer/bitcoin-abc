@@ -386,13 +386,14 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test) {
 
             // Call UpdateCoins on the top cache
             CTxUndo undo;
-            UpdateCoins(tx, *(stack.back()), undo, height);
+            UpdateCoins(CTransaction(tx), *(stack.back()), undo, height);
 
             // Update the utxo set for future spends
             utxoset.insert(outpoint);
 
             // Track this tx and undo info to use later
-            utxoData.emplace(outpoint, std::make_tuple(tx, undo, old_coin));
+            utxoData.emplace(outpoint,
+                             std::make_tuple(CTransaction(tx), undo, old_coin));
         }
 
         // 1/20 times undo a previous transaction

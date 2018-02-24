@@ -671,7 +671,8 @@ void SendCoinsDialog::updateGlobalFeeVariables() {
         // show the estimated required time for confirmation
         ui->confirmationTargetLabel->setText(
             GUIUtil::formatDurationStr(
-                nConfirmTarget * Params().GetConsensus().nPowTargetSpacing) +
+                nConfirmTarget *
+                model->getChainParams().GetConsensus().nPowTargetSpacing) +
             " / " + tr("%n block(s)", "", nConfirmTarget));
     } else {
         payTxFee = CFeeRate(Amount(ui->customFee->value()));
@@ -820,7 +821,8 @@ void SendCoinsDialog::coinControlChangeEdited(const QString &text) {
         CoinControlDialog::coinControl->destChange = CNoDestination();
         ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
 
-        const CTxDestination dest = DecodeDestination(text.toStdString());
+        const CTxDestination dest =
+            DecodeDestination(text.toStdString(), model->getChainParams());
 
         if (text.isEmpty()) {
             // Nothing entered
