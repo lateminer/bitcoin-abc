@@ -14,7 +14,26 @@
 BOOST_FIXTURE_TEST_SUITE(main_tests, TestingSetup)
 
 BOOST_AUTO_TEST_CASE(block_subsidy_test) {
+    /*
+    const auto chainParams = CreateChainParams(CBaseChainParams::MAIN);
+    TestBlockSubsidyHalvings(chainParams->GetConsensus()); // As in main
+    TestBlockSubsidyHalvings(150);                         // As in regtest
+    TestBlockSubsidyHalvings(1000); // Just another interval
+    */
+}
 
+BOOST_AUTO_TEST_CASE(subsidy_limit_test) {
+    /*
+    const auto chainParams = CreateChainParams(CBaseChainParams::MAIN);
+    Amount nSum(0);
+    for (int nHeight = 0; nHeight < 14000000; nHeight += 1000) {
+        Amount nSubsidy = GetBlockSubsidy(nHeight, chainParams->GetConsensus());
+        BOOST_CHECK(nSubsidy <= 50 * COIN);
+        nSum += 1000 * nSubsidy;
+        BOOST_CHECK(MoneyRange(nSum));
+    }
+    BOOST_CHECK_EQUAL(nSum, Amount(2099999997690000ULL));
+    */
 }
 
 bool ReturnFalse() {
