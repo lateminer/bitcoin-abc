@@ -48,7 +48,7 @@ void RPCNestedTests::rpcNestedTests() {
     dir.mkpath(".");
     gArgs.ForceSetArg("-datadir", path);
     // mempool.setSanityCheck(1.0);
-    pblocktree = new CBlockTreeDB(1 << 20, true);
+    pblocktree = new CBlockTreeDB(1 << 20, true, false, false, 64, 2 << 20);
     pcoinsdbview = new CCoinsViewDB(1 << 23, true);
     pcoinsTip = new CCoinsViewCache(pcoinsdbview);
     InitBlockIndex(config);

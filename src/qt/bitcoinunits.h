@@ -51,12 +51,10 @@ class BitcoinUnits : public QAbstractListModel {
 public:
     explicit BitcoinUnits(QObject *parent);
 
-    /**
-     * Bitcoin units (Bitcoin Cash unit work the same as Bitoin).
-     * @note Source: https://en.bitcoin.it/wiki/Units.
-     * Please add only sensible ones.
+    /** Bitcoin units.
+      @note Source: https://en.bitcoin.it/wiki/Units . Please add only sensible ones
      */
-    enum Unit { BCH, mBCH, uBCH };
+    enum Unit { BTC, mBTC, uBTC };
 
     enum SeparatorStyle { separatorNever, separatorStandard, separatorAlways };
 

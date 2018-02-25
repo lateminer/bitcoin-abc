@@ -311,6 +311,13 @@ void OnRPCPreCommand(const CRPCCommand &cmd) {
 }
 
 std::string HelpMessage(HelpMessageMode mode) {
+    const auto defaultBaseParams =
+        CreateBaseChainParams(CBaseChainParams::MAIN);
+    const auto testnetBaseParams =
+        CreateBaseChainParams(CBaseChainParams::TESTNET);
+    const auto defaultChainParams = CreateChainParams(CBaseChainParams::MAIN);
+    const auto testnetChainParams =
+        CreateChainParams(CBaseChainParams::TESTNET);
     const bool showDebug = gArgs.GetBoolArg("-help-debug", false);
 
     // When adding new options to the categories, please keep and ensure
@@ -335,15 +342,12 @@ std::string HelpMessage(HelpMessageMode mode) {
                 DEFAULT_BLOCKSONLY));
     strUsage += HelpMessageOpt(
         "-assumevalid=<hex>",
-        strprintf(_("If this block is in the chain assume that it and its "
-                    "ancestors are valid and potentially skip their script "
-                    "verification (0 to verify all, default: %s, testnet: %s)"),
-                  Params(CBaseChainParams::MAIN)
-                      .GetConsensus()
-                      .defaultAssumeValid.GetHex(),
-                  Params(CBaseChainParams::TESTNET)
-                      .GetConsensus()
-                      .defaultAssumeValid.GetHex()));
+        strprintf(
+            _("If this block is in the chain assume that it and its ancestors "
+              "are valid and potentially skip their script verification (0 to "
+              "verify all, default: %s, testnet: %s)"),
+            defaultChainParams->GetConsensus().defaultAssumeValid.GetHex(),
+            testnetChainParams->GetConsensus().defaultAssumeValid.GetHex()));
     strUsage += HelpMessageOpt(
         "-conf=<file>", strprintf(_("Specify configuration file (default: %s)"),
                                   BITCOIN_CONF_FILENAME));
@@ -539,8 +543,8 @@ std::string HelpMessage(HelpMessageMode mode) {
         "-port=<port>",
         strprintf(
             _("Listen for connections on <port> (default: %u or testnet: %u)"),
-            Params(CBaseChainParams::MAIN).GetDefaultPort(),
-            Params(CBaseChainParams::TESTNET).GetDefaultPort()));
+            defaultChainParams->GetDefaultPort(),
+            testnetChainParams->GetDefaultPort()));
     strUsage +=
         HelpMessageOpt("-proxy=<ip:port>", _("Connect through SOCKS5 proxy"));
     strUsage += HelpMessageOpt(
@@ -635,16 +639,15 @@ std::string HelpMessage(HelpMessageMode mode) {
                                      DEFAULT_CHECKLEVEL));
         strUsage += HelpMessageOpt(
             "-checkblockindex",
-            strprintf(
-                "Do a full consistency check for mapBlockIndex, "
-                "setBlockIndexCandidates, chainActive and mapBlocksUnlinked "
-                "occasionally. Also sets -checkmempool (default: %d)",
-                Params(CBaseChainParams::MAIN).DefaultConsistencyChecks()));
+            strprintf("Do a full consistency check for mapBlockIndex, "
+                      "setBlockIndexCandidates, chainActive and "
+                      "mapBlocksUnlinked occasionally. Also sets -checkmempool "
+                      "(default: %u)",
+                      defaultChainParams->DefaultConsistencyChecks()));
         strUsage += HelpMessageOpt(
             "-checkmempool=<n>",
-            strprintf(
-                "Run checks every <n> transactions (default: %d)",
-                Params(CBaseChainParams::MAIN).DefaultConsistencyChecks()));
+            strprintf("Run checks every <n> transactions (default: %u)",
+                      defaultChainParams->DefaultConsistencyChecks()));
         strUsage += HelpMessageOpt(
             "-disablesafemode", strprintf("Disable safemode, override a real "
                                           "safe mode event (default: %d)",
@@ -786,9 +789,9 @@ std::string HelpMessage(HelpMessageMode mode) {
         strUsage += HelpMessageOpt(
             "-acceptnonstdtxn",
             strprintf(
-                "Relay and mine \"non-standard\" transactions (%sdefault: %d)",
+                "Relay and mine \"non-standard\" transactions (%sdefault: %u)",
                 "testnet/regtest only; ",
-                !Params(CBaseChainParams::TESTNET).RequireStandard()));
+                defaultChainParams->RequireStandard()));
         strUsage +=
             HelpMessageOpt("-excessiveblocksize=<n>",
                            strprintf(_("Do not accept blocks larger than this "
@@ -837,10 +840,11 @@ std::string HelpMessage(HelpMessageMode mode) {
         strprintf(_("Set lowest fee rate (in %s/kB) for transactions to be "
                     "included in block creation. (default: %s)"),
                   CURRENCY_UNIT, FormatMoney(DEFAULT_BLOCK_MIN_TX_FEE)));
-    if (showDebug)
+    if (showDebug) {
         strUsage +=
             HelpMessageOpt("-blockversion=<n>",
                            "Override block version to test forking scenarios");
+    }
 
     strUsage += HelpMessageGroup(_("RPC server options:"));
     strUsage += HelpMessageOpt("-server",
@@ -872,8 +876,7 @@ std::string HelpMessage(HelpMessageMode mode) {
         "-rpcport=<port>",
         strprintf(_("Listen for JSON-RPC connections on <port> (default: %u or "
                     "testnet: %u)"),
-                  BaseParams(CBaseChainParams::MAIN).RPCPort(),
-                  BaseParams(CBaseChainParams::TESTNET).RPCPort()));
+                  defaultBaseParams->RPCPort(), testnetBaseParams->RPCPort()));
     strUsage += HelpMessageOpt(
         "-rpcallowip=<ip>",
         _("Allow JSON-RPC connections from specified source. Valid for <ip> "
@@ -1469,6 +1472,7 @@ bool AppInitParameterInteraction(Config &config) {
     else if (nScriptCheckThreads > MAX_SCRIPTCHECK_THREADS)
         nScriptCheckThreads = MAX_SCRIPTCHECK_THREADS;
 
+    /*
     // Configure excessive block size.
     const uint64_t nProposedExcessiveBlockSize =
         gArgs.GetArg("-excessiveblocksize", DEFAULT_MAX_BLOCK_SIZE);
@@ -1476,6 +1480,7 @@ bool AppInitParameterInteraction(Config &config) {
         return InitError(
             _("Excessive block size must be > 1,000,000 bytes (1MB)"));
     }
+    */
 
     // Check blockmaxsize does not exceed maximum accepted block size.
     const uint64_t nProposedMaxGeneratedBlockSize =
@@ -1620,8 +1625,8 @@ bool AppInitParameterInteraction(Config &config) {
                  ++j) {
                 if (vDeploymentParams[0].compare(
                         VersionBitsDeploymentInfo[j].name) == 0) {
-                    UpdateRegtestBIP9Parameters(Consensus::DeploymentPos(j),
-                                                nStartTime, nTimeout);
+                    UpdateBIP9Parameters(Consensus::DeploymentPos(j),
+                                         nStartTime, nTimeout);
                     found = true;
                     LogPrintf("Setting BIP9 activation parameters for %s to "
                               "start=%ld, timeout=%ld\n",
