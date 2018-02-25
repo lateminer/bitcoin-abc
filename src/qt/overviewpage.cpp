@@ -26,7 +26,7 @@ class TxViewDelegate : public QAbstractItemDelegate {
 public:
     TxViewDelegate(const PlatformStyle *_platformStyle,
                    QObject *parent = nullptr)
-        : QAbstractItemDelegate(parent), unit(BitcoinUnits::BCH),
+        : QAbstractItemDelegate(parent), unit(BitcoinUnits::BTC),
           platformStyle(_platformStyle) {}
 
     inline void paint(QPainter *painter, const QStyleOptionViewItem &option,

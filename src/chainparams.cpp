@@ -40,6 +40,7 @@ static CBlock CreateGenesisBlock(const char *pszTimestamp,
 
     CMutableTransaction txNew;
     txNew.nVersion = 1;
+    txNew.nTime = nTime;
     txNew.vin.resize(1);
     txNew.vout.resize(1);
     txNew.vin[0].scriptSig =

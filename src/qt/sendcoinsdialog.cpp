@@ -672,7 +672,7 @@ void SendCoinsDialog::updateGlobalFeeVariables() {
         ui->confirmationTargetLabel->setText(
             GUIUtil::formatDurationStr(
                 nConfirmTarget *
-                model->getChainParams().GetConsensus().nPowTargetSpacing) +
+                model->getChainParams().GetConsensus().nTargetSpacing) +
             " / " + tr("%n block(s)", "", nConfirmTarget));
     } else {
         payTxFee = CFeeRate(Amount(ui->customFee->value()));

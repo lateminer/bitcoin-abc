@@ -1469,6 +1469,7 @@ bool AppInitParameterInteraction(Config &config) {
     else if (nScriptCheckThreads > MAX_SCRIPTCHECK_THREADS)
         nScriptCheckThreads = MAX_SCRIPTCHECK_THREADS;
 
+    /*
     // Configure excessive block size.
     const uint64_t nProposedExcessiveBlockSize =
         gArgs.GetArg("-excessiveblocksize", DEFAULT_MAX_BLOCK_SIZE);
@@ -1476,6 +1477,7 @@ bool AppInitParameterInteraction(Config &config) {
         return InitError(
             _("Excessive block size must be > 1,000,000 bytes (1MB)"));
     }
+    */
 
     // Check blockmaxsize does not exceed maximum accepted block size.
     const uint64_t nProposedMaxGeneratedBlockSize =

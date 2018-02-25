@@ -832,7 +832,7 @@ void BitcoinGUI::updateHeadersSyncProgressLabel() {
     int64_t headersTipTime = clientModel->getHeaderTipTime();
     int headersTipHeight = clientModel->getHeaderTipHeight();
     int estHeadersLeft = (GetTime() - headersTipTime) /
-                         Params().GetConsensus().nPowTargetSpacing;
+                         Params().GetConsensus().nTargetSpacing;
     if (estHeadersLeft > HEADER_HEIGHT_DELTA_SYNC)
         progressBarLabel->setText(
             tr("Syncing Headers (%1%)...")
@@ -1183,20 +1183,22 @@ void BitcoinGUI::toggleHidden() {
 
 void BitcoinGUI::updateWeight()
 {
-    if(!pwalletMain)
+    CWallet *pwallet;
+
+    if(!pwallet)
         return;
 
     TRY_LOCK(cs_main, lockMain);
     if (!lockMain)
         return;
 
-    TRY_LOCK(pwalletMain->cs_wallet, lockWallet);
+    TRY_LOCK(pwallet->cs_wallet, lockWallet);
     if (!lockWallet)
         return;
 
 #ifdef ENABLE_WALLET
-    if (pwalletMain)
-    nWeight = pwalletMain->GetStakeWeight();
+    if (pwallet)
+    nWeight = pwallet->GetStakeWeight();
 #endif
 }
 
@@ -1235,14 +1237,16 @@ void BitcoinGUI::updateStakingIcon()
     }
     else
     {
+        CWallet *pwallet;
+
         labelStakingIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/staking_off").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
-        if (vNodes.empty())
+        if (g_connman == 0 || g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
             labelStakingIcon->setToolTip(tr("Not staking because wallet is offline"));
         else if (IsInitialBlockDownload())
             labelStakingIcon->setToolTip(tr("Not staking because wallet is syncing"));
         else if (!nWeight)
             labelStakingIcon->setToolTip(tr("Not staking because you don't have mature coins"));
-        else if (pwalletMain && pwalletMain->IsLocked())
+        else if (pwallet && pwallet->IsLocked())
             labelStakingIcon->setToolTip(tr("Not staking because wallet is locked"));
         else
             labelStakingIcon->setToolTip(tr("Not staking"));
