@@ -564,7 +564,8 @@ void FindNextBlocksToDownload(NodeId nodeid, unsigned int count,
 
     if (state->pindexBestKnownBlock == nullptr ||
         state->pindexBestKnownBlock->nChainWork <
-            chainActive.Tip()->nChainWork) {
+            chainActive.Tip()->nChainWork ||
+        state->pindexBestKnownBlock->nChainWork < nMinimumChainWork) {
         // This peer has nothing interesting.
         return;
     }
@@ -1353,8 +1354,8 @@ inline static void SendBlockTransactions(const CBlock &block,
                                          const BlockTransactionsRequest &req,
                                          CNode *pfrom, CConnman &connman) {
     BlockTransactions resp(req);
-    for (size_t i = 0; i < req.indexes.size(); i++) {
-        if (req.indexes[i] >= block.vtx.size()) {
+    for (size_t i = 0; i < req.indices.size(); i++) {
+        if (req.indices[i] >= block.vtx.size()) {
             LOCK(cs_main);
             Misbehaving(pfrom, 100, "out-of-bound-tx-index");
             LogPrintf(
@@ -1362,7 +1363,7 @@ inline static void SendBlockTransactions(const CBlock &block,
                 pfrom->id);
             return;
         }
-        resp.txn[i] = block.vtx[req.indexes[i]];
+        resp.txn[i] = block.vtx[req.indices[i]];
     }
     LOCK(cs_main);
     const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
@@ -2377,7 +2378,7 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
                                   pfrom->id);
                         return true;
                     } else if (status == READ_STATUS_FAILED) {
-                        // Duplicate txindexes, the block is now in-flight, so
+                        // Duplicate txindices, the block is now in-flight, so
                         // just request it.
                         std::vector<CInv> vInv(1);
                         vInv[0] =
@@ -2393,10 +2394,10 @@ static bool ProcessMessage(const Config &config, CNode *pfrom,
                     BlockTransactionsRequest req;
                     for (size_t i = 0; i < cmpctblock.BlockTxCount(); i++) {
                         if (!partialBlock.IsTxAvailable(i)) {
-                            req.indexes.push_back(i);
+                            req.indices.push_back(i);
                         }
                     }
-                    if (req.indexes.empty()) {
+                    if (req.indices.empty()) {
                         // Dirty hack to jump to BLOCKTXN code (TODO: move
                         // message handling into their own functions)
                         BlockTransactions txn;
@@ -3119,7 +3120,7 @@ bool ProcessMessages(const Config &config, CNode *pfrom, CConnman &connman,
 
     // Read header
     CMessageHeader &hdr = msg.hdr;
-    if (!hdr.IsValid(chainparams.NetMagic())) {
+    if (!hdr.IsValid(config)) {
         LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n",
                   SanitizeString(hdr.GetCommand()), pfrom->id);
         return fMoreWork;

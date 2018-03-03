@@ -710,14 +710,6 @@ BOOST_AUTO_TEST_CASE(BlockAssembler_construction) {
     // We are working on a fake chain and need to protect ourselves.
     LOCK(cs_main);
 
-    // Activate UAHF the dirty way
-    const int64_t uahfHeight = 2000000;
-    auto pindex = chainActive.Tip();
-    for (size_t i = 0; pindex && i < 5; i++) {
-        pindex->nHeight = uahfHeight + 5 - i;
-        pindex = pindex->pprev;
-    }
-
     // Test around historical 1MB (plus one byte because that's mandatory)
     config.SetMaxBlockSize(ONE_MEGABYTE + 1);
     CheckBlockMaxSize(chainparams, 0, 1000);

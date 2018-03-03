@@ -58,9 +58,6 @@ static const int FEELER_INTERVAL = 120;
 static const unsigned int MAX_INV_SZ = 50000;
 /** The maximum number of new addresses to accumulate before announcing. */
 static const unsigned int MAX_ADDR_TO_SEND = 1000;
-/** Maximum length of incoming protocol messages (no message over 32 MB is
- * currently acceptable). */
-static const unsigned int MAX_PROTOCOL_MESSAGE_LENGTH = 32 * 1000 * 1000;
 /** Maximum length of strSubVer in `version` message */
 static const unsigned int MAX_SUBVERSION_LENGTH = 256;
 /** Maximum number of automatic outgoing nodes */
@@ -537,11 +534,11 @@ public:
     CDataStream hdrbuf;
     // Complete header.
     CMessageHeader hdr;
-    unsigned int nHdrPos;
+    uint32_t nHdrPos;
 
     // Received message data.
     CDataStream vRecv;
-    unsigned int nDataPos;
+    uint32_t nDataPos;
 
     // Time (in microseconds) of message receipt.
     int64_t nTime;
@@ -572,8 +569,8 @@ public:
         vRecv.SetVersion(nVersionIn);
     }
 
-    int readHeader(const char *pch, unsigned int nBytes);
-    int readData(const char *pch, unsigned int nBytes);
+    int readHeader(const Config &config, const char *pch, uint32_t nBytes);
+    int readData(const char *pch, uint32_t nBytes);
 };
 
 /** Information about a peer */
@@ -744,7 +741,8 @@ public:
         return nRefCount;
     }
 
-    bool ReceiveMsgBytes(const char *pch, unsigned int nBytes, bool &complete);
+    bool ReceiveMsgBytes(const Config &config, const char *pch, uint32_t nBytes,
+                         bool &complete);
 
     void SetRecvVersion(int nVersionIn) { nRecvVersion = nVersionIn; }
     int GetRecvVersion() { return nRecvVersion; }
