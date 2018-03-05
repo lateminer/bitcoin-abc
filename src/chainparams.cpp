@@ -141,10 +141,10 @@ public:
         diskMagic[1] = 0x35;
         diskMagic[2] = 0x22;
         diskMagic[3] = 0x05;
-        netMagic[0] = 0xe3;
-        netMagic[1] = 0xe1;
-        netMagic[2] = 0xf3;
-        netMagic[3] = 0xe8;
+        netMagic[0] = 0x70;
+        netMagic[1] = 0x35;
+        netMagic[2] = 0x22;
+        netMagic[3] = 0x05;
         nDefaultPort = 15714;
         nPruneAfterHeight = 100000;
 
@@ -234,10 +234,10 @@ public:
         diskMagic[1] = 0xf2;
         diskMagic[2] = 0xc0;
         diskMagic[3] = 0xef;
-        netMagic[0] = 0xf4;
-        netMagic[1] = 0xe5;
-        netMagic[2] = 0xf3;
-        netMagic[3] = 0xf4;
+        netMagic[0] = 0xcd;
+        netMagic[1] = 0xf2;
+        netMagic[2] = 0xc0;
+        netMagic[3] = 0xef;
         nDefaultPort = 25714;
         nPruneAfterHeight = 1000;
 
@@ -296,7 +296,7 @@ public:
 
         consensus.nMinimumChainWork = uint256S("0x00");
         consensus.defaultAssumeValid = uint256S("0x00");
-        
+
         consensus.nProtocolV1RetargetingFixedTime = 1395631999;
         consensus.nProtocolV2Time = 1407053625;
         consensus.nProtocolV3Time = 1444028400;
@@ -310,10 +310,10 @@ public:
         diskMagic[1] = 0xf2;
         diskMagic[2] = 0xc0;
         diskMagic[3] = 0xef;
-        netMagic[0] = 0xf4;
-        netMagic[1] = 0xe5;
-        netMagic[2] = 0xf3;
-        netMagic[3] = 0xf4;
+        netMagic[0] = 0xcd;
+        netMagic[1] = 0xf2;
+        netMagic[2] = 0xc0;
+        netMagic[3] = 0xef;
         nDefaultPort = 25714;
         nPruneAfterHeight = 1000;
 

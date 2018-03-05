@@ -85,6 +85,7 @@ uint64_t nPruneTarget = 0;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
 
 uint256 hashAssumeValid;
+arith_uint256 nMinimumChainWork;
 
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 Amount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
@@ -1313,8 +1314,6 @@ Amount GetProofOfStakeSubsidy(int nHeight, const Consensus::Params &consensusPar
 }
 
 bool IsInitialBlockDownload() {
-    const CChainParams &chainParams = Params();
-
     // Once this function has returned false, it must remain false.
     static std::atomic<bool> latchToFalse{false};
     // Optimization: pre-test latch before taking the lock.
@@ -1324,9 +1323,7 @@ bool IsInitialBlockDownload() {
     if (latchToFalse.load(std::memory_order_relaxed)) return false;
     if (fImporting || fReindex) return true;
     if (chainActive.Tip() == nullptr) return true;
-    if (chainActive.Tip()->nChainWork <
-        UintToArith256(chainParams.GetConsensus().nMinimumChainWork))
-        return true;
+    if (chainActive.Tip()->nChainWork < nMinimumChainWork) return true;
     if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
         return true;
     LogPrintf("Leaving InitialBlockDownload (latching to false)\n");
@@ -2143,8 +2140,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
         if (it != mapBlockIndex.end()) {
             if (it->second->GetAncestor(pindex->nHeight) == pindex &&
                 pindexBestHeader->GetAncestor(pindex->nHeight) == pindex &&
-                pindexBestHeader->nChainWork >=
-                    UintToArith256(consensusParams.nMinimumChainWork)) {
+                pindexBestHeader->nChainWork >= nMinimumChainWork) {
                 // This block is a member of the assumed verified chain and an
                 // ancestor of the best header. The equivalent time check
                 // discourages hashpower from extorting the network via DOS

@@ -698,8 +698,17 @@ void CNode::copyStats(CNodeStats &stats) {
 }
 #undef X
 
-bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes,
-                            bool &complete) {
+static bool IsOversizedMessage(const Config &config, const CNetMessage &msg) {
+    if (!msg.in_data) {
+        // Header only, cannot be oversized.
+        return false;
+    }
+
+    return msg.hdr.IsOversized(config);
+}
+
+bool CNode::ReceiveMsgBytes(const Config &config, const char *pch,
+                            uint32_t nBytes, bool &complete) {
     complete = false;
     int64_t nTimeMicros = GetTimeMicros();
     LOCK(cs_vRecv);
@@ -717,7 +726,7 @@ bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes,
         // Absorb network data.
         int handled;
         if (!msg.in_data) {
-            handled = msg.readHeader(pch, nBytes);
+            handled = msg.readHeader(config, pch, nBytes);
         } else {
             handled = msg.readData(pch, nBytes);
         }
@@ -726,7 +735,7 @@ bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes,
             return false;
         }
 
-        if (msg.in_data && msg.hdr.nMessageSize > MAX_PROTOCOL_MESSAGE_LENGTH) {
+        if (IsOversizedMessage(config, msg)) {
             LogPrint(BCLog::NET,
                      "Oversized message from peer=%i, disconnecting\n",
                      GetId());
@@ -782,10 +791,11 @@ int CNode::GetSendVersion() const {
     return nSendVersion;
 }
 
-int CNetMessage::readHeader(const char *pch, unsigned int nBytes) {
+int CNetMessage::readHeader(const Config &config, const char *pch,
+                            uint32_t nBytes) {
     // copy data to temporary parsing buffer
-    unsigned int nRemaining = 24 - nHdrPos;
-    unsigned int nCopy = std::min(nRemaining, nBytes);
+    uint32_t nRemaining = 24 - nHdrPos;
+    uint32_t nCopy = std::min(nRemaining, nBytes);
 
     memcpy(&hdrbuf[nHdrPos], pch, nCopy);
     nHdrPos += nCopy;
@@ -802,8 +812,9 @@ int CNetMessage::readHeader(const char *pch, unsigned int nBytes) {
         return -1;
     }
 
-    // reject messages larger than MAX_SIZE
-    if (hdr.nMessageSize > MAX_SIZE) {
+    // Reject oversized messages
+    if (hdr.IsOversized(config)) {
+        LogPrint(BCLog::NET, "Oversized header detected\n");
         return -1;
     }
 
@@ -813,7 +824,7 @@ int CNetMessage::readHeader(const char *pch, unsigned int nBytes) {
     return nCopy;
 }
 
-int CNetMessage::readData(const char *pch, unsigned int nBytes) {
+int CNetMessage::readData(const char *pch, uint32_t nBytes) {
     unsigned int nRemaining = hdr.nMessageSize - nDataPos;
     unsigned int nCopy = std::min(nRemaining, nBytes);
 
@@ -1396,7 +1407,7 @@ void CConnman::ThreadSocketHandler() {
             if (recvSet || errorSet) {
                 // typical socket buffer is 8K-64K
                 char pchBuf[0x10000];
-                int nBytes = 0;
+                int32_t nBytes = 0;
                 {
                     LOCK(pnode->cs_hSocket);
                     if (pnode->hSocket == INVALID_SOCKET) {
@@ -1407,7 +1418,8 @@ void CConnman::ThreadSocketHandler() {
                 }
                 if (nBytes > 0) {
                     bool notify = false;
-                    if (!pnode->ReceiveMsgBytes(pchBuf, nBytes, notify)) {
+                    if (!pnode->ReceiveMsgBytes(*config, pchBuf, nBytes,
+                                                notify)) {
                         pnode->CloseSocketDisconnect();
                     }
                     RecordBytesRecv(nBytes);
