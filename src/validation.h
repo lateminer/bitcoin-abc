@@ -215,11 +215,6 @@ extern size_t nCoinCacheUsage;
 extern int64_t nLastCoinStakeSearchInterval;
 
 /**
- * A fee rate smaller than this is considered zero fee (for relaying, mining and
- * transaction creation)
- */
-extern CFeeRate minRelayTxFee;
-/**
  * Absolute maximum transaction fee (in satoshis) used by wallet and mempool
  * (rejects high fee in sendrawtransaction)
  */

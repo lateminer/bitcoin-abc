@@ -3295,7 +3295,8 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient> &vecSend,
             // If we made it here and we aren't even able to meet the relay fee
             // on the next pass, give up because we must be at the maximum
             // allowed fee.
-            if (nFeeNeeded < ::minRelayTxFee.GetFee(nBytes)) {
+            Amount minFee = GetConfig().GetMinFeePerKB().GetFee(nBytes);
+            if (nFeeNeeded < minFee) {
                 strFailReason = _("Transaction too large for fee policy");
                 return false;
             }
@@ -3477,7 +3478,7 @@ bool CWallet::AddAccountingEntry(const CAccountingEntry &acentry,
 
 Amount CWallet::GetRequiredFee(unsigned int nTxBytes) {
     return std::max(minTxFee.GetFee(nTxBytes),
-                    ::minRelayTxFee.GetFee(nTxBytes));
+                    GetConfig().GetMinFeePerKB().GetFee(nTxBytes));
 }
 
 Amount CWallet::GetMinimumFee(unsigned int nTxBytes,
@@ -4724,6 +4725,8 @@ void CWallet::postInitProcess(CScheduler &scheduler) {
 }
 
 bool CWallet::ParameterInteraction() {
+    CFeeRate minRelayTxFee = GetConfig().GetMinFeePerKB();
+
     gArgs.SoftSetArg("-wallet", DEFAULT_WALLET_DAT);
     const bool is_multiwallet = gArgs.GetArgs("-wallet").size() > 1;
 
@@ -4795,7 +4798,7 @@ bool CWallet::ParameterInteraction() {
               "-reindex which will download the whole blockchain again."));
     }
 
-    if (::minRelayTxFee.GetFeePerK() > HIGH_TX_FEE_PER_KB) {
+    if (minRelayTxFee.GetFeePerK() > HIGH_TX_FEE_PER_KB) {
         InitWarning(
             AmountHighWarn("-minrelaytxfee") + " " +
             _("The wallet will avoid paying less than the minimum relay fee."));
@@ -4849,11 +4852,11 @@ bool CWallet::ParameterInteraction() {
         }
 
         payTxFee = CFeeRate(nFeePerK, 1000);
-        if (payTxFee < ::minRelayTxFee) {
+        if (payTxFee < minRelayTxFee) {
             return InitError(strprintf(
                 _("Invalid amount for -paytxfee=<amount>: '%s' (must "
                   "be at least %s)"),
-                gArgs.GetArg("-paytxfee", ""), ::minRelayTxFee.ToString()));
+                gArgs.GetArg("-paytxfee", ""), minRelayTxFee.ToString()));
         }
     }
 
@@ -4870,12 +4873,12 @@ bool CWallet::ParameterInteraction() {
         }
 
         maxTxFee = nMaxFee;
-        if (CFeeRate(maxTxFee, 1000) < ::minRelayTxFee) {
+        if (CFeeRate(maxTxFee, 1000) < minRelayTxFee) {
             return InitError(strprintf(
                 _("Invalid amount for -maxtxfee=<amount>: '%s' (must "
                   "be at least the minrelay fee of %s to prevent "
                   "stuck transactions)"),
-                gArgs.GetArg("-maxtxfee", ""), ::minRelayTxFee.ToString()));
+                gArgs.GetArg("-maxtxfee", ""), minRelayTxFee.ToString()));
         }
     }
 
