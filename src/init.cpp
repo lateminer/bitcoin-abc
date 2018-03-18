@@ -832,9 +832,10 @@ std::string HelpMessage(HelpMessageMode mode) {
                   DEFAULT_ACCEPT_DATACARRIER));
     strUsage += HelpMessageOpt(
         "-datacarriersize",
-        strprintf(_("Maximum size of data in data carrier transactions we "
-                    "relay and mine (default: %u)"),
-                  MAX_OP_RETURN_RELAY));
+        strprintf(
+            _("Maximum size of data in data carrier transactions we relay and "
+              "mine (pre-fork default: %u, post-fork default: %u)"),
+            MAX_OP_RETURN_RELAY, MAX_OP_RETURN_RELAY_LARGE));
 
     strUsage += HelpMessageGroup(_("Block creation options:"));
     strUsage += HelpMessageOpt(
@@ -1615,8 +1616,6 @@ bool AppInitParameterInteraction(Config &config) {
         gArgs.GetBoolArg("-permitbaremultisig", DEFAULT_PERMIT_BAREMULTISIG);
     fAcceptDatacarrier =
         gArgs.GetBoolArg("-datacarrier", DEFAULT_ACCEPT_DATACARRIER);
-    nMaxDatacarrierBytes =
-        gArgs.GetArg("-datacarriersize", nMaxDatacarrierBytes);
 
     fBIP37 = gArgs.GetArg("-bip37", false);
 

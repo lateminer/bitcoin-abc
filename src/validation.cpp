@@ -58,7 +58,6 @@
 /**
  * Global state
  */
-
 CCriticalSection cs_main;
 
 BlockMap mapBlockIndex;
@@ -609,7 +608,7 @@ void UpdateMempoolForReorg(const Config &config,
         CValidationState stateDummy;
         if (!fAddToMempool || (*it)->IsCoinBase() ||
             !AcceptToMemoryPool(config, mempool, stateDummy, *it, false,
-                                nullptr, nullptr, true)) {
+                                nullptr, true)) {
             // If the transaction doesn't make it in to the mempool, remove any
             // transactions that depend on it (which would now be orphans).
             mempool.removeRecursive(**it, MemPoolRemovalReason::REORG);
@@ -682,8 +681,7 @@ static bool CheckInputsFromMempoolAndCache(const CTransaction &tx,
 static bool AcceptToMemoryPoolWorker(
     const Config &config, CTxMemPool &pool, CValidationState &state,
     const CTransactionRef &ptx, bool fLimitFree, bool *pfMissingInputs,
-    int64_t nAcceptTime, std::list<CTransactionRef> *plTxnReplaced,
-    bool fOverrideMempoolLimit, const Amount nAbsurdFee,
+    int64_t nAcceptTime, bool fOverrideMempoolLimit, const Amount nAbsurdFee,
     std::vector<COutPoint> &coins_to_uncache) {
     AssertLockHeld(cs_main);
 
@@ -987,8 +985,9 @@ static bool AcceptToMemoryPoolWorker(
                     __func__, txid.ToString(), FormatStateMessage(state));
             }
 
-            if (!CheckInputs(tx, state, view, true,
-                             MANDATORY_SCRIPT_VERIFY_FLAGS, true, false,
+            uint32_t mandatoryFlags = MANDATORY_SCRIPT_VERIFY_FLAGS;
+
+            if (!CheckInputs(tx, state, view, true, mandatoryFlags, true, false,
                              txdata)) {
                 return error(
                     "%s: ConnectInputs failed against MANDATORY but not "
@@ -1041,15 +1040,17 @@ static bool AcceptToMemoryPoolWorker(
 /**
  * (try to) add transaction to memory pool with a specified acceptance time.
  */
-static bool AcceptToMemoryPoolWithTime(
-    const Config &config, CTxMemPool &pool, CValidationState &state,
-    const CTransactionRef &tx, bool fLimitFree, bool *pfMissingInputs,
-    int64_t nAcceptTime, std::list<CTransactionRef> *plTxnReplaced = nullptr,
-    bool fOverrideMempoolLimit = false, const Amount nAbsurdFee = Amount(0)) {
+static bool AcceptToMemoryPoolWithTime(const Config &config, CTxMemPool &pool,
+                                       CValidationState &state,
+                                       const CTransactionRef &tx,
+                                       bool fLimitFree, bool *pfMissingInputs,
+                                       int64_t nAcceptTime,
+                                       bool fOverrideMempoolLimit = false,
+                                       const Amount nAbsurdFee = Amount(0)) {
     std::vector<COutPoint> coins_to_uncache;
     bool res = AcceptToMemoryPoolWorker(
         config, pool, state, tx, fLimitFree, pfMissingInputs, nAcceptTime,
-        plTxnReplaced, fOverrideMempoolLimit, nAbsurdFee, coins_to_uncache);
+        fOverrideMempoolLimit, nAbsurdFee, coins_to_uncache);
     if (!res) {
         for (const COutPoint &outpoint : coins_to_uncache) {
             pcoinsTip->Uncache(outpoint);
@@ -1066,10 +1067,9 @@ static bool AcceptToMemoryPoolWithTime(
 bool AcceptToMemoryPool(const Config &config, CTxMemPool &pool,
                         CValidationState &state, const CTransactionRef &tx,
                         bool fLimitFree, bool *pfMissingInputs,
-                        std::list<CTransactionRef> *plTxnReplaced,
                         bool fOverrideMempoolLimit, const Amount nAbsurdFee) {
     return AcceptToMemoryPoolWithTime(config, pool, state, tx, fLimitFree,
-                                      pfMissingInputs, GetTime(), plTxnReplaced,
+                                      pfMissingInputs, GetTime(),
                                       fOverrideMempoolLimit, nAbsurdFee);
 }
 
@@ -2175,6 +2175,8 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
 
     }
 
+    // FIXME: This should be called with pindex->pprev, to match the result
+    // given to AcceptToMemoryPoolWorker: https://reviews.bitcoinabc.org/T288
     uint32_t flags = GetBlockScriptFlags(pindex, config);
 
     int64_t nTime2 = GetTimeMicros();
@@ -2619,7 +2621,10 @@ void PruneAndFlush() {
     FlushStateToDisk(chainparams, state, FLUSH_STATE_NONE);
 }
 
-/** Update chainActive and related internal data structures. */
+/**
+ * Update chainActive and related internal data structures when adding a new
+ * block to the chain tip.
+ */
 static void UpdateTip(const Config &config, CBlockIndex *pindexNew) {
     const Consensus::Params &consensusParams =
         config.GetChainParams().GetConsensus();
@@ -3131,11 +3136,6 @@ static void NotifyHeaderTip() {
     }
 }
 
-/**
- * Make the best chain active, in multiple steps. The result is either failure
- * or an activated best chain. pblock is either nullptr or a pointer to a block
- * that is already loaded (to avoid loading it again from disk).
- */
 bool ActivateBestChain(const Config &config, CValidationState &state,
                        std::shared_ptr<const CBlock> pblock, const uint256 *phash) {
     // Note that while we're often called here from ProcessNewBlock, this is
@@ -4053,6 +4053,11 @@ static bool ContextualCheckBlock(const Config &config, const CBlock &block,
     return true;
 }
 
+/**
+ * If the provided block header is valid, add it to the block index.
+ *
+ * Returns true if the block is succesfully added to the block index.
+ */
 static bool AcceptBlockHeader(const Config &config, const CBlockHeader &block,
                               CValidationState &state, const uint256 &hash, CBlockIndex **ppindex) {
     AssertLockHeld(cs_main);
@@ -4232,9 +4237,9 @@ static bool AcceptBlock(const Config &config,
                      block.GetHash().ToString());
     }
 
-    // Header is valid/has work, merkle tree and segwit merkle tree are
-    // good...RELAY NOW (but if it does not build on our best tip, let the
-    // SendMessages loop relay it)
+    // Header is valid/has work and the merkle tree is good.
+    // Relay now, but if it does not build on our best tip, let the
+    // SendMessages loop relay it.
     if (!IsInitialBlockDownload() && chainActive.Tip() == pindex->pprev) {
         GetMainSignals().NewPoWValidBlock(pindex, pblock);
     }

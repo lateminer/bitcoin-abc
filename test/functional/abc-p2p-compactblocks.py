@@ -12,11 +12,10 @@ this one can be extended, to cover the checks done for bigger blocks
 """
 
 from test_framework.test_framework import ComparisonTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error
+from test_framework.util import *
 from test_framework.comptool import TestManager, TestInstance, RejectResult
 from test_framework.blocktools import *
 import time
-from test_framework.key import CECKey
 from test_framework.script import *
 from test_framework.cdefs import (ONE_MEGABYTE, LEGACY_MAX_BLOCK_SIZE,
                                   MAX_BLOCK_SIGOPS_PER_MB, MAX_TX_SIGOPS_COUNT)
@@ -33,6 +32,37 @@ class PreviousSpendableOutput():
         self.n = n  # the output we're spending
 
 
+# TestNode: A peer we use to send messages to bitcoind, and store responses.
+class TestNode(NodeConnCB):
+
+    def __init__(self):
+        self.last_sendcmpct = None
+        self.last_cmpctblock = None
+        self.last_getheaders = None
+        self.last_headers = None
+        super().__init__()
+
+    def on_sendcmpct(self, conn, message):
+        self.last_sendcmpct = message
+
+    def on_cmpctblock(self, conn, message):
+        self.last_cmpctblock = message
+        self.last_cmpctblock.header_and_shortids.header.calc_sha256()
+
+    def on_getheaders(self, conn, message):
+        self.last_getheaders = message
+
+    def on_headers(self, conn, message):
+        self.last_headers = message
+        for x in self.last_headers.headers:
+            x.calc_sha256()
+
+    def clear_block_data(self):
+        with mininode_lock:
+            self.last_sendcmpct = None
+            self.last_cmpctblock = None
+
+
 class FullBlockTest(ComparisonTestFramework):
 
     # Can either run this test as 1 node with expected answers, or two and compare them.
@@ -45,11 +75,15 @@ class FullBlockTest(ComparisonTestFramework):
         self.block_heights = {}
         self.tip = None
         self.blocks = {}
-        self.excessive_block_size = 100 * ONE_MEGABYTE
-        self.extra_args = [['-whitelist=127.0.0.1',
+        self.excessive_block_size = 16 * ONE_MEGABYTE
+        self.extra_args = [['-norelaypriority',
+                            '-whitelist=127.0.0.1',
+                            '-limitancestorcount=999999',
+                            '-limitancestorsize=999999',
+                            '-limitdescendantcount=999999',
+                            '-limitdescendantsize=999999',
+                            '-maxmempool=99999',
                             "-monolithactivationtime=%d" % MONOLITH_START_TIME,
-                            "-replayprotectionactivationtime=%d" % (
-                                2 * MONOLITH_START_TIME),
                             "-excessiveblocksize=%d"
                             % self.excessive_block_size]]
 
@@ -73,11 +107,11 @@ class FullBlockTest(ComparisonTestFramework):
         block.vtx.extend(tx_list)
 
     # this is a little handier to use than the version in blocktools.py
-    def create_tx(self, spend, value, script=CScript([OP_TRUE])):
-        tx = create_transaction(spend.tx, spend.n, b"", value, script)
+    def create_tx(self, spend_tx, n, value, script=CScript([OP_TRUE])):
+        tx = create_transaction(spend_tx, n, b"", value, script)
         return tx
 
-    def next_block(self, number, spend=None, script=CScript([OP_TRUE]), block_size=0, extra_sigops=0):
+    def next_block(self, number, spend=None, script=CScript([OP_TRUE]), block_size=0, extra_txns=0):
         if self.tip == None:
             base_block_hash = self.genesis_hash
             block_time = int(time.time()) + 1
@@ -131,6 +165,10 @@ class FullBlockTest(ComparisonTestFramework):
             # Add the transaction to the block
             self.add_transactions_to_block(block, [tx])
 
+            # Add transaction until we reach the expected transaction count
+            for _ in range(extra_txns):
+                self.add_transactions_to_block(block, [get_base_transaction()])
+
             # If we have a block size requirement, just fill
             # the block until we get there
             current_block_size = len(block.serialize())
@@ -153,12 +191,7 @@ class FullBlockTest(ComparisonTestFramework):
                         script_length = script_length // 2
                     else:
                         script_length = 500000
-                tx_sigops = min(extra_sigops, script_length,
-                                MAX_TX_SIGOPS_COUNT)
-                extra_sigops -= tx_sigops
-                script_pad_len = script_length - tx_sigops
-                script_output = CScript(
-                    [b'\x00' * script_pad_len] + [OP_CHECKSIG] * tx_sigops)
+                script_output = CScript([b'\x00' * script_length])
                 tx.vout.append(CTxOut(0, script_output))
 
                 # Add the tx to the list of transactions to be included
@@ -183,8 +216,7 @@ class FullBlockTest(ComparisonTestFramework):
         return block
 
     def get_tests(self):
-        node = self.nodes[0]
-        self.genesis_hash = int(node.getbestblockhash(), 16)
+        self.genesis_hash = int(self.nodes[0].getbestblockhash(), 16)
         self.block_heights[self.genesis_hash] = 0
         spendable_outputs = []
 
@@ -241,6 +273,19 @@ class FullBlockTest(ComparisonTestFramework):
             block(5000 + i)
             test.blocks_and_transactions.append([self.tip, True])
             save_spendable_output()
+
+        # Fork block
+        bfork = block(5555)
+        bfork.nTime = MONOLITH_START_TIME
+        update_block(5555, [])
+        test.blocks_and_transactions.append([self.tip, True])
+
+        # Get to one block of the May 15, 2018 HF activation
+        for i in range(5):
+            block(5100 + i)
+            test.blocks_and_transactions.append([self.tip, True])
+
+        # Send it all to the node at once.
         yield test
 
         # collect spendable outputs now to avoid cluttering the code later on
@@ -248,183 +293,88 @@ class FullBlockTest(ComparisonTestFramework):
         for i in range(100):
             out.append(get_spendable_output())
 
-        # Let's build some blocks and test them.
-        for i in range(15):
-            n = i + 1
-            block(n, spend=out[i], block_size=n * ONE_MEGABYTE // 2)
-            yield accepted()
+        # Check that compact block also work for big blocks
+        node = self.nodes[0]
+        peer = TestNode()
+        peer.add_connection(NodeConn('127.0.0.1', p2p_port(0), node, peer))
 
-        # Start moving MTP forward
-        bfork = block(5555, out[15], block_size=8 * ONE_MEGABYTE)
-        bfork.nTime = MONOLITH_START_TIME - 1
-        update_block(5555, [])
+        # Wait for connection to be etablished
+        peer.wait_for_verack()
+
+        # Wait for SENDCMPCT
+        def received_sendcmpct():
+            return (peer.last_sendcmpct != None)
+        wait_until(received_sendcmpct, timeout=30)
+
+        sendcmpct = msg_sendcmpct()
+        sendcmpct.version = 1
+        sendcmpct.announce = True
+        peer.send_and_ping(sendcmpct)
+
+        # Exchange headers
+        def received_getheaders():
+            return (peer.last_getheaders != None)
+        wait_until(received_getheaders, timeout=30)
+
+        # Return the favor
+        peer.send_message(peer.last_getheaders)
+
+        # Wait for the header list
+        def received_headers():
+            return (peer.last_headers != None)
+        wait_until(received_headers, timeout=30)
+
+        # It's like we know about the same headers !
+        peer.send_message(peer.last_headers)
+
+        # Send a block
+        b1 = block(1, spend=out[0], block_size=ONE_MEGABYTE + 1)
         yield accepted()
 
-        # Get to one block of the May 15, 2018 HF activation
-        for i in range(5):
-            block(5100 + i)
-            test.blocks_and_transactions.append([self.tip, True])
-        yield test
+        # Checks the node to forward it via compact block
+        def received_block():
+            return (peer.last_cmpctblock != None)
+        wait_until(received_block, timeout=30)
 
-        # Check that the MTP is just before the configured fork point.
-        assert_equal(node.getblockheader(node.getbestblockhash())['mediantime'],
-                     MONOLITH_START_TIME - 1)
+        # Was it our block ?
+        cmpctblk_header = peer.last_cmpctblock.header_and_shortids.header
+        cmpctblk_header.calc_sha256()
+        assert(cmpctblk_header.sha256 == b1.sha256)
 
-        # Before we acivate the May 15, 2018 HF, 8MB is the limit.
-        block(4444, spend=out[16], block_size=8 * ONE_MEGABYTE + 1)
-        yield rejected(RejectResult(16, b'bad-blk-length'))
-
-        # Rewind bad block.
-        tip(5104)
-
-        # Actiavte the May 15, 2018 HF
-        block(5556)
+        # Send a large block with numerous transactions.
+        peer.clear_block_data()
+        b2 = block(2, spend=out[1], extra_txns=70000,
+                   block_size=self.excessive_block_size - 1000)
         yield accepted()
 
-        # Now MTP is exactly the fork time. Bigger blocks are now accepted.
-        assert_equal(node.getblockheader(node.getbestblockhash())['mediantime'],
-                     MONOLITH_START_TIME)
+        # Checks the node forwards it via compact block
+        wait_until(received_block, timeout=30)
 
-        # block of maximal size
-        block(17, spend=out[16], block_size=self.excessive_block_size)
-        yield accepted()
+        # Was it our block ?
+        cmpctblk_header = peer.last_cmpctblock.header_and_shortids.header
+        cmpctblk_header.calc_sha256()
+        assert(cmpctblk_header.sha256 == b2.sha256)
 
-        # Reject oversized blocks with bad-blk-length error
-        block(18, spend=out[17], block_size=self.excessive_block_size + 1)
-        yield rejected(RejectResult(16, b'bad-blk-length'))
+        # In order to avoid having to resend a ton of transactions, we invalidate
+        # b2, which will send all its transactions in the mempool.
+        node.invalidateblock(node.getbestblockhash())
 
-        # Rewind bad block.
-        tip(17)
+        # Let's send a compact block and see if the node accepts it.
+        # Let's modify b2 and use it so that we can reuse the mempool.
+        tx = b2.vtx[0]
+        tx.vout.append(CTxOut(0, CScript([random.randint(0, 256), OP_RETURN])))
+        tx.rehash()
+        b2.vtx[0] = tx
+        b2.hashMerkleRoot = b2.calc_merkle_root()
+        b2.solve()
 
-        # Accept many sigops
-        lots_of_checksigs = CScript(
-            [OP_CHECKSIG] * MAX_BLOCK_SIGOPS_PER_MB)
-        block(19, spend=out[17], script=lots_of_checksigs,
-              block_size=ONE_MEGABYTE)
-        yield accepted()
+        # Now we create the compact block and send it
+        comp_block = HeaderAndShortIDs()
+        comp_block.initialize_from_block(b2)
+        peer.send_and_ping(msg_cmpctblock(comp_block.to_p2p()))
 
-        block(20, spend=out[18], script=lots_of_checksigs,
-              block_size=ONE_MEGABYTE, extra_sigops=1)
-        yield rejected(RejectResult(16, b'bad-blk-sigops'))
-
-        # Rewind bad block
-        tip(19)
-
-        # Accept 40k sigops per block > 1MB and <= 2MB
-        block(21, spend=out[18], script=lots_of_checksigs,
-              extra_sigops=MAX_BLOCK_SIGOPS_PER_MB, block_size=ONE_MEGABYTE + 1)
-        yield accepted()
-
-        # Accept 40k sigops per block > 1MB and <= 2MB
-        block(22, spend=out[19], script=lots_of_checksigs,
-              extra_sigops=MAX_BLOCK_SIGOPS_PER_MB, block_size=2 * ONE_MEGABYTE)
-        yield accepted()
-
-        # Reject more than 40k sigops per block > 1MB and <= 2MB.
-        block(23, spend=out[20], script=lots_of_checksigs,
-              extra_sigops=MAX_BLOCK_SIGOPS_PER_MB + 1, block_size=ONE_MEGABYTE + 1)
-        yield rejected(RejectResult(16, b'bad-blk-sigops'))
-
-        # Rewind bad block
-        tip(22)
-
-        # Reject more than 40k sigops per block > 1MB and <= 2MB.
-        block(24, spend=out[20], script=lots_of_checksigs,
-              extra_sigops=MAX_BLOCK_SIGOPS_PER_MB + 1, block_size=2 * ONE_MEGABYTE)
-        yield rejected(RejectResult(16, b'bad-blk-sigops'))
-
-        # Rewind bad block
-        tip(22)
-
-        # Accept 60k sigops per block > 2MB and <= 3MB
-        block(25, spend=out[20], script=lots_of_checksigs, extra_sigops=2 *
-              MAX_BLOCK_SIGOPS_PER_MB, block_size=2 * ONE_MEGABYTE + 1)
-        yield accepted()
-
-        # Accept 60k sigops per block > 2MB and <= 3MB
-        block(26, spend=out[21], script=lots_of_checksigs,
-              extra_sigops=2 * MAX_BLOCK_SIGOPS_PER_MB, block_size=3 * ONE_MEGABYTE)
-        yield accepted()
-
-        # Reject more than 40k sigops per block > 1MB and <= 2MB.
-        block(27, spend=out[22], script=lots_of_checksigs, extra_sigops=2 *
-              MAX_BLOCK_SIGOPS_PER_MB + 1, block_size=2 * ONE_MEGABYTE + 1)
-        yield rejected(RejectResult(16, b'bad-blk-sigops'))
-
-        # Rewind bad block
-        tip(26)
-
-        # Reject more than 40k sigops per block > 1MB and <= 2MB.
-        block(28, spend=out[22], script=lots_of_checksigs, extra_sigops=2 *
-              MAX_BLOCK_SIGOPS_PER_MB + 1, block_size=3 * ONE_MEGABYTE)
-        yield rejected(RejectResult(16, b'bad-blk-sigops'))
-
-        # Rewind bad block
-        tip(26)
-
-        # Too many sigops in one txn
-        too_many_tx_checksigs = CScript(
-            [OP_CHECKSIG] * (MAX_BLOCK_SIGOPS_PER_MB + 1))
-        block(
-            29, spend=out[22], script=too_many_tx_checksigs, block_size=ONE_MEGABYTE + 1)
-        yield rejected(RejectResult(16, b'bad-txn-sigops'))
-
-        # Rewind bad block
-        tip(26)
-
-        # Generate a key pair to test P2SH sigops count
-        private_key = CECKey()
-        private_key.set_secretbytes(b"fatstacks")
-        public_key = private_key.get_pubkey()
-
-        # P2SH
-        # Build the redeem script, hash it, use hash to create the p2sh script
-        redeem_script = CScript(
-            [public_key] + [OP_2DUP, OP_CHECKSIGVERIFY] * 5 + [OP_CHECKSIG])
-        redeem_script_hash = hash160(redeem_script)
-        p2sh_script = CScript([OP_HASH160, redeem_script_hash, OP_EQUAL])
-
-        # Create a p2sh transaction
-        p2sh_tx = self.create_tx(out[22], 1, p2sh_script)
-
-        # Add the transaction to the block
-        block(30)
-        update_block(30, [p2sh_tx])
-        yield accepted()
-
-        # Creates a new transaction using the p2sh transaction included in the
-        # last block
-        def spend_p2sh_tx(output_script=CScript([OP_TRUE])):
-            # Create the transaction
-            spent_p2sh_tx = CTransaction()
-            spent_p2sh_tx.vin.append(CTxIn(COutPoint(p2sh_tx.sha256, 0), b''))
-            spent_p2sh_tx.vout.append(CTxOut(1, output_script))
-            # Sign the transaction using the redeem script
-            sighash = SignatureHashForkId(
-                redeem_script, spent_p2sh_tx, 0, SIGHASH_ALL | SIGHASH_FORKID, p2sh_tx.vout[0].nValue)
-            sig = private_key.sign(sighash) + \
-                bytes(bytearray([SIGHASH_ALL | SIGHASH_FORKID]))
-            spent_p2sh_tx.vin[0].scriptSig = CScript([sig, redeem_script])
-            spent_p2sh_tx.rehash()
-            return spent_p2sh_tx
-
-        # Sigops p2sh limit
-        p2sh_sigops_limit = MAX_BLOCK_SIGOPS_PER_MB - \
-            redeem_script.GetSigOpCount(True)
-        # Too many sigops in one p2sh txn
-        too_many_p2sh_sigops = CScript([OP_CHECKSIG] * (p2sh_sigops_limit + 1))
-        block(31, spend=out[23], block_size=ONE_MEGABYTE + 1)
-        update_block(31, [spend_p2sh_tx(too_many_p2sh_sigops)])
-        yield rejected(RejectResult(16, b'bad-txn-sigops'))
-
-        # Rewind bad block
-        tip(30)
-
-        # Max sigops in one p2sh txn
-        max_p2sh_sigops = CScript([OP_CHECKSIG] * (p2sh_sigops_limit))
-        block(32, spend=out[23], block_size=ONE_MEGABYTE + 1)
-        update_block(32, [spend_p2sh_tx(max_p2sh_sigops)])
-        yield accepted()
+        # Check that compact block is received properly
+        assert(int(node.getbestblockhash(), 16) == b2.sha256)
 
 
 if __name__ == '__main__':

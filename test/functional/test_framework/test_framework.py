@@ -2,12 +2,14 @@
 # Copyright (c) 2014-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
+"""Base class for RPC testing."""
 
 from collections import deque
 from enum import Enum
 import logging
 import optparse
 import os
+import pdb
 import shutil
 import sys
 import tempfile
@@ -42,8 +44,6 @@ class TestStatus(Enum):
 TEST_EXIT_PASSED = 0
 TEST_EXIT_FAILED = 1
 TEST_EXIT_SKIPPED = 77
-
-BITCOIND_PROC_WAIT_TIMEOUT = 60
 
 
 class BitcoinTestFramework():
@@ -88,16 +88,16 @@ class BitcoinTestFramework():
                           help="Root directory for datadirs")
         parser.add_option("-l", "--loglevel", dest="loglevel", default="INFO",
                           help="log events at this level and higher to the console. Can be set to DEBUG, INFO, WARNING, ERROR or CRITICAL. Passing --loglevel DEBUG will output all logs to console. Note that logs at all levels are always written to the test_framework.log file in the temporary test directory.")
-        parser.add_option(
-            "--tracerpc", dest="trace_rpc", default=False, action="store_true",
-            help="Print out all RPC calls as they are made")
-        parser.add_option(
-            "--portseed", dest="port_seed", default=os.getpid(), type='int',
-            help="The seed to use for assigning port numbers (default: current process id)")
+        parser.add_option("--tracerpc", dest="trace_rpc", default=False, action="store_true",
+                          help="Print out all RPC calls as they are made")
+        parser.add_option("--portseed", dest="port_seed", default=os.getpid(), type='int',
+                          help="The seed to use for assigning port numbers (default: current process id)")
         parser.add_option("--coveragedir", dest="coveragedir",
                           help="Write tested RPC commands into this directory")
         parser.add_option("--configfile", dest="configfile",
                           help="Location of the test framework config file")
+        parser.add_option("--pdbonfailure", dest="pdbonfailure", default=False, action="store_true",
+                          help="Attach a python debugger if test fails")
         self.add_options(parser)
         (self.options, self.args) = parser.parse_args()
 
@@ -138,6 +138,10 @@ class BitcoinTestFramework():
             self.log.exception("Unexpected exception caught during testing")
         except KeyboardInterrupt as e:
             self.log.warning("Exiting after keyboard interrupt")
+
+        if success == TestStatus.FAILED and self.options.pdbonfailure:
+            print("Testcase failed. Attaching python debugger. Enter ? for help")
+            pdb.set_trace()
 
         if not self.options.noshutdown:
             self.log.info("Stopping nodes")
@@ -271,8 +275,7 @@ class BitcoinTestFramework():
     def stop_node(self, i):
         """Stop a bitcoind test node"""
         self.nodes[i].stop_node()
-        while not self.nodes[i].is_node_stopped():
-            time.sleep(0.1)
+        self.nodes[i].wait_until_stopped()
 
     def stop_nodes(self):
         """Stop multiple bitcoind test nodes"""
@@ -282,8 +285,7 @@ class BitcoinTestFramework():
 
         for node in self.nodes:
             # Wait for nodes to stop
-            while not node.is_node_stopped():
-                time.sleep(0.1)
+            node.wait_until_stopped()
 
     def assert_start_raises_init_error(self, i, extra_args=None, expected_msg=None):
         with tempfile.SpooledTemporaryFile(max_size=2**16) as log_stderr:
@@ -362,8 +364,8 @@ class BitcoinTestFramework():
         ch = logging.StreamHandler(sys.stdout)
         # User can provide log level as a number or string (eg DEBUG). loglevel
         # was caught as a string, so try to convert it to an int
-        ll = int(
-            self.options.loglevel) if self.options.loglevel.isdigit() else self.options.loglevel.upper()
+        ll = int(self.options.loglevel) if self.options.loglevel.isdigit(
+        ) else self.options.loglevel.upper()
         ch.setLevel(ll)
         # Format logs the same as bitcoind's debug.log with microprecision (so log files can be concatenated and sorted)
         formatter = logging.Formatter(
@@ -371,7 +373,6 @@ class BitcoinTestFramework():
         formatter.converter = time.gmtime
         fh.setFormatter(formatter)
         ch.setFormatter(formatter)
-
         # add the handlers to the logger
         self.log.addHandler(fh)
         self.log.addHandler(ch)

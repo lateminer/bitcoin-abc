@@ -48,11 +48,10 @@ class RawTransactionsTest(BitcoinTestFramework):
         # won't exists
         outputs = {self.nodes[0].getnewaddress(): 4.998}
         rawtx = self.nodes[2].createrawtransaction(inputs, outputs)
-        rawtx = self.nodes[2].signrawtransaction(
-            rawtx, None, None, "ALL|FORKID")
+        rawtx = self.nodes[2].signrawtransaction(rawtx)
 
         # This will raise an exception since there are missing inputs
-        assert_raises_jsonrpc(
+        assert_raises_rpc_error(
             -25, "Missing inputs", self.nodes[2].sendrawtransaction, rawtx['hex'])
 
         #
@@ -127,13 +126,11 @@ class RawTransactionsTest(BitcoinTestFramework):
         }]
         outputs = {self.nodes[0].getnewaddress(): 2.19}
         rawTx = self.nodes[2].createrawtransaction(inputs, outputs)
-        rawTxPartialSigned = self.nodes[
-            1].signrawtransaction(rawTx, inputs, None, "ALL|FORKID")
+        rawTxPartialSigned = self.nodes[1].signrawtransaction(rawTx, inputs)
         # node1 only has one key, can't comp. sign the tx
         assert_equal(rawTxPartialSigned['complete'], False)
 
-        rawTxSigned = self.nodes[2].signrawtransaction(
-            rawTx, inputs, None, "ALL|FORKID")
+        rawTxSigned = self.nodes[2].signrawtransaction(rawTx, inputs)
         # node2 can sign the tx compl., own two of three keys
         assert_equal(rawTxSigned['complete'], True)
         self.nodes[2].sendrawtransaction(rawTxSigned['hex'])
@@ -169,15 +166,15 @@ class RawTransactionsTest(BitcoinTestFramework):
             txHash, True)["hex"], rawTxSigned['hex'])
 
         # 6. invalid parameters - supply txid and string "Flase"
-        assert_raises_jsonrpc(
+        assert_raises_rpc_error(
             -3, "Invalid type", self.nodes[0].getrawtransaction, txHash, "False")
 
         # 7. invalid parameters - supply txid and empty array
-        assert_raises_jsonrpc(
+        assert_raises_rpc_error(
             -3, "Invalid type", self.nodes[0].getrawtransaction, txHash, [])
 
         # 8. invalid parameters - supply txid and empty dict
-        assert_raises_jsonrpc(
+        assert_raises_rpc_error(
             -3, "Invalid type", self.nodes[0].getrawtransaction, txHash, {})
 
         inputs = [
@@ -191,7 +188,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         inputs = [
             {'txid': "1d1d4e24ed99057e84c3f80fd8fbec79ed9e1acee37da269356ecea000000000", 'vout': 1, 'sequence': -1}]
         outputs = {self.nodes[0].getnewaddress(): 1}
-        assert_raises_jsonrpc(
+        assert_raises_rpc_error(
             -8, 'Invalid parameter, sequence number is out of range',
             self.nodes[0].createrawtransaction, inputs, outputs)
 
@@ -199,7 +196,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         inputs = [
             {'txid': "1d1d4e24ed99057e84c3f80fd8fbec79ed9e1acee37da269356ecea000000000", 'vout': 1, 'sequence': 4294967296}]
         outputs = {self.nodes[0].getnewaddress(): 1}
-        assert_raises_jsonrpc(
+        assert_raises_rpc_error(
             -8, 'Invalid parameter, sequence number is out of range',
             self.nodes[0].createrawtransaction, inputs, outputs)
 

@@ -312,9 +312,10 @@ public:
     TestBuilder &PushSig(const CKey &key,
                          SigHashType sigHashType = SigHashType(),
                          unsigned int lenR = 32, unsigned int lenS = 32,
-                         Amount amount = Amount(0)) {
+                         Amount amount = Amount(0),
+                         uint32_t flags = SCRIPT_ENABLE_SIGHASH_FORKID) {
         uint256 hash = SignatureHash(script, CTransaction(spendTx), 0,
-                                     sigHashType, amount);
+                                     sigHashType, amount, nullptr, flags);
         std::vector<uint8_t> vchSig, r, s;
         uint32_t iter = 0;
         do {
@@ -447,11 +448,11 @@ BOOST_AUTO_TEST_CASE(script_build) {
     tests.push_back(
         TestBuilder(CScript() << ToByteVector(keys.pubkey1) << OP_CHECKSIG,
                     "P2PK anyonecanpay", 0)
-            .PushSig(keys.key1, SigHashType().withAnyoneCanPay(true)));
+            .PushSig(keys.key1, SigHashType().withAnyoneCanPay()));
     tests.push_back(
         TestBuilder(CScript() << ToByteVector(keys.pubkey1) << OP_CHECKSIG,
                     "P2PK anyonecanpay marked with normal hashtype", 0)
-            .PushSig(keys.key1, SigHashType().withAnyoneCanPay(true))
+            .PushSig(keys.key1, SigHashType().withAnyoneCanPay())
             .EditPush(70, "81", "01")
             .ScriptError(SCRIPT_ERR_EVAL_FALSE));
 
@@ -641,6 +642,24 @@ BOOST_AUTO_TEST_CASE(script_build) {
                                 "BIP66 example 4, with DERSIG",
                                 SCRIPT_VERIFY_DERSIG)
                         .Num(0));
+    tests.push_back(
+        TestBuilder(
+            CScript() << ToByteVector(keys.pubkey1C) << OP_CHECKSIG << OP_NOT,
+            "BIP66 example 4, with DERSIG, non-null DER-compliant signature",
+            SCRIPT_VERIFY_DERSIG)
+            .Push("300602010102010101"));
+    tests.push_back(TestBuilder(CScript() << ToByteVector(keys.pubkey1C)
+                                          << OP_CHECKSIG << OP_NOT,
+                                "BIP66 example 4, with DERSIG and NULLFAIL",
+                                SCRIPT_VERIFY_DERSIG | SCRIPT_VERIFY_NULLFAIL)
+                        .Num(0));
+    tests.push_back(TestBuilder(CScript() << ToByteVector(keys.pubkey1C)
+                                          << OP_CHECKSIG << OP_NOT,
+                                "BIP66 example 4, with DERSIG and NULLFAIL, "
+                                "non-null DER-compliant signature",
+                                SCRIPT_VERIFY_DERSIG | SCRIPT_VERIFY_NULLFAIL)
+                        .Push("300602010102010101")
+                        .ScriptError(SCRIPT_ERR_SIG_NULLFAIL));
     tests.push_back(
         TestBuilder(CScript() << ToByteVector(keys.pubkey1C) << OP_CHECKSIG,
                     "BIP66 example 5, without DERSIG", 0)
@@ -1021,23 +1040,43 @@ BOOST_AUTO_TEST_CASE(script_build) {
         TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
                     "P2PK FORKID", SCRIPT_ENABLE_SIGHASH_FORKID, false,
                     TEST_AMOUNT)
-            .PushSig(keys.key0, SigHashType().withForkId(true), 32, 32,
+            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32,
                      TEST_AMOUNT));
 
     tests.push_back(
         TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
                     "P2PK INVALID AMOUNT", SCRIPT_ENABLE_SIGHASH_FORKID, false,
                     TEST_AMOUNT)
-            .PushSig(keys.key0, SigHashType().withForkId(true), 32, 32,
+            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32,
                      TEST_AMOUNT + Amount(1))
             .ScriptError(SCRIPT_ERR_EVAL_FALSE));
     tests.push_back(
         TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
                     "P2PK INVALID FORKID", SCRIPT_VERIFY_STRICTENC, false,
                     TEST_AMOUNT)
-            .PushSig(keys.key0, SigHashType().withForkId(true), 32, 32,
-                     TEST_AMOUNT)
+            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32, TEST_AMOUNT)
             .ScriptError(SCRIPT_ERR_ILLEGAL_FORKID));
+
+    // Test replay protection
+    tests.push_back(
+        TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
+                    "P2PK REPLAY PROTECTED",
+                    SCRIPT_ENABLE_SIGHASH_FORKID |
+                        SCRIPT_ENABLE_REPLAY_PROTECTION,
+                    false, TEST_AMOUNT)
+            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32, TEST_AMOUNT,
+                     SCRIPT_ENABLE_SIGHASH_FORKID |
+                         SCRIPT_ENABLE_REPLAY_PROTECTION));
+
+    tests.push_back(
+        TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
+                    "P2PK REPLAY PROTECTED",
+                    SCRIPT_ENABLE_SIGHASH_FORKID |
+                        SCRIPT_ENABLE_REPLAY_PROTECTION,
+                    false, TEST_AMOUNT)
+            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32, TEST_AMOUNT,
+                     SCRIPT_ENABLE_SIGHASH_FORKID)
+            .ScriptError(SCRIPT_ERR_EVAL_FALSE));
 
     std::set<std::string> tests_set;
 
@@ -1453,13 +1492,13 @@ BOOST_AUTO_TEST_CASE(script_combineSigs) {
     std::vector<uint8_t> sig2;
     uint256 hash2 = SignatureHash(
         scriptPubKey, CTransaction(txTo), 0,
-        SigHashType().withBaseSigHash(BaseSigHashType::NONE), Amount(0));
+        SigHashType().withBaseType(BaseSigHashType::NONE), Amount(0));
     BOOST_CHECK(keys[1].Sign(hash2, sig2));
     sig2.push_back(SIGHASH_NONE);
     std::vector<uint8_t> sig3;
     uint256 hash3 = SignatureHash(
         scriptPubKey, CTransaction(txTo), 0,
-        SigHashType().withBaseSigHash(BaseSigHashType::SINGLE), Amount(0));
+        SigHashType().withBaseType(BaseSigHashType::SINGLE), Amount(0));
     BOOST_CHECK(keys[2].Sign(hash3, sig3));
     sig3.push_back(SIGHASH_SINGLE);
 

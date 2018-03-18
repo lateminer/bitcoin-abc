@@ -2,14 +2,7 @@
 # Copyright (c) 2014-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
-from test_framework.mininode import *
-from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
-from test_framework.blocktools import create_block, create_coinbase
-
-'''
-SendHeadersTest -- test behavior of headers messages to announce blocks.
+"""Test behavior of headers messages to announce blocks.
 
 Setup:
 
@@ -78,7 +71,13 @@ d. Announce 49 headers that don't connect.
    Expect: getheaders message each time.
 e. Announce one more that doesn't connect.
    Expect: disconnect.
-'''
+"""
+
+from test_framework.mininode import *
+from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import *
+from test_framework.blocktools import create_block, create_coinbase
+
 
 direct_fetch_response_time = 0.05
 
@@ -122,9 +121,6 @@ class TestNode(NodeConnCB):
             self.block_announced = True
             message.headers[-1].calc_sha256()
             self.last_blockhash_announced = message.headers[-1].sha256
-
-    def on_block(self, conn, message):
-        self.last_message["block"].calc_sha256()
 
     # Test whether the last announcement we received had the
     # right header or the right inv
@@ -200,8 +196,8 @@ class SendHeadersTest(BitcoinTestFramework):
     # to-be-reorged-out blocks are mined, so that we don't break later tests.
     # return the list of block hashes newly mined
     def mine_reorg(self, length):
-        self.nodes[0].generate(
-            length)  # make sure all invalidated blocks are node0's
+        # make sure all invalidated blocks are node0's
+        self.nodes[0].generate(length)
         sync_blocks(self.nodes, wait=0.1)
         for x in self.p2p_connections:
             x.wait_for_block_announcement(
@@ -209,11 +205,11 @@ class SendHeadersTest(BitcoinTestFramework):
             x.clear_last_announcement()
 
         tip_height = self.nodes[1].getblockcount()
-        hash_to_invalidate = self.nodes[
-            1].getblockhash(tip_height - (length - 1))
+        hash_to_invalidate = self.nodes[1].getblockhash(
+            tip_height - (length - 1))
         self.nodes[1].invalidateblock(hash_to_invalidate)
-        all_hashes = self.nodes[1].generate(
-            length + 1)  # Must be longer than the orig chain
+        # Must be longer than the orig chain
+        all_hashes = self.nodes[1].generate(length + 1)
         sync_blocks(self.nodes, wait=0.1)
         return [int(x, 16) for x in all_hashes]
 
@@ -229,8 +225,8 @@ class SendHeadersTest(BitcoinTestFramework):
             NodeConn('127.0.0.1', p2p_port(0), self.nodes[0], inv_node))
         # Set nServices to 0 for test_node, so no block download will occur outside of
         # direct fetching
-        connections.append(
-            NodeConn('127.0.0.1', p2p_port(0), self.nodes[0], test_node, services=0))
+        connections.append(NodeConn('127.0.0.1', p2p_port(
+            0), self.nodes[0], test_node, services=0))
         inv_node.add_connection(connections[0])
         test_node.add_connection(connections[1])
 
@@ -239,6 +235,10 @@ class SendHeadersTest(BitcoinTestFramework):
         # Test logic begins here
         inv_node.wait_for_verack()
         test_node.wait_for_verack()
+
+        # Ensure verack's have been processed by our peer
+        inv_node.sync_with_ping()
+        test_node.sync_with_ping()
 
         tip = int(self.nodes[0].getbestblockhash(), 16)
 
@@ -251,19 +251,18 @@ class SendHeadersTest(BitcoinTestFramework):
             tip = self.mine_blocks(1)
             assert_equal(inv_node.check_last_announcement(inv=[tip]), True)
             assert_equal(test_node.check_last_announcement(inv=[tip]), True)
-            # Try a few different responses; none should affect next
-            # announcement
+            # Try a few different responses; none should affect next announcement
             if i == 0:
                 # first request the block
                 test_node.get_data([tip])
-                test_node.wait_for_block(tip, timeout=5)
+                test_node.wait_for_block(tip)
             elif i == 1:
                 # next try requesting header and block
                 test_node.get_headers(locator=[old_tip], hashstop=tip)
                 test_node.get_data([tip])
                 test_node.wait_for_block(tip)
-                test_node.clear_last_announcement(
-                )  # since we requested headers...
+                # since we requested headers...
+                test_node.clear_last_announcement()
             elif i == 2:
                 # this time announce own block via headers
                 height = self.nodes[0].getblockcount()
@@ -274,7 +273,7 @@ class SendHeadersTest(BitcoinTestFramework):
                     tip, create_coinbase(height + 1), block_time)
                 new_block.solve()
                 test_node.send_header_for_blocks([new_block])
-                test_node.wait_for_getdata([new_block.sha256], timeout=5)
+                test_node.wait_for_getdata([new_block.sha256])
                 test_node.send_message(msg_block(new_block))
                 test_node.sync_with_ping()  # make sure this block is processed
                 inv_node.clear_last_announcement()
@@ -306,8 +305,8 @@ class SendHeadersTest(BitcoinTestFramework):
             for j in range(2):
                 blocks = []
                 for b in range(i + 1):
-                    blocks.append(
-                        create_block(tip, create_coinbase(height), block_time))
+                    blocks.append(create_block(
+                        tip, create_coinbase(height), block_time))
                     blocks[-1].solve()
                     tip = blocks[-1].sha256
                     block_time += 1
@@ -315,20 +314,18 @@ class SendHeadersTest(BitcoinTestFramework):
                 if j == 0:
                     # Announce via inv
                     test_node.send_block_inv(tip)
-                    test_node.wait_for_getheaders(timeout=5)
+                    test_node.wait_for_getheaders()
                     # Should have received a getheaders now
                     test_node.send_header_for_blocks(blocks)
                     # Test that duplicate inv's won't result in duplicate
                     # getdata requests, or duplicate headers announcements
                     [inv_node.send_block_inv(x.sha256) for x in blocks]
-                    test_node.wait_for_getdata(
-                        [x.sha256 for x in blocks], timeout=5)
+                    test_node.wait_for_getdata([x.sha256 for x in blocks])
                     inv_node.sync_with_ping()
                 else:
                     # Announce via headers
                     test_node.send_header_for_blocks(blocks)
-                    test_node.wait_for_getdata(
-                        [x.sha256 for x in blocks], timeout=5)
+                    test_node.wait_for_getdata([x.sha256 for x in blocks])
                     # Test that duplicate headers won't result in duplicate
                     # getdata requests (the check is further down)
                     inv_node.send_header_for_blocks(blocks)
@@ -342,8 +339,8 @@ class SendHeadersTest(BitcoinTestFramework):
                 assert "headers" not in inv_node.last_message
                 tip = self.mine_blocks(1)
                 assert_equal(inv_node.check_last_announcement(inv=[tip]), True)
-                assert_equal(
-                    test_node.check_last_announcement(headers=[tip]), True)
+                assert_equal(test_node.check_last_announcement(
+                    headers=[tip]), True)
                 height += 1
                 block_time += 1
 
@@ -355,18 +352,16 @@ class SendHeadersTest(BitcoinTestFramework):
         # PART 3.  Headers announcements can stop after large reorg, and resume after
         # getheaders or inv from peer.
         for j in range(2):
-            # First try mining a reorg that can propagate with header
-            # announcement
+            # First try mining a reorg that can propagate with header announcement
             new_block_hashes = self.mine_reorg(length=7)
             tip = new_block_hashes[-1]
             assert_equal(inv_node.check_last_announcement(inv=[tip]), True)
-            assert_equal(
-                test_node.check_last_announcement(headers=new_block_hashes), True)
+            assert_equal(test_node.check_last_announcement(
+                headers=new_block_hashes), True)
 
             block_time += 8
 
-            # Mine a too-large reorg, which should be announced with a single
-            # inv
+            # Mine a too-large reorg, which should be announced with a single inv
             new_block_hashes = self.mine_reorg(length=8)
             tip = new_block_hashes[-1]
             assert_equal(inv_node.check_last_announcement(inv=[tip]), True)
@@ -374,14 +369,14 @@ class SendHeadersTest(BitcoinTestFramework):
 
             block_time += 9
 
-            fork_point = self.nodes[0].getblock(
-                "%02x" % new_block_hashes[0])["previousblockhash"]
+            fork_point = self.nodes[0].getblock("%02x" % new_block_hashes[0])[
+                "previousblockhash"]
             fork_point = int(fork_point, 16)
 
             # Use getblocks/getdata
             test_node.send_getblocks(locator=[fork_point])
-            assert_equal(
-                test_node.check_last_announcement(inv=new_block_hashes), True)
+            assert_equal(test_node.check_last_announcement(
+                inv=new_block_hashes), True)
             test_node.get_data(new_block_hashes)
             test_node.wait_for_block(new_block_hashes[-1])
 
@@ -392,15 +387,14 @@ class SendHeadersTest(BitcoinTestFramework):
                 assert_equal(
                     test_node.check_last_announcement(inv=[tip]), True)
                 if i == 0:
-                    # Just get the data -- shouldn't cause headers
-                    # announcements to resume
+                    # Just get the data -- shouldn't cause headers announcements to resume
                     test_node.get_data([tip])
                     test_node.wait_for_block(tip)
                 elif i == 1:
                     # Send a getheaders message that shouldn't trigger headers announcements
                     # to resume (best header sent will be too old)
-                    test_node.get_headers(locator=[
-                                          fork_point], hashstop=new_block_hashes[1])
+                    test_node.get_headers(
+                        locator=[fork_point], hashstop=new_block_hashes[1])
                     test_node.get_data([tip])
                     test_node.wait_for_block(tip)
                 elif i == 2:
@@ -418,8 +412,8 @@ class SendHeadersTest(BitcoinTestFramework):
             # New blocks should now be announced with header
             tip = self.mine_blocks(1)
             assert_equal(inv_node.check_last_announcement(inv=[tip]), True)
-            assert_equal(
-                test_node.check_last_announcement(headers=[tip]), True)
+            assert_equal(test_node.check_last_announcement(
+                headers=[tip]), True)
 
         self.log.info("Part 3: success!")
 
@@ -433,8 +427,8 @@ class SendHeadersTest(BitcoinTestFramework):
         # Create 2 blocks.  Send the blocks, then send the headers.
         blocks = []
         for b in range(2):
-            blocks.append(
-                create_block(tip, create_coinbase(height), block_time))
+            blocks.append(create_block(
+                tip, create_coinbase(height), block_time))
             blocks[-1].solve()
             tip = blocks[-1].sha256
             block_time += 1
@@ -452,8 +446,8 @@ class SendHeadersTest(BitcoinTestFramework):
         # This time, direct fetch should work
         blocks = []
         for b in range(3):
-            blocks.append(
-                create_block(tip, create_coinbase(height), block_time))
+            blocks.append(create_block(
+                tip, create_coinbase(height), block_time))
             blocks[-1].solve()
             tip = blocks[-1].sha256
             block_time += 1
@@ -475,8 +469,8 @@ class SendHeadersTest(BitcoinTestFramework):
 
         # Create extra blocks for later
         for b in range(20):
-            blocks.append(
-                create_block(tip, create_coinbase(height), block_time))
+            blocks.append(create_block(
+                tip, create_coinbase(height), block_time))
             blocks[-1].solve()
             tip = blocks[-1].sha256
             block_time += 1
@@ -524,8 +518,8 @@ class SendHeadersTest(BitcoinTestFramework):
             blocks = []
             # Create two more blocks.
             for j in range(2):
-                blocks.append(
-                    create_block(tip, create_coinbase(height), block_time))
+                blocks.append(create_block(
+                    tip, create_coinbase(height), block_time))
                 blocks[-1].solve()
                 tip = blocks[-1].sha256
                 block_time += 1
@@ -534,7 +528,7 @@ class SendHeadersTest(BitcoinTestFramework):
             with mininode_lock:
                 test_node.last_message.pop("getheaders", None)
             test_node.send_header_for_blocks([blocks[1]])
-            test_node.wait_for_getheaders(timeout=1)
+            test_node.wait_for_getheaders()
             test_node.send_header_for_blocks(blocks)
             test_node.wait_for_getdata([x.sha256 for x in blocks])
             [test_node.send_message(msg_block(x)) for x in blocks]
@@ -547,20 +541,19 @@ class SendHeadersTest(BitcoinTestFramework):
         # don't go into an infinite loop trying to get them to connect.
         MAX_UNCONNECTING_HEADERS = 10
         for j in range(MAX_UNCONNECTING_HEADERS + 1):
-            blocks.append(
-                create_block(tip, create_coinbase(height), block_time))
+            blocks.append(create_block(
+                tip, create_coinbase(height), block_time))
             blocks[-1].solve()
             tip = blocks[-1].sha256
             block_time += 1
             height += 1
 
         for i in range(1, MAX_UNCONNECTING_HEADERS):
-            # Send a header that doesn't connect, check that we get a
-            # getheaders.
+            # Send a header that doesn't connect, check that we get a getheaders.
             with mininode_lock:
                 test_node.last_message.pop("getheaders", None)
             test_node.send_header_for_blocks([blocks[i]])
-            test_node.wait_for_getheaders(timeout=1)
+            test_node.wait_for_getheaders()
 
         # Next header will connect, should re-set our count:
         test_node.send_header_for_blocks([blocks[0]])
@@ -571,12 +564,11 @@ class SendHeadersTest(BitcoinTestFramework):
         # Now try to see how many unconnecting headers we can send
         # before we get disconnected.  Should be 5*MAX_UNCONNECTING_HEADERS
         for i in range(5 * MAX_UNCONNECTING_HEADERS - 1):
-            # Send a header that doesn't connect, check that we get a
-            # getheaders.
+            # Send a header that doesn't connect, check that we get a getheaders.
             with mininode_lock:
                 test_node.last_message.pop("getheaders", None)
             test_node.send_header_for_blocks([blocks[i % len(blocks)]])
-            test_node.wait_for_getheaders(timeout=1)
+            test_node.wait_for_getheaders()
 
         # Eventually this stops working.
         test_node.send_header_for_blocks([blocks[-1]])

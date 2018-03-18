@@ -3376,7 +3376,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient> &vecSend,
         }
 
         if (sign) {
-            SigHashType sigHashType = SigHashType().withForkId(true);
+            SigHashType sigHashType = SigHashType().withForkId();
 
             CTransaction txNewConst(txNew);
             int nIn = 0;
@@ -4997,5 +4997,5 @@ int CMerkleTx::GetBlocksToMaturity() const {
 bool CMerkleTx::AcceptToMemoryPool(const Amount nAbsurdFee,
                                    CValidationState &state) {
     return ::AcceptToMemoryPool(GetConfig(), mempool, state, tx, true, nullptr,
-                                nullptr, false, nAbsurdFee);
+                                false, nAbsurdFee);
 }

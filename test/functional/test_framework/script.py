@@ -2,18 +2,10 @@
 # Copyright (c) 2015-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
+"""Functionality to build scripts, as well as SignatureHash().
 
-#
-# script.py
-#
-# This file is modified from python-bitcoinlib.
-#
-
-"""Scripts
-
-Functionality to build scripts, as well as SignatureHash().
+This file is modified from python-bitcoinlib.
 """
-
 
 from .mininode import CTransaction, CTxOut, sha256, hash256, uint256_from_str, ser_uint256, ser_string
 from binascii import hexlify
@@ -178,9 +170,9 @@ OP_TUCK = CScriptOp(0x7d)
 
 # splice ops
 OP_CAT = CScriptOp(0x7e)
-OP_SUBSTR = CScriptOp(0x7f)
-OP_LEFT = CScriptOp(0x80)
-OP_RIGHT = CScriptOp(0x81)
+OP_SPLIT = CScriptOp(0x7f)
+OP_NUM2BIN = CScriptOp(0x80)
+OP_BIN2NUM = CScriptOp(0x81)
 OP_SIZE = CScriptOp(0x82)
 
 # bit logic
@@ -309,9 +301,9 @@ VALID_OPCODES = {
     OP_TUCK,
 
     OP_CAT,
-    OP_SUBSTR,
-    OP_LEFT,
-    OP_RIGHT,
+    OP_SPLIT,
+    OP_NUM2BIN,
+    OP_BIN2NUM,
     OP_SIZE,
 
     OP_INVERT,
@@ -435,9 +427,9 @@ OPCODE_NAMES.update({
     OP_SWAP: 'OP_SWAP',
     OP_TUCK: 'OP_TUCK',
     OP_CAT: 'OP_CAT',
-    OP_SUBSTR: 'OP_SUBSTR',
-    OP_LEFT: 'OP_LEFT',
-    OP_RIGHT: 'OP_RIGHT',
+    OP_SPLIT: 'OP_SPLIT',
+    OP_NUM2BIN: 'OP_NUM2BIN',
+    OP_BIN2NUM: 'OP_BIN2NUM',
     OP_SIZE: 'OP_SIZE',
     OP_INVERT: 'OP_INVERT',
     OP_AND: 'OP_AND',
@@ -554,9 +546,9 @@ OPCODES_BY_NAME = {
     'OP_SWAP': OP_SWAP,
     'OP_TUCK': OP_TUCK,
     'OP_CAT': OP_CAT,
-    'OP_SUBSTR': OP_SUBSTR,
-    'OP_LEFT': OP_LEFT,
-    'OP_RIGHT': OP_RIGHT,
+    'OP_SPLIT': OP_SPLIT,
+    'OP_NUM2BIN': OP_NUM2BIN,
+    'OP_BIN2NUM': OP_BIN2NUM,
     'OP_SIZE': OP_SIZE,
     'OP_INVERT': OP_INVERT,
     'OP_AND': OP_AND,
