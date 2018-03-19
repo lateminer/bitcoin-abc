@@ -9,7 +9,7 @@ It is derived from the much more complex p2p-fullblocktest.
 """
 
 from test_framework.test_framework import ComparisonTestFramework
-from test_framework.util import *
+from test_framework.util import (assert_raises_rpc_error, assert_equal)
 from test_framework.comptool import TestManager, TestInstance
 from test_framework.blocktools import *
 import time
@@ -92,7 +92,7 @@ class FullBlockTest(ComparisonTestFramework):
         tx.rehash()
         return tx
 
-    def next_block(self, number, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE]), solve=True):
+    def next_block(self, number, spend=None, additional_coinbase_value=0, script=CScript([OP_TRUE])):
         if self.tip == None:
             base_block_hash = self.genesis_hash
             block_time = int(time.time()) + 1
@@ -117,8 +117,8 @@ class FullBlockTest(ComparisonTestFramework):
             self.sign_tx(tx, spend.tx, spend.n)
             self.add_transactions_to_block(block, [tx])
             block.hashMerkleRoot = block.calc_merkle_root()
-        if solve:
-            block.solve()
+        # Do PoW, which is very inexpensive on regnet
+        block.solve()
         self.tip = block
         self.block_heights[block.sha256] = height
         assert number not in self.blocks
@@ -235,13 +235,8 @@ class FullBlockTest(ComparisonTestFramework):
             [OP_CHECKSIG] * (p2sh_sigops_limit_mempool + 1))
 
         # A transaction with this output script can't get into the mempool
-        try:
-            node.sendrawtransaction(
-                ToHex(spend_p2sh_tx(p2sh_tx, too_many_p2sh_sigops_mempool)))
-        except JSONRPCException as exp:
-            assert_equal(exp.error["message"], RPC_TXNS_TOO_MANY_SIGOPS_ERROR)
-        else:
-            assert(False)
+        assert_raises_rpc_error(-26, RPC_TXNS_TOO_MANY_SIGOPS_ERROR, node.sendrawtransaction,
+                                ToHex(spend_p2sh_tx(p2sh_tx, too_many_p2sh_sigops_mempool)))
 
         # The transaction is rejected, so the mempool should still be empty
         assert_equal(set(node.getrawmempool()), set())

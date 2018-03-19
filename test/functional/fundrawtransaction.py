@@ -3,7 +3,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-from test_framework.test_framework import BitcoinTestFramework, BITCOIND_PROC_WAIT_TIMEOUT
+from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
 
@@ -178,8 +178,8 @@ class RawTransactionsTest(BitcoinTestFramework):
         dec_tx = self.nodes[2].decoderawtransaction(rawtx)
         assert_equal(utx['txid'], dec_tx['vin'][0]['txid'])
 
-        assert_raises_jsonrpc(-3, "Unexpected key foo", self.nodes[
-                              2].fundrawtransaction, rawtx, {'foo': 'bar'})
+        assert_raises_rpc_error(-3, "Unexpected key foo", self.nodes[
+            2].fundrawtransaction, rawtx, {'foo': 'bar'})
 
         #
         # test a fundrawtransaction with an invalid change address #
@@ -192,7 +192,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         dec_tx = self.nodes[2].decoderawtransaction(rawtx)
         assert_equal(utx['txid'], dec_tx['vin'][0]['txid'])
 
-        assert_raises_jsonrpc(
+        assert_raises_rpc_error(
             -5, "changeAddress must be a valid bitcoin address",
             self.nodes[2].fundrawtransaction, rawtx, {'changeAddress': 'foobar'})
 
@@ -208,8 +208,8 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_equal(utx['txid'], dec_tx['vin'][0]['txid'])
 
         change = self.nodes[2].getnewaddress()
-        assert_raises_jsonrpc(-8, "changePosition out of bounds", self.nodes[
-                              2].fundrawtransaction, rawtx, {'changeAddress': change, 'changePosition': 2})
+        assert_raises_rpc_error(-8, "changePosition out of bounds", self.nodes[
+            2].fundrawtransaction, rawtx, {'changeAddress': change, 'changePosition': 2})
         rawtxfund = self.nodes[2].fundrawtransaction(
             rawtx, {'changeAddress': change, 'changePosition': 0})
         dec_tx = self.nodes[2].decoderawtransaction(rawtxfund['hex'])
@@ -323,7 +323,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         rawtx = self.nodes[2].createrawtransaction(inputs, outputs)
         dec_tx = self.nodes[2].decoderawtransaction(rawtx)
 
-        assert_raises_jsonrpc(
+        assert_raises_rpc_error(
             -4, "Insufficient funds", self.nodes[2].fundrawtransaction, rawtx)
 
         #
@@ -444,8 +444,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         rawTx = self.nodes[2].createrawtransaction(inputs, outputs)
         fundedTx = self.nodes[2].fundrawtransaction(rawTx)
 
-        signedTx = self.nodes[2].signrawtransaction(
-            fundedTx['hex'], None, None, "ALL|FORKID")
+        signedTx = self.nodes[2].signrawtransaction(fundedTx['hex'])
         txId = self.nodes[2].sendrawtransaction(signedTx['hex'])
         self.sync_all()
         self.nodes[1].generate(1)
@@ -482,7 +481,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         rawTx = self.nodes[1].createrawtransaction(inputs, outputs)
         # fund a transaction that requires a new key for the change output
         # creating the key must be impossible because the wallet is locked
-        assert_raises_jsonrpc(
+        assert_raises_rpc_error(
             -4, "Insufficient funds", self.nodes[1].fundrawtransaction, rawtx)
 
         # refill the keypool
@@ -491,8 +490,8 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.nodes[1].keypoolrefill(8)
         self.nodes[1].walletlock()
 
-        assert_raises_jsonrpc(-13, "walletpassphrase", self.nodes[
-                              1].sendtoaddress, self.nodes[0].getnewaddress(), 1.2)
+        assert_raises_rpc_error(-13, "walletpassphrase", self.nodes[
+            1].sendtoaddress, self.nodes[0].getnewaddress(), 1.2)
 
         oldBalance = self.nodes[0].getbalance()
 
@@ -503,8 +502,7 @@ class RawTransactionsTest(BitcoinTestFramework):
 
         # now we need to unlock
         self.nodes[1].walletpassphrase("test", 600)
-        signedTx = self.nodes[1].signrawtransaction(
-            fundedTx['hex'], None, None, "ALL|FORKID")
+        signedTx = self.nodes[1].signrawtransaction(fundedTx['hex'])
         txId = self.nodes[1].sendrawtransaction(signedTx['hex'])
         self.nodes[1].generate(1)
         self.sync_all()
@@ -568,8 +566,7 @@ class RawTransactionsTest(BitcoinTestFramework):
             self.nodes[0].getnewaddress(): 0.15, self.nodes[0].getnewaddress(): 0.04}
         rawTx = self.nodes[1].createrawtransaction(inputs, outputs)
         fundedTx = self.nodes[1].fundrawtransaction(rawTx)
-        fundedAndSignedTx = self.nodes[1].signrawtransaction(
-            fundedTx['hex'], None, None, "ALL|FORKID")
+        fundedAndSignedTx = self.nodes[1].signrawtransaction(fundedTx['hex'])
         txId = self.nodes[1].sendrawtransaction(fundedAndSignedTx['hex'])
         self.sync_all()
         self.nodes[0].generate(1)
@@ -630,11 +627,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_equal(result["fee"] + res_dec["vout"][
                      result["changepos"]]["value"], watchonly_amount / 10)
 
-        signedtx = self.nodes[3].signrawtransaction(
-            result["hex"], None, None, "ALL|FORKID")
+        signedtx = self.nodes[3].signrawtransaction(result["hex"])
         assert(not signedtx["complete"])
-        signedtx = self.nodes[0].signrawtransaction(
-            signedtx["hex"], None, None, "ALL|FORKID")
+        signedtx = self.nodes[0].signrawtransaction(signedtx["hex"])
         assert(signedtx["complete"])
         self.nodes[0].sendrawtransaction(signedtx["hex"])
         self.nodes[0].generate(1)

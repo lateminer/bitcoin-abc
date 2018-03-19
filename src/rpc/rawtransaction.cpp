@@ -1111,7 +1111,7 @@ static UniValue signrawtransaction(const Config &config,
     const CKeyStore &keystore = tempKeystore;
 #endif
 
-    SigHashType sigHashType = SigHashType().withForkId(true);
+    SigHashType sigHashType = SigHashType().withForkId();
     if (request.params.size() > 3 && !request.params[3].isNull()) {
         static std::map<std::string, int> mapSigHashValues = {
             {"ALL", SIGHASH_ALL},
@@ -1162,7 +1162,7 @@ static UniValue signrawtransaction(const Config &config,
 
         SignatureData sigdata;
         // Only sign SIGHASH_SINGLE if there's a corresponding output:
-        if ((sigHashType.getBaseSigHashType() != BaseSigHashType::SINGLE) ||
+        if ((sigHashType.getBaseType() != BaseSigHashType::SINGLE) ||
             (i < mergedTx.vout.size())) {
             ProduceSignature(MutableTransactionSignatureCreator(
                                  &keystore, &mergedTx, i, amount, sigHashType),
@@ -1262,7 +1262,7 @@ static UniValue sendrawtransaction(const Config &config,
         CValidationState state;
         bool fMissingInputs;
         if (!AcceptToMemoryPool(config, mempool, state, std::move(tx),
-                                fLimitFree, &fMissingInputs, nullptr, false,
+                                fLimitFree, &fMissingInputs, false,
                                 nMaxRawTxFee)) {
             if (state.IsInvalid()) {
                 throw JSONRPCError(RPC_TRANSACTION_REJECTED,

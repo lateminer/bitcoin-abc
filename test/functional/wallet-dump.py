@@ -2,9 +2,12 @@
 # Copyright (c) 2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
+"""Test the dumpwallet RPC."""
+
+import os
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal
+from test_framework.util import (assert_equal, assert_raises_rpc_error)
 
 
 def read_dump(file_name, addrs, hd_master_addr_old):
@@ -80,13 +83,17 @@ class WalletDumpTest(BitcoinTestFramework):
         self.nodes[0].keypoolrefill()
 
         # dump unencrypted wallet
-        self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.unencrypted.dump")
+        result = self.nodes[0].dumpwallet(
+            tmpdir + "/node0/wallet.unencrypted.dump")
+        assert_equal(result['filename'], os.path.abspath(
+            tmpdir + "/node0/wallet.unencrypted.dump"))
 
         found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_unenc = \
             read_dump(tmpdir + "/node0/wallet.unencrypted.dump", addrs, None)
-        assert_equal(found_addr, test_addr_count)
         # all keys must be in the dump
-        assert_equal(found_addr_chg, 50)  # 50 blocks where mined
+        assert_equal(found_addr, test_addr_count)
+        # 50 blocks where mined
+        assert_equal(found_addr_chg, 50)
         # 90 keys plus 100% internal keys
         assert_equal(found_addr_rsv, 90 * 2)
 
@@ -99,12 +106,16 @@ class WalletDumpTest(BitcoinTestFramework):
         self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.encrypted.dump")
 
         found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_enc = \
-            read_dump(
-                tmpdir + "/node0/wallet.encrypted.dump", addrs, hd_master_addr_unenc)
+            read_dump(tmpdir + "/node0/wallet.encrypted.dump",
+                      addrs, hd_master_addr_unenc)
         assert_equal(found_addr, test_addr_count)
         # old reserve keys are marked as change now
         assert_equal(found_addr_chg, 90 * 2 + 50)
         assert_equal(found_addr_rsv, 90 * 2)
+
+        # Overwriting should fail
+        assert_raises_rpc_error(-8, "already exists",
+                                self.nodes[0].dumpwallet, tmpdir + "/node0/wallet.unencrypted.dump")
 
 
 if __name__ == '__main__':

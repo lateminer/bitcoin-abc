@@ -99,25 +99,33 @@ static const int DEFAULT_SCRIPTCHECK_THREADS = 0;
 /** Number of blocks that can be requested at any given time from a single peer.
  */
 static const int MAX_BLOCKS_IN_TRANSIT_PER_PEER = 16;
-/** Timeout in seconds during which a peer must stall block download progress
- * before being disconnected. */
+/**
+ * Timeout in seconds during which a peer must stall block download progress
+ * before being disconnected.
+ */
 static const unsigned int BLOCK_STALLING_TIMEOUT = 2;
-/** Number of headers sent in one getheaders result. We rely on the assumption
- * that if a peer sends
- *  less than this number, we reached its tip. Changing this value is a protocol
- * upgrade. */
+/**
+ * Number of headers sent in one getheaders result. We rely on the assumption
+ * that if a peer sends less than this number, we reached its tip. Changing this
+ * value is a protocol upgrade.
+ */
 static const unsigned int MAX_HEADERS_RESULTS = 2000;
-/** Maximum depth of blocks we're willing to serve as compact blocks to peers
- *  when requested. For older blocks, a regular BLOCK response will be sent. */
+/**
+ * Maximum depth of blocks we're willing to serve as compact blocks to peers
+ * when requested. For older blocks, a regular BLOCK response will be sent.
+ */
 static const int MAX_CMPCTBLOCK_DEPTH = 5;
-/** Maximum depth of blocks we're willing to respond to GETBLOCKTXN requests
- * for. */
+/**
+ * Maximum depth of blocks we're willing to respond to GETBLOCKTXN requests for.
+ */
 static const int MAX_BLOCKTXN_DEPTH = 10;
-/** Size of the "block download window": how far ahead of our current height do
+/**
+ * Size of the "block download window": how far ahead of our current height do
  * we fetch ? Larger windows tolerate larger download speed differences between
  * peer, but increase the potential degree of disordering of blocks on disk
  * (which make reindexing and in the future perhaps pruning harder). We'll
- * probably want to make this a per-peer adaptive value at some point. */
+ * probably want to make this a per-peer adaptive value at some point.
+ */
 static const unsigned int BLOCK_DOWNLOAD_WINDOW = 1024;
 /** Time to wait (in seconds) between writing blocks/block index to disk. */
 static const unsigned int DATABASE_WRITE_INTERVAL = 60 * 60;
@@ -129,12 +137,16 @@ static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
 static const unsigned int AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL = 24 * 24 * 60;
 /** Average delay between peer address broadcasts in seconds. */
 static const unsigned int AVG_ADDRESS_BROADCAST_INTERVAL = 30;
-/** Average delay between trickled inventory transmissions in seconds.
- *  Blocks and whitelisted receivers bypass this, outbound peers get half this
- * delay. */
+/**
+ * Average delay between trickled inventory transmissions in seconds.
+ * Blocks and whitelisted receivers bypass this, outbound peers get half this
+ * delay.
+ */
 static const unsigned int INVENTORY_BROADCAST_INTERVAL = 5;
-/** Maximum number of inventory items to send per transmission.
- *  Limits the impact of low-fee transaction floods. */
+/**
+ * Maximum number of inventory items to send per transmission.
+ * Limits the impact of low-fee transaction floods.
+ */
 static const unsigned int INVENTORY_BROADCAST_MAX =
     7 * INVENTORY_BROADCAST_INTERVAL;
 /** Average delay between feefilter broadcasts in seconds. */
@@ -144,15 +156,18 @@ static const unsigned int MAX_FEEFILTER_CHANGE_DELAY = 5 * 60;
 /** Block download timeout base, expressed in millionths of the block interval
  * (i.e. 10 min) */
 static const int64_t BLOCK_DOWNLOAD_TIMEOUT_BASE = 1000000;
-/** Additional block download timeout per parallel downloading peer (i.e. 5 min)
+/**
+ * Additional block download timeout per parallel downloading peer (i.e. 5 min)
  */
 static const int64_t BLOCK_DOWNLOAD_TIMEOUT_PER_PEER = 500000;
 
 static const unsigned int DEFAULT_LIMITFREERELAY = 0;
 static const bool DEFAULT_RELAYPRIORITY = true;
 static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60;
-/** Maximum age of our tip in seconds for us to be considered current for fee
- * estimation */
+/**
+ * Maximum age of our tip in seconds for us to be considered current for fee
+ * estimation.
+ */
 static const int64_t MAX_FEE_ESTIMATION_TIP_AGE = 3 * 60 * 60;
 
 /** Default for -permitbaremultisig */
@@ -175,8 +190,10 @@ static const bool DEFAULT_PERSIST_MEMPOOL = true;
 /** Default for using fee filter */
 static const bool DEFAULT_FEEFILTER = true;
 
-/** Maximum number of headers to announce when relaying blocks with headers
- * message.*/
+/**
+ * Maximum number of headers to announce when relaying blocks with headers
+ * message.
+ */
 static const unsigned int MAX_BLOCKS_TO_ANNOUNCE = 8;
 
 /** Maximum number of unconnecting headers announcements before DoS score */
@@ -210,14 +227,20 @@ extern bool fCheckpointsEnabled;
 extern size_t nCoinCacheUsage;
 extern int64_t nLastCoinStakeSearchInterval;
 
-/** A fee rate smaller than this is considered zero fee (for relaying, mining
- * and transaction creation) */
+/**
+ * A fee rate smaller than this is considered zero fee (for relaying, mining and
+ * transaction creation)
+ */
 extern CFeeRate minRelayTxFee;
-/** Absolute maximum transaction fee (in satoshis) used by wallet and mempool
- * (rejects high fee in sendrawtransaction) */
+/**
+ * Absolute maximum transaction fee (in satoshis) used by wallet and mempool
+ * (rejects high fee in sendrawtransaction)
+ */
 extern Amount maxTxFee;
-/** If the tip is older than this (in seconds), the node is considered to be in
- * initial block download. */
+/**
+ * If the tip is older than this (in seconds), the node is considered to be in
+ * initial block download.
+ */
 extern int64_t nMaxTipAge;
 
 /**
@@ -253,16 +276,18 @@ static const unsigned int MIN_BLOCKS_TO_KEEP = 500;
 static const signed int DEFAULT_CHECKBLOCKS = MIN_BLOCKS_TO_KEEP;
 static const unsigned int DEFAULT_CHECKLEVEL = 3;
 
-// Require that user allocate at least 550MB for block & undo files (blk???.dat
-// and rev???.dat)
-// At 1MB per block, 288 blocks = 288MB.
-// Add 15% for Undo data = 331MB
-// Add 20% for Orphan block rate = 397MB
-// We want the low water mark after pruning to be at least 397 MB and since we
-// prune in full block file chunks, we need the high water mark which triggers
-// the prune to be one 128MB block file + added 15% undo data = 147MB greater
-// for a total of 545MB. Setting the target to > than 550MB will make it likely
-// we can respect the target.
+/**
+ * Require that user allocate at least 550MB for block & undo files (blk???.dat
+ * and rev???.dat)
+ * At 1MB per block, 288 blocks = 288MB.
+ * Add 15% for Undo data = 331MB
+ * Add 20% for Orphan block rate = 397MB
+ * We want the low water mark after pruning to be at least 397 MB and since we
+ * prune in full block file chunks, we need the high water mark which triggers
+ * the prune to be one 128MB block file + added 15% undo data = 147MB greater
+ * for a total of 545MB. Setting the target to > than 550MB will make it likely
+ * we can respect the target.
+ */
 static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 550 * 1024 * 1024;
 
 /**
@@ -284,7 +309,7 @@ static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 550 * 1024 * 1024;
  * for non-network block sources and whitelisted peers.
  * @param[out]  fNewBlock A boolean which is set to indicate if the block was
  * first received via this call
- * @return True if state.IsValid()
+ * @return true if the block is accepted as a valid block
  */
 bool ProcessNewBlock(const Config &config,
                      const std::shared_ptr<const CBlock> pblock,
@@ -344,7 +369,15 @@ std::string GetWarnings(const std::string &strFor);
 bool GetTransaction(const Config &config, const uint256 &hash,
                     CTransactionRef &tx, uint256 &hashBlock,
                     bool fAllowSlow = false);
-/** Find the best known block, and make it the tip of the block chain */
+/**
+ * Find the best known block, and make it the active tip of the block chain.
+ * If it fails, the tip is not updated.
+ *
+ * pblock is either nullptr or a pointer to a block that is already loaded
+ * in memory (to avoid loading it from disk again).
+ *
+ * Returns true if a new chain tip was set.
+ */
 bool ActivateBestChain(
     const Config &config, CValidationState &state,
     std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>(), const uint256 *phash = nullptr);
@@ -376,13 +409,10 @@ void PruneBlockFilesManual(int nPruneUpToHeight);
 
 /**
  * (try to) add transaction to memory pool
- * plTxnReplaced will be appended to with all transactions replaced from
- * mempool.
  */
 bool AcceptToMemoryPool(const Config &config, CTxMemPool &pool,
                         CValidationState &state, const CTransactionRef &tx,
                         bool fLimitFree, bool *pfMissingInputs,
-                        std::list<CTransactionRef> *plTxnReplaced = nullptr,
                         bool fOverrideMempoolLimit = false,
                         const Amount nAbsurdFee = Amount(0));
 
@@ -565,7 +595,12 @@ bool ReadFromDisk(CTransaction &tx, CDiskTxPos &txindex);
 
 /** Functions for validating blocks and updating the block tree */
 
-/** Context-independent validity checks */
+/**
+ * Context-independent validity checks.
+ *
+ * Returns true if the provided block is valid (has valid header,
+ * transactions are valid, block is a valid size, etc.)
+ */
 bool CheckBlock(const Config &Config, const CBlock &block,
                 CValidationState &state, const uint256 &hash, bool fCheckPOW = true,
                 bool fCheckMerkleRoot = true, bool fCheckSig = true);
@@ -627,7 +662,14 @@ bool ReplayBlocks(const Config &config, CCoinsView *view);
 CBlockIndex *FindForkInGlobalIndex(const CChain &chain,
                                    const CBlockLocator &locator);
 
-/** Mark a block as precious and reorganize. */
+/**
+ * Treats a block as if it were received before others with the same work,
+ * making it the active chain tip if applicable. Successive calls to
+ * PreciousBlock() will override the effects of earlier calls. The effects of
+ * calls to PreciousBlock() are not retained across restarts.
+ *
+ * Returns true if the provided block index successfully became the chain tip.
+ */
 bool PreciousBlock(const Config &config, CValidationState &state,
                    CBlockIndex *pindex);
 
