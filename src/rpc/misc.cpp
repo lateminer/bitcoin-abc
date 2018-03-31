@@ -650,6 +650,7 @@ bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &addr
 
 bool getAddressesFromParams(const UniValue &params, std::vector<std::pair<uint160, int> > &addresses)
 {
+
     if (params[0].isStr()) {
         std::string address = params[0].get_str();
         uint160 hashBytes;

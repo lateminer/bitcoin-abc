@@ -30,7 +30,7 @@ Amount CFeeRate::GetFee(size_t nBytes_) const {
     assert(nBytes_ <= uint64_t(std::numeric_limits<int64_t>::max()));
     int64_t nSize = int64_t(nBytes_);
 
-    Amount nFee = Amount(int64_t(nSatoshisPerK * (1 + nSize / 1000)));
+    Amount nFee = nSatoshisPerK.GetSatoshis()* Amount(1 + nSize / 1000);
 
     if (nFee == Amount(0) && nSize != 0) {
         if (nSatoshisPerK > Amount(0)) {
