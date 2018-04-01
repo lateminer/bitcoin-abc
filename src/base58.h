@@ -115,8 +115,12 @@ public:
     bool IsValid() const;
     bool SetString(const char *pszSecret);
     bool SetString(const std::string &strSecret);
+    bool Set(const CTxDestination &dest);
 
+
+    CBitcoinSecret(const CTxDestination &dest) { Set(dest); }
     CBitcoinSecret(const CKey &vchSecret) { SetKey(vchSecret); }
+    CBitcoinSecret(const std::string &strAddress) { SetString(strAddress); }
     CBitcoinSecret() {}
 };
 
