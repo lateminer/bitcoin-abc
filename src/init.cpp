@@ -455,18 +455,6 @@ std::string HelpMessage(HelpMessageMode mode) {
                                 "the getrawtransaction rpc call (default: %d)"),
                               DEFAULT_TXINDEX));
     strUsage += HelpMessageOpt(
-        "-addressindex", strprintf(_("Maintain a full address index, used to "
-                                     "query for the balance, txids and unspent outputs for addresses (default: %d)"),
-                                     DEFAULT_ADDRESSINDEX));
-    strUsage += HelpMessageOpt(
-        "-timestampindex", strprintf(_("Maintain a timestamp index for block "
-                                        "hashes, used to query blocks hashes by a range of timestamps (default: %d)"),
-                                        DEFAULT_TIMESTAMPINDEX));
-    strUsage += HelpMessageOpt(
-        "-spentindex", strprintf(_("Maintain a full spent index, used to query "
-                                    "the spending txid and input index for an outpoint (default: %d)"),
-                                    DEFAULT_SPENTINDEX));
-    strUsage += HelpMessageOpt(
         "-usecashaddr", _("Use Cash Address for destination encoding instead "
                           "of base58 (activate by default on Jan, 14)"));
 
@@ -1983,16 +1971,6 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
     fReindex = gArgs.GetBoolArg("-reindex", false);
     bool fReindexChainState = gArgs.GetBoolArg("-reindex-chainstate", false);
 
-    // block tree db settings
-    int dbMaxOpenFiles = gArgs.GetArg("-dbmaxopenfiles", DEFAULT_DB_MAX_OPEN_FILES);
-    bool dbCompression = gArgs.GetBoolArg("-dbcompression", DEFAULT_DB_COMPRESSION);
-    size_t dbMaxFileSize = gArgs.GetArg("-dbmaxfilesize", DEFAULT_DB_MAX_FILE_SIZE) << 20;
-
-    LogPrintf("Block index database configuration:\n");
-    LogPrintf("* Using %d max open files\n", dbMaxOpenFiles);
-    LogPrintf("* Compression is %s\n", dbCompression ? "enabled" : "disabled");
-    LogPrintf("* Using %d MB files\n", (dbMaxFileSize / 1024 / 1024));
-
     // cache size calculations
     int64_t nTotalCache = (gArgs.GetArg("-dbcache", nDefaultDbCache) << 20);
     // total cache cannot be less than nMinDbCache
@@ -2000,16 +1978,11 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
     // total cache cannot be greater than nMaxDbcache
     nTotalCache = std::min(nTotalCache, nMaxDbCache << 20);
     int64_t nBlockTreeDBCache = nTotalCache / 8;
-    if (gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) || gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
-        // enable 3/4 of the cache if addressindex and/or spentindex is enabled
-        nBlockTreeDBCache = nTotalCache * 3 / 4;
-    } else {
-        nBlockTreeDBCache = std::min(nBlockTreeDBCache,
+    nBlockTreeDBCache = std::min(nBlockTreeDBCache,
                                  (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX)
                                       ? nMaxBlockDBAndTxIndexCache
                                       : nMaxBlockDBCache)
                                      << 20);
-    }
     nTotalCache -= nBlockTreeDBCache;
     // use 25%-50% of the remainder for disk cache
     int64_t nCoinDBCache =
@@ -2022,7 +1995,6 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
     int64_t nMempoolSizeMax =
         gArgs.GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
     LogPrintf("Cache configuration:\n");
-    LogPrintf("* Max cache setting possible %.1fMiB\n", nMaxDbCache);
     LogPrintf("* Using %.1fMiB for block index database\n",
               nBlockTreeDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for chain state database\n",
@@ -2049,7 +2021,7 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
                 delete pblocktree;
 
                 pblocktree =
-                    new CBlockTreeDB(nBlockTreeDBCache, false, fReindex, dbCompression, dbMaxOpenFiles, dbMaxFileSize);
+                    new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false,
                                                 fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
@@ -2093,24 +2065,6 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
                 if (fTxIndex != gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
                     strLoadError = _("You need to rebuild the database using "
                                      "-reindex-chainstate to change -txindex");
-                    break;
-                }
-                
-                // Check for changed -addressindex state
-                if (fAddressIndex != gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX)) {
-                    strLoadError = _("You need to rebuild the database using -reindex-chainstate to change -addressindex");
-                    break;
-                }
-
-                // Check for changed -spentindex state
-                if (fSpentIndex != gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
-                    strLoadError = _("You need to rebuild the database using -reindex-chainstate to change -spentindex");
-                    break;
-                }
-
-                // Check for changed -timestampindex state
-                if (fTimestampIndex != gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX)) {
-                    strLoadError = _("You need to rebuild the database using -reindex-chainstate to change -timestampindex");
                     break;
                 }
 
