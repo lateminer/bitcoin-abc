@@ -704,7 +704,7 @@ static bool AcceptToMemoryPoolWorker(
 
     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
     std::string reason;
-    if (fRequireStandard && !IsStandardTx(tx, reason)) {
+    if (fRequireStandard && !IsStandardTx(tx, reason, true)) {
         return state.DoS(0, false, REJECT_NONSTANDARD, reason);
     }
 

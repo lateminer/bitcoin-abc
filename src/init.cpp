@@ -822,7 +822,7 @@ std::string HelpMessage(HelpMessageMode mode) {
         "-datacarriersize",
         strprintf(
             _("Maximum size of data in data carrier transactions we relay and "
-              "mine (pre-fork default: %u, post-fork default: %u)"),
+              "mine (pre-1.2.5 default: %u, post-1.2.5 default: %u)"),
             MAX_OP_RETURN_RELAY, MAX_OP_RETURN_RELAY_LARGE));
 
     strUsage += HelpMessageGroup(_("Block creation options:"));
