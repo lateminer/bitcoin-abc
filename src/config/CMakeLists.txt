@@ -1,13 +1,13 @@
 # Copyright (c) 2017 The Bitcoin developers
 
 # This generates config.h which provides numerous defines
-# about the state of the plateform we are building on.
+# about the state of the platform we are building on.
 
 include(CheckIncludeFiles)
 include(CheckSymbolExists)
 
 # Package informations
-set(PACKAGE_NAME "Bitcoin ABC")
+set(PACKAGE_NAME "Blackcoin Lore")
 
 # Version
 set(CLIENT_VERSION_MAJOR 0)
