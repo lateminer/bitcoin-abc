@@ -72,7 +72,7 @@ static const unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS =
 static const unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS = 0;
 
 bool IsStandard(const CScript &scriptPubKey, txnouttype &whichType,
-                bool allowLargeOpReturn = false);
+                bool allowLargeOpReturn = true);
 
 /**
  * Check for standard transaction types
@@ -80,7 +80,7 @@ bool IsStandard(const CScript &scriptPubKey, txnouttype &whichType,
  * forms
  */
 bool IsStandardTx(const CTransaction &tx, std::string &reason,
-                  bool allowLargeOpReturn = false);
+                  bool allowLargeOpReturn = true);
 
 /**
  * Check for standard transaction types
