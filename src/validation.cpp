@@ -1270,7 +1270,7 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex,
     return true;
 }
 
-bool ReadFromDisk(CTransaction &tx, CDiskTxPos &txindex, CBlockTreeDB &txdb, COutPoint prevout)
+bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex, CBlockTreeDB &txdb, COutPoint prevout)
 {
     if (!txdb.ReadTxIndex(prevout.hash, txindex)) {
         LogPrintf("no tx index %s \n", prevout.hash.ToString());
@@ -1285,7 +1285,7 @@ bool ReadFromDisk(CTransaction &tx, CDiskTxPos &txindex, CBlockTreeDB &txdb, COu
     return true;
 }
 
-bool ReadFromDisk(CTransaction &tx, CDiskTxPos &txindex)
+bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex)
 {
     CAutoFile filein(OpenBlockFile(txindex, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull())
@@ -1293,10 +1293,11 @@ bool ReadFromDisk(CTransaction &tx, CDiskTxPos &txindex)
 
     // Read transaction
     CBlockHeader header;
+    CTransactionRef txRef = MakeTransactionRef(tx);
     try {
         filein >> header;
         fseek(filein.Get(), txindex.nTxOffset, SEEK_CUR);
-        filein >> tx;
+        filein >> txRef;
     }
     catch (const std::exception& e) {
         return error("%s: Deserialize or I/O error - %s", __func__, e.what());
@@ -1521,11 +1522,6 @@ bool CheckTxInputs(const CTransaction &tx, CValidationState &state,
                               uint32_t(nSpendHeight) - coin.GetHeight()));
             }
         }
-
-        // Check transaction timestamp
-        if (coin->nTime > tx.nTime)
-            return state.DoS(100, false, REJECT_INVALID,
-                             "bad-txns-time-earlier-than-input");
 
         // Check for negative or overflow input values
         nValueIn += coin.GetTxOut().nValue;
@@ -2122,7 +2118,24 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                   error("%s: tried to stake at depth %d", __func__, pindex->nHeight - coin.GetHeight()),
                     REJECT_INVALID, "bad-cs-premature");
 
-         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, coin, prevout, block.vtx[1]->nTime))
+
+         Coin coinPrev;
+         CBlockIndex* pindexPrev = pindex->pprev;
+		 if(!view.GetCoin(prevout, coinPrev)){
+			return false;
+		 }
+
+		 if(pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations){
+			return false;
+		 }
+		 CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);
+		 if(!blockFrom) {
+			return false;
+		 }
+		 if(coinPrev.IsSpent()){
+			return false;
+		 }
+         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, blockFrom->nTime, coinPrev.out.nValue, prevout, block.vtx[1]->nTime))
               return state.DoS(100, error("%s: proof-of-stake hash doesn't match nBits", __func__),
                                  REJECT_INVALID, "bad-cs-proofhash");
     }
@@ -3388,7 +3401,7 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
             int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue.GetSatoshis();
             bnCentSecond += arith_uint256(nValueIn) * (tx.nTime - txPrev.nTime) / CENT.GetSatoshis();
 
-            LogPrintf("coinage", "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
+            LogPrint(BCLog::STAKE, "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
         }
 
         arith_uint256 bnCoinDay = bnCentSecond * CENT.GetSatoshis() / COIN.GetSatoshis() / (24 * 60 * 60);
@@ -3849,7 +3862,7 @@ bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config) {
 
 #ifdef ENABLE_WALLET
 // novacoin: attempt to generate suitable proof-of-stake
-bool SignBlock(CBlock *block, CWallet &wallet, Amount &nFees)
+bool SignBlock(CBlock *block, CWalletRef &wallet, Amount &nTotalFees, uint32_t nTime)
 {
     // if we are trying to sign
     //    something except proof-of-stake block template
@@ -3865,45 +3878,34 @@ bool SignBlock(CBlock *block, CWallet &wallet, Amount &nFees)
         return true;
     }
 
-    static int64_t nLastCoinStakeSearchTime = GetAdjustedTime(); // startup timestamp
-
     CKey key;
     CMutableTransaction txCoinBase(*block->vtx[0]);
     CMutableTransaction txCoinStake;
-    txCoinStake.nTime = GetAdjustedTime();
+    txCoinStake.nTime = nTime;
     txCoinStake.nTime &= ~Params().GetConsensus().nStakeTimestampMask;
 
-    int64_t nSearchTime = txCoinStake.nTime; // search to current time
+    if (wallet->CreateCoinStake(block->nBits, nTotalFees, txCoinStake, key)) {
+        if (txCoinStake.nTime >= pindexBestHeader->GetPastTimeLimit() + 1) {
+            // make sure coinstake would meet timestamp protocol
+            //    as it would be the same as the block timestamp
+            txCoinBase.nTime = block->nTime = txCoinStake.nTime;
 
-    if (nSearchTime > nLastCoinStakeSearchTime)
-    {
-        if (wallet.CreateCoinStake(wallet, block->nBits, 1, nFees, txCoinStake, key))
-        {
-            if (txCoinStake.nTime >= pindexBestHeader->GetPastTimeLimit()+1)
-            {
-                // make sure coinstake would meet timestamp protocol
-                //    as it would be the same as the block timestamp
-                txCoinBase.nTime = block->nTime = txCoinStake.nTime;
-                
-                block->vtx[0] = MakeTransactionRef(std::move(txCoinbase));
-                block->hashMerkleRoot = BlockMerkleRoot(*block);
-    
-                // we have to make sure that we have no future timestamps in
-                //    our transactions set
-                for (std::vector<CTransactionRef>::const_iterator it = block->vtx.begin(); it != block->vtx.end();)
-                    if (it->nTime > block->nTime) { it = block->vtx.erase(it); } else { ++it; }
+            block->vtx[0] = MakeTransactionRef(std::move(txCoinBase));
+            block->hashMerkleRoot = BlockMerkleRoot(*block);
 
-                block->vtx.insert(block->vtx.begin() + 1, txCoinStake);
+            // we have to make sure that we have no future timestamps in
+            //    our transactions set
+            for (std::vector<CTransactionRef>::const_iterator it = block->vtx.begin(); it != block->vtx.end();)
+                if (it->get()->nTime > block->nTime) { it = block->vtx.erase(it); } else { ++it; }
 
-                // append a signature to our block
-                return key.Sign(block->GetHash(), block->vchBlockSig);
-            }
+            block->vtx.insert(block->vtx.begin() + 1, MakeTransactionRef(txCoinStake));
+
+            // append a signature to our block
+            return key.Sign(block->GetHash(), block->vchBlockSig);
         }
-        nLastCoinStakeSearchInterval = nSearchTime - nLastCoinStakeSearchTime;
-        nLastCoinStakeSearchTime = nSearchTime;
-    }
 
-    return false;
+        return false;
+    } else return false;
 }
 #endif
 

@@ -22,6 +22,8 @@ static const int64_t MAX_BLOCK_SIGOPS_PER_MB = 20000;
 /** allowed number of signature check operations per transaction. */
 static const uint64_t MAX_TX_SIGOPS_COUNT = 20000;
 
+static const int32_t MAX_STAKE_LOOKAHEAD = 16 * 3;
+
 /** Flags for nSequence and nLockTime locks */
 enum {
 

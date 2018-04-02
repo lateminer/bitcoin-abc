@@ -75,7 +75,7 @@ TxHash CMutableTransaction::GetHash() const {
 }
 
 uint256 CMutableTransaction::GetNormalizedHash() const {
-    return SignatureHash(CScript(), *this, 0, SIGHASH_ALL);
+    return SignatureHash(CScript(), CTransaction(*this), 0, SigHashType(SIGHASH_ALL), Amount(0));
 }
 
 uint256 CTransaction::ComputeHash() const {

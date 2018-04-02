@@ -590,8 +590,8 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos,
                        const Config &config);
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex,
                        const Config &config);
-bool ReadFromDisk(CTransaction &tx, CDiskTxPos &txindex, CBlockTreeDB &txdb, COutPoint prevout);
-bool ReadFromDisk(CTransaction &tx, CDiskTxPos &txindex);
+bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex, CBlockTreeDB &txdb, COutPoint prevout);
+bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex);
 
 /** Functions for validating blocks and updating the block tree */
 
@@ -605,7 +605,7 @@ bool CheckBlock(const Config &Config, const CBlock &block,
                 CValidationState &state, const uint256 &hash, bool fCheckPOW = true,
                 bool fCheckMerkleRoot = true, bool fCheckSig = true);
 bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config);
-bool SignBlock(CBlock *pblock, CWallet &wallet, Amount &nFees);
+bool SignBlock(CBlock *pblock, CWalletRef &wallet, Amount &nFees, uint32_t nTime);
 
 /**
  * Context dependent validity checks for non coinbase transactions. This

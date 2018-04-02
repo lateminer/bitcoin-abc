@@ -14,6 +14,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <thread>
+#include <condition_variable>
 
 class CBlockIndex;
 class CChainParams;
@@ -21,6 +23,22 @@ class Config;
 class CReserveKey;
 class CScript;
 class CWallet;
+typedef CWallet* CWalletRef;
+
+class StakeThread
+{
+public:
+    void condWaitFor(int ms);
+
+    StakeThread() {};
+    std::thread thread;
+    std::condition_variable condMinerProc;
+    std::mutex mtxMinerProc;
+    std::string sName;
+    bool fWakeMinerProc = false;
+};
+
+extern std::vector<StakeThread*> vStakeThreads;
 
 static const bool DEFAULT_PRINTPRIORITY = false;
 
@@ -214,5 +232,5 @@ void IncrementExtraNonce(const Config &config, CBlock *pblock,
                          const CBlockIndex *pindexPrev,
                          unsigned int &nExtraNonce);
 int64_t UpdateTime(CBlock *pblock, const Config &config, const CBlockIndex *pindexPrev);
-void ThreadStakeMiner(CWallet *pwallet, const Config &config);
+void ThreadStakeMiner(CWalletRef &pwallet, const CChainParams& chainparams);
 #endif // BITCOIN_MINER_H

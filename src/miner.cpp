@@ -36,6 +36,9 @@
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
 
+typedef CWallet* CWalletRef;
+std::vector<StakeThread*> vStakeThreads;
+
 static const int MAX_COINBASE_SCRIPTSIG_SIZE = 100;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -82,22 +85,7 @@ static uint64_t ComputeMaxGeneratedBlockSize(const Config &config,
     // If only one is given, only restrict the specified resource.
     // If both are given, restrict both.
     uint64_t nMaxGeneratedBlockSize = DEFAULT_MAX_GENERATED_BLOCK_SIZE;
-    if (gArgs.IsArgSet("-blockmaxsize")) {
-        nMaxGeneratedBlockSize =
-            gArgs.GetArg("-blockmaxsize", DEFAULT_MAX_GENERATED_BLOCK_SIZE);
-    }
 
-    // Limit size to between 1K and MaxBlockSize-1K for sanity:
-    nMaxGeneratedBlockSize =
-        std::max(uint64_t(1000), std::min(config.GetMaxBlockSize() - 1000,
-                                          nMaxGeneratedBlockSize));
-
-    // If May 15, 2018 HF is not activated yet, we also want to limit the max
-    // generated block size to 8MB - 1000
-    if (!IsMonolithEnabled(config, pindexPrev)) {
-        nMaxGeneratedBlockSize =
-            std::min(8 * ONE_MEGABYTE - 1000, nMaxGeneratedBlockSize);
-    }
 
     return nMaxGeneratedBlockSize;
 }
@@ -143,7 +131,7 @@ getExcessiveBlockSizeSig(const Config &config) {
 int64_t GetMaxTransactionTime(CBlock* pblock) {
     int64_t maxTransactionTime = 0;
     for (std::vector<CTransactionRef>::const_iterator it(pblock->vtx.begin()); it != pblock->vtx.end(); ++it)
-        maxTransactionTime = std::max(maxTransactionTime, (int64_t)it->nTime);
+        maxTransactionTime = std::max(maxTransactionTime, (int64_t)it->get()->nTime);
     return maxTransactionTime;
 }
 
@@ -679,60 +667,125 @@ void IncrementExtraNonce(const Config &config, CBlock *pblock,
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 }
 
-void ThreadStakeMiner(CWallet *pwallet, const Config &config)
+void ThreadStakeMiner(CWalletRef &pwallet, const CChainParams& chainparams)
 {
-    // Make this thread recognisable as the mining thread
-    RenameThread("blackcoin-miner");
-
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
+
+    // Make this thread recognisable as the mining thread
+    RenameThread("qtumcoin-miner");
 
     CReserveKey reservekey(pwallet);
 
     bool fTryToSync = true;
-    
+    bool regtestMode = Params().GetConsensus().fPoSNoRetargeting;
+    if(regtestMode){
+        nMinerSleep = 30000; //limit regtest to 30s, otherwise it'll create 2 blocks per second
+    }
+
     while (true)
     {
-        while (pwallet->IsLocked())
+        while (pwallet->HaveAvailableCoinsForStaking())
         {
             nLastCoinStakeSearchInterval = 0;
-            MilliSleep(1000);
+            MilliSleep(10000);
         }
 
-        while (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || IsInitialBlockDownload())
-        {
-            nLastCoinStakeSearchInterval = 0;
-            fTryToSync = true;
-            MilliSleep(1000);
-        }
-
-        if (fTryToSync)
-        {
-            fTryToSync = false;
-            if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) < 3 || pindexBestHeader->GetBlockTime() < GetTime() - 10 * 60)
-            {
-                MilliSleep(60000);
-                continue;
+        if(!regtestMode) {
+            while (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 || IsInitialBlockDownload()) {
+                nLastCoinStakeSearchInterval = 0;
+                fTryToSync = true;
+                MilliSleep(1000);
+            }
+            if (fTryToSync) {
+                fTryToSync = false;
+                if (g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) < 3 ||
+                    pindexBestHeader->GetBlockTime() < GetTime() - 10 * 60) {
+                    MilliSleep(60000);
+                    continue;
+                }
             }
         }
-
         //
         // Create new block
         //
-        Amount nFees;
-        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(config).CreateNewBlock(reservekey.reserveScript, &nFees, true));
-        if (!pblocktemplate.get())
-             return;
-
-        CBlock *pblock = &pblocktemplate->block;
-        // Trying to sign a block
-        if (SignBlock(pblock, *pwallet, nFees))
+        if(pwallet->HaveAvailableCoinsForStaking())
         {
-            SetThreadPriority(THREAD_PRIORITY_NORMAL);
-            CheckStake(pblock, *pwallet, config);
-            SetThreadPriority(THREAD_PRIORITY_LOWEST);
-            MilliSleep(500);
+            Amount nTotalFees(0);
+            // First just create an empty block. No need to process transactions until we know we can create a block
+            std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(GetConfig()).CreateNewBlock(reservekey.reserveScript, &nTotalFees, true));
+            if (!pblocktemplate.get())
+                return;
+            CBlockIndex* pindexPrev =  chainActive.Tip();
+
+            uint32_t beginningTime=GetAdjustedTime();
+            int stakeTimeMask = Params().GetConsensus().nStakeTimestampMask;
+            beginningTime &= ~stakeTimeMask;
+            for(uint32_t i=beginningTime;i<beginningTime + MAX_STAKE_LOOKAHEAD;i+=stakeTimeMask+1) {
+
+                // The information is needed for status bar to determine if the staker is trying to create block and when it will be created approximately,
+                static int64_t nLastCoinStakeSearchTime = GetAdjustedTime(); // startup timestamp
+                // nLastCoinStakeSearchInterval > 0 mean that the staker is running
+                nLastCoinStakeSearchInterval = i - nLastCoinStakeSearchTime;
+
+                // Try to sign a block (this also checks for a PoS stake)
+                pblocktemplate->block.nTime = i;
+                CBlock *pblock = &pblocktemplate->block;
+                if (SignBlock(pblock, pwallet, nTotalFees, i)) {
+                    // increase priority so we can build the full PoS block ASAP to ensure the timestamp doesn't expire
+                    SetThreadPriority(THREAD_PRIORITY_ABOVE_NORMAL);
+
+                    if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash()) {
+                        //another block was received while building ours, scrap progress
+                        LogPrintf("ThreadStakeMiner(): Valid future PoS block was orphaned before becoming valid");
+                        break;
+                    }
+                    // Create a block that's properly populated with transactions
+                    std::unique_ptr<CBlockTemplate> pblocktemplatefilled(
+                            BlockAssembler(GetConfig()).CreateNewBlock(pblock->vtx[1]->vout[1].scriptPubKey, &nTotalFees,
+                                                                    true));
+                    if (!pblocktemplatefilled.get())
+                        return;
+                    if (chainActive.Tip()->GetBlockHash() != pblock->hashPrevBlock) {
+                        //another block was received while building ours, scrap progress
+                        LogPrintf("ThreadStakeMiner(): Valid future PoS block was orphaned before becoming valid");
+                        break;
+                    }
+                    // Sign the full block and use the timestamp from earlier for a valid stake
+                    CBlock *pblockfilled = &pblocktemplatefilled->block;
+                    if (SignBlock(pblockfilled, pwallet, nTotalFees, i)) {
+                        // Should always reach here unless we spent too much time processing transactions and the timestamp is now invalid
+                        // CheckStake also does CheckBlock and AcceptBlock to propogate it to the network
+                        bool validBlock = false;
+                        while(!validBlock) {
+                            if (chainActive.Tip()->GetBlockHash() != pblockfilled->hashPrevBlock) {
+                                //another block was received while building ours, scrap progress
+                                LogPrintf("ThreadStakeMiner(): Valid future PoS block was orphaned before becoming valid");
+                                break;
+                            }
+                            //check timestamps
+                            if (pblockfilled->GetBlockTime() <= pindexPrev->GetBlockTime() ||
+                                FutureDrift(pblockfilled->GetBlockTime()) < pindexPrev->GetBlockTime()) {
+                                LogPrintf("ThreadStakeMiner(): Valid PoS block took too long to create and has expired");
+                                break; //timestamp too late, so ignore
+                            }
+                            if (pblockfilled->GetBlockTime() > FutureDrift(GetAdjustedTime())) {
+                                MilliSleep(3000);
+                                continue;
+                            }
+                            validBlock=true;
+                        }
+                        if(validBlock) {
+                            CheckStake(pblockfilled, *pwallet, GetConfig());
+                            // Update the search time when new valid block is created, needed for status bar icon
+                            nLastCoinStakeSearchTime = pblockfilled->GetBlockTime();
+                        }
+                        break;
+                    }
+                    //return back to low priority
+                    SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                }
+            }
         }
-        else
-            MilliSleep(nMinerSleep);
+        MilliSleep(nMinerSleep);
     }
 }

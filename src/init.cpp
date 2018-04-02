@@ -2337,13 +2337,18 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
 #ifdef ENABLE_WALLET
     if (!gArgs.GetBoolArg("-staking", true))
         LogPrintf("Staking disabled\n");
+    else
+    {
+        size_t nWallets = vpwallets.size();
+        assert(nWallets > 0);
 
-    for (CWalletRef pwallet : vpwallets) {
-        // Mine proof-of-stake blocks in the background
-        if (pwallet)
-            threadGroup.create_thread(boost::bind(&ThreadStakeMiner, pwallet, std::ref(config)));
-
-        pwallet->postInitProcess(scheduler);
+        for (size_t i = 0; i < nWallets; ++i)
+        {
+            StakeThread *t = new StakeThread();
+            vStakeThreads.push_back(t);
+            t->sName = strprintf("staker%d", i);
+            t->thread = std::thread(&TraceThread<std::function<void()> >, t->sName.c_str(), std::function<void()>(std::bind(&ThreadStakeMiner, vpwallets[i], chainparams)));
+        };
     }
 #endif
 

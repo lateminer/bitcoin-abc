@@ -1130,9 +1130,10 @@ public:
     /**
      * Proof-of-stake stuff.
      */
-    bool CreateCoinStake(const CKeyStore &keystore, unsigned int nBits, int64_t nSearchInterval, Amount &nFees, CMutableTransaction &tx, CKey &key);
+    bool CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTransaction &tx, CKey &key);
     bool SelectCoinsForStaking(Amount &nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> > &setCoinsRet, Amount &nValueRet) const;
     void AvailableCoinsForStaking(std::vector<COutput> &vCoins) const;
+    bool HaveAvailableCoinsForStaking() const;
     uint64_t GetStakeWeight() const;
 
     static const bool DEFAULT_STAKE_CACHE = true;

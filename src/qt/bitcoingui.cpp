@@ -1230,8 +1230,8 @@ void BitcoinGUI::updateStakingIcon()
             text = tr("%n day(s)", "", nEstimateTime/(60*60*24));
         }
 
-        nWeight /= COIN;
-        nNetworkWeight /= COIN;
+        nWeight /= COIN.GetSatoshis();
+        nNetworkWeight /= COIN.GetSatoshis();
         labelStakingIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/staking_on").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         labelStakingIcon->setToolTip(tr("Staking.<br>Your weight is %1<br>Network weight is %2<br>Expected time to earn reward is %3").arg(nWeight).arg(nNetworkWeight).arg(text));
     }
