@@ -218,13 +218,9 @@ public:
      * @param[in] obfuscate   If true, store data obfuscated via simple XOR. If
      * false, XOR
      *                        with a zero'd byte array.
-     * @param[in] compression   Enable snappy compression for the database
-     * @param[in] maxOpenFiles  The maximum number of open files for the database
-     * @param[in] maxFileSize   The maximum size of DB file in MB
      */
-    CDBWrapper(const fs::path &path, size_t nCacheSize, bool fMemory,
-               bool fWipe, bool obfuscate, bool compression,
-               int maxOpenFiles, size_t maxFileSize);
+    CDBWrapper(const fs::path &path, size_t nCacheSize, bool fMemory = false,
+               bool fWipe = false, bool obfuscate = false);
     ~CDBWrapper();
 
     template <typename K, typename V> bool Read(const K &key, V &value) const {

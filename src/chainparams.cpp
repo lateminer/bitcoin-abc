@@ -132,6 +132,9 @@ public:
         consensus.nStakeMinConfirmations = 500;
         consensus.nStakeMinAge = 8 * 60 * 60;
 
+        // blackops hard fork
+        consensus.blackOpsActivationTime = 2000000000;
+
         /**
          * The message start string is designed to be unlikely to occur in
          * normal data. The characters are rarely used upper ASCII, not valid as
@@ -230,6 +233,9 @@ public:
         consensus.nStakeMinConfirmations = 50;
         consensus.nStakeMinAge = 1 * 60 * 60;
 
+        // blackops hard fork
+        consensus.blackOpsActivationTime = 2000000000;
+
         diskMagic[0] = 0xcd;
         diskMagic[1] = 0xf2;
         diskMagic[2] = 0xc0;
@@ -305,6 +311,9 @@ public:
         consensus.nCoinbaseMaturity = 50;
         consensus.nStakeMinConfirmations = 50;
         consensus.nStakeMinAge = 1 * 60 * 60;
+
+        // blackops hard fork
+        consensus.blackOpsActivationTime = 2000000000;
 
         diskMagic[0] = 0xcd;
         diskMagic[1] = 0xf2;
