@@ -4593,7 +4593,7 @@ bool CVerifyDB::VerifyDB(const Config &config, CCoinsView *coinsview,
             (coins.DynamicMemoryUsage() + pcoinsTip->DynamicMemoryUsage()) <=
                 nCoinCacheUsage) {
             assert(coins.GetBestBlock() == pindex->GetBlockHash());
-            DisconnectResult res = DisconnectBlock(block, pindex, coins, true);
+            DisconnectResult res = DisconnectBlock(block, pindex, coins);
             if (res == DISCONNECT_FAILED) {
                 return error("VerifyDB(): *** irrecoverable inconsistency in "
                              "block data at %d, hash=%s",
@@ -4640,7 +4640,7 @@ bool CVerifyDB::VerifyDB(const Config &config, CCoinsView *coinsview,
                     "VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s",
                     pindex->nHeight, pindex->GetBlockHash().ToString());
             }
-            if (!ConnectBlock(config, block, state, pindex, coins, false, true)) {
+            if (!ConnectBlock(config, block, state, pindex, coins, false)) {
                 return error(
                     "VerifyDB(): *** found unconnectable block at %d, hash=%s",
                     pindex->nHeight, pindex->GetBlockHash().ToString());
