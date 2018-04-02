@@ -49,7 +49,6 @@ static CBlock CreateGenesisBlock(const char *pszTimestamp,
                                           (const uint8_t *)pszTimestamp +
                                               strlen(pszTimestamp));
     txNew.vout[0].nValue = genesisReward;
-    txNew.vout[0].scriptPubKey = genesisOutputScript;
 
     CBlock genesis;
     genesis.nTime = nTime;
