@@ -1197,44 +1197,40 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex,
     return true;
 }
 
-bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex, CBlockTreeDB &txdb, COutPoint prevout)
-{
-    if (!txdb.ReadTxIndex(prevout.hash, txindex)) {
-        LogPrintf("no tx index %s \n", prevout.hash.ToString());
-        return false;
-    }
-    if (!ReadFromDisk(tx, txindex))
-        return false;
-    if (prevout.n >= tx.vout.size())
-    {
-        return false;
-    }
-    return true;
-}
+bool ReadTransactionFromDiskBlock(const CBlockIndex *pindex,
+                                   CTransactionRef &txOut){
 
-bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex)
-{
-    CAutoFile filein(OpenBlockFile(txindex, true), SER_DISK, CLIENT_VERSION);
+    const CDiskBlockPos &pos = pindex->GetBlockPos();
+
+    // Open history file to read
+    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull())
-        return error("CTransaction::ReadFromDisk() : OpenBlockFile failed");
+        return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
 
-    // Read transaction
-    CBlockHeader header;
-    CTransactionRef txRef = MakeTransactionRef(tx);
+    CBlockHeader blockHeader;
     try {
-        filein >> header;
-        fseek(filein.Get(), txindex.nTxOffset, SEEK_CUR);
-        filein >> txRef;
-    }
-    catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s", __func__, e.what());
+        filein >> blockHeader;
+
+        int nTxns = ReadCompactSize(filein);
+
+        if (nTxns <= 0)
+            return error("%s: Block %s, txn not in available range %d.", __func__, pindex->GetBlockPos().ToString(), nTxns);
+
+            filein >> txOut;
+    } catch (const std::exception& e)
+    {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
 
+    if (blockHeader.GetHash() != pindex->GetBlockHash())
+        return error("%s: Hash doesn't match index for %s at %s",
+                     __func__, pindex->ToString(), pindex->GetBlockPos().ToString());
     return true;
+
 }
 
 Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusParams) {
-    return Amount(10000);
+    return Amount(1000000000000);
 }
 
 Amount GetProofOfStakeSubsidy(int nHeight, const Consensus::Params &consensusParams) {
@@ -3110,11 +3106,11 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
 
         for (const CTxIn &txin : tx.vin) {
             // First try finding the previous transaction in database
-            CTransaction txPrev;
+            CTransactionRef txPrev;
             CDiskTxPos txindex;
-            if (!ReadFromDisk(txPrev, txindex, *pblocktree, txin.prevout))
+            if (!ReadTransactionFromDiskBlock(pindexPrev, txPrev))
                 continue;  // previous transaction not in main chain
-            if (tx.nTime < txPrev.nTime)
+            if (tx.nTime < txPrev->nTime)
                 return false;  // Transaction timestamp violation
 
             if (Params().GetConsensus().IsProtocolV3(tx.nTime))
@@ -3137,10 +3133,10 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
                     continue; // only count coins meeting min age requirement
             }
 
-            int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue.GetSatoshis();
-            bnCentSecond += arith_uint256(nValueIn) * (tx.nTime - txPrev.nTime) / CENT.GetSatoshis();
+            int64_t nValueIn = txPrev->vout[txin.prevout.n].nValue.GetSatoshis();
+            bnCentSecond += arith_uint256(nValueIn) * (tx.nTime - txPrev->nTime) / CENT.GetSatoshis();
 
-            LogPrint(BCLog::STAKE, "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
+            LogPrint(BCLog::STAKE, "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev->nTime, bnCentSecond.ToString());
         }
 
         arith_uint256 bnCoinDay = bnCentSecond * CENT.GetSatoshis() / COIN.GetSatoshis() / (24 * 60 * 60);

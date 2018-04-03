@@ -36,5 +36,5 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits, uns
 bool IsConfirmedInNPrevBlocks(const CDiskTxPos& txindex, const CBlockIndex* pindexFrom, int nMaxDepth, int& nActualDepth);
 bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned int nBits, CValidationState &state);
 void CacheKernel(std::map<COutPoint, CStakeCache>& cache, const COutPoint& prevout, CBlockIndex* pindexPrev, CCoinsViewCache& view);
-bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType);
+bool VerifySignature(const CTransactionRef& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType);
 #endif // BLACKCOIN_POS_H

@@ -187,7 +187,7 @@ static const unsigned int MAX_BLOCKS_TO_ANNOUNCE = 8;
 /** Maximum number of unconnecting headers announcements before DoS score */
 static const int MAX_UNCONNECTING_HEADERS = 10;
 
-static const bool DEFAULT_PEERBLOOMFILTERS = true;
+static const bool DEFAULT_PEERBLOOMFILTERS = false;
 
 /** Default for -stopatheight */
 static const int DEFAULT_STOPATHEIGHT = 0;
@@ -565,8 +565,8 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos,
                        const Config &config);
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex,
                        const Config &config);
-bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex, CBlockTreeDB &txdb, COutPoint prevout);
-bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex);
+bool ReadTransactionFromDiskBlock(const CBlockIndex *pindex,
+		 CTransactionRef &txOut);
 
 /** Functions for validating blocks and updating the block tree */
 

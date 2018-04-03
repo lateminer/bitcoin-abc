@@ -126,10 +126,10 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     const Coin& coin = view.AccessCoin(txin.prevout);
 
     // First try finding the previous transaction in database
-    CTransaction txPrev;
+    CTransactionRef txPrev;
     CDiskTxPos txindex;
 
-    if (!ReadFromDisk(txPrev, txindex, *pblocktree, txin.prevout))
+    if (!ReadTransactionFromDiskBlock(pindexPrev, txPrev))
        return state.DoS(1, error("CheckProofOfStake() : INFO: read txPrev failed"));  // previous transaction not in main chain, may occur during initial download
 
     // Verify signature
@@ -165,7 +165,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     return true;
 }
 
-bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType)
+bool VerifySignature(const CTransactionRef& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType)
 {
     assert(nIn < txTo.vin.size());
 
@@ -176,11 +176,11 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
     const Coin &coin = view.AccessCoin(txin.prevout);
     const Amount amount = coin.GetTxOut().nValue;
 
-    if (txin.prevout.n >= txFrom.vout.size())
+    if (txin.prevout.n >= txFrom->vout.size())
         return false;
-    const CTxOut& txout = txFrom.vout[txin.prevout.n];
+    const CTxOut& txout = txFrom->vout[txin.prevout.n];
 
-    if (txin.prevout.hash != txFrom.GetHash())
+    if (txin.prevout.hash != txFrom->GetHash())
         return false;
 
     return VerifyScript(txin.scriptSig, txout.scriptPubKey, flags, TransactionSignatureChecker(&txTo, nIn, amount), nullptr);
