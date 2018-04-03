@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2016 The Bitcoin Core developers
-// Copyright (c) 2017 The Bitcoin developers
+// Copyright (c) 2017-2018 The Bitcoin developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -575,6 +575,21 @@ static bool IsCurrentForFeeEstimation() {
     return true;
 }
 
+static bool AreBlackOpsEnabled(const Config &config, int64_t nMedianTimePast) {
+    return nMedianTimePast >=
+           gArgs.GetArg(
+               "-blackopsactivationtime",
+               config.GetChainParams().GetConsensus().blackOpsActivationTime);
+}
+
+bool AreBlackOpsEnabled(const Config &config, const CBlockIndex *pindexPrev) {
+    if (pindexPrev == nullptr) {
+        return false;
+    }
+
+    return AreBlackOpsEnabled(config, pindexPrev->GetMedianTimePast());
+}
+
 /**
  * Make mempool consistent after a reorg, by re-adding or recursively erasing
  * disconnected block transactions from the mempool, and also removing any other
@@ -634,12 +649,11 @@ void UpdateMempoolForReorg(const Config &config,
 
 // Used to avoid mempool polluting consensus critical paths if CCoinsViewMempool
 // were somehow broken and returning the wrong scriptPubKeys
-static bool CheckInputsFromMempoolAndCache(const CTransaction &tx,
-                                           CValidationState &state,
-                                           const CCoinsViewCache &view,
-                                           CTxMemPool &pool, uint32_t flags,
-                                           bool cacheSigStore,
-                                           PrecomputedTransactionData &txdata) {
+static bool
+CheckInputsFromMempoolAndCache(const CTransaction &tx, CValidationState &state,
+                               const CCoinsViewCache &view, CTxMemPool &pool,
+                               const uint32_t flags, bool cacheSigStore,
+                               PrecomputedTransactionData &txdata) {
     AssertLockHeld(cs_main);
 
     // pool.cs should be locked already, but go ahead and re-take the lock here
@@ -702,9 +716,12 @@ static bool AcceptToMemoryPoolWorker(
     if (tx.IsCoinStake())
         return state.DoS(100, false, REJECT_INVALID, "coinstake");
 
+    // After the HF we start accepting new opcodes
+    const bool hasBlackOps = AreBlackOpsEnabled(config, chainActive.Tip());
+
     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
     std::string reason;
-    if (fRequireStandard && !IsStandardTx(tx, reason, true)) {
+    if (fRequireStandard && !IsStandardTx(tx, reason, hasBlackOps)) {
         return state.DoS(0, false, REJECT_NONSTANDARD, reason);
     }
 
@@ -936,12 +953,28 @@ static bool AcceptToMemoryPoolWorker(
                              "too-long-mempool-chain", false, errString);
         }
 
+        // Set extraFlags as a set of flags that needs to be activated.
+        uint32_t extraFlags = 0;
+        if (hasBlackOps) {
+            extraFlags |= SCRIPT_ENABLE_BLACKOPS_OPCODES;
+        }
+
+        /*
+        if (IsReplayProtectionEnabledForCurrentBlock(config)) {
+            extraFlags |= SCRIPT_ENABLE_REPLAY_PROTECTION;
+        }
+        */
+
+        // Check inputs based on the set of flags we activate.
         uint32_t scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
         if (!config.GetChainParams().RequireStandard()) {
             scriptVerifyFlags =
                 SCRIPT_ENABLE_SIGHASH_FORKID |
                 gArgs.GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
         }
+
+        // Make sure whatever we need to activate is actually activated.
+        scriptVerifyFlags |= extraFlags;
 
         // Check against previous transactions. This is done last to help
         // prevent CPU exhaustion denial-of-service attacks.
@@ -969,6 +1002,11 @@ static bool AcceptToMemoryPoolWorker(
         // transactions into the mempool can be exploited as a DoS attack.
         uint32_t currentBlockScriptVerifyFlags =
             GetBlockScriptFlags(chainActive.Tip(), config);
+
+        // We have an off by one error for flag activation. As a result, we need
+        // to set the replay protection flag manually here until this is fixed.
+        // FIXME: https://reviews.bitcoinabc.org/T288
+        currentBlockScriptVerifyFlags |= extraFlags;
         if (!CheckInputsFromMempoolAndCache(tx, state, view, pool,
                                             currentBlockScriptVerifyFlags, true,
                                             txdata)) {
@@ -982,10 +1020,9 @@ static bool AcceptToMemoryPoolWorker(
                     __func__, txid.ToString(), FormatStateMessage(state));
             }
 
-            uint32_t mandatoryFlags = MANDATORY_SCRIPT_VERIFY_FLAGS;
-
-            if (!CheckInputs(tx, state, view, true, mandatoryFlags, true, false,
-                             txdata)) {
+            if (!CheckInputs(tx, state, view, true,
+                             MANDATORY_SCRIPT_VERIFY_FLAGS | extraFlags, true,
+                             false, txdata)) {
                 return error(
                     "%s: ConnectInputs failed against MANDATORY but not "
                     "STANDARD flags due to promiscuous mempool %s, %s",
@@ -1483,7 +1520,8 @@ bool CheckTxInputs(const CTransaction &tx, CValidationState &state,
 
 bool CheckInputs(const CTransaction &tx, CValidationState &state,
                  const CCoinsViewCache &inputs, bool fScriptChecks,
-                 uint32_t flags, bool sigCacheStore, bool scriptCacheStore,
+                 const uint32_t flags, bool sigCacheStore,
+                 bool scriptCacheStore,
                  const PrecomputedTransactionData &txdata,
                  std::vector<CScriptCheck> *pvChecks) {
     assert(!tx.IsCoinBase());
@@ -1537,16 +1575,26 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state,
         if (pvChecks) {
             pvChecks->push_back(std::move(check));
         } else if (!check()) {
-            if (flags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) {
+            const bool hasNonMandatoryFlags =
+                (flags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) != 0;
+            const bool doesNotHaveBlackOps =
+                (flags & SCRIPT_ENABLE_BLACKOPS_OPCODES) == 0;
+            if (hasNonMandatoryFlags || doesNotHaveBlackOps) {
                 // Check whether the failure was caused by a non-mandatory
                 // script verification check, such as non-standard DER encodings
                 // or non-null dummy arguments; if so, don't trigger DoS
                 // protection to avoid splitting the network between upgraded
                 // and non-upgraded nodes.
-                CScriptCheck check2(scriptPubKey, amount, tx, i,
-                                    flags &
-                                        ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS,
-                                    sigCacheStore, txdata);
+                //
+                // We also check activating the monolith opcodes as it is a
+                // strictly additive change and we would not like to ban some of
+                // our peer that are ahead of us and are considering the fork
+                // as activated.
+                CScriptCheck check2(
+                    scriptPubKey, amount, tx, i,
+                    (flags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS) |
+                        SCRIPT_ENABLE_BLACKOPS_OPCODES,
+                    sigCacheStore, txdata);
                 if (check2()) {
                     return state.Invalid(
                         false, REJECT_NONSTANDARD,
@@ -1891,6 +1939,19 @@ static uint32_t GetBlockScriptFlags(const CBlockIndex *pindex,
         flags |= SCRIPT_VERIFY_CHECKSEQUENCEVERIFY;
     }
 
+    // The HF enable a set of opcodes.
+    if (AreBlackOpsEnabled(config, pindex->pprev)) {
+        flags |= SCRIPT_ENABLE_BLACKOPS_OPCODES;
+    }
+
+    /*
+    // We make sure this node will have replay protection during the next hard
+    // fork.
+    if (IsReplayProtectionEnabled(config, pindex->pprev)) {
+        flags |= SCRIPT_ENABLE_REPLAY_PROTECTION;
+    }
+    */
+
     return flags;
 }
 
@@ -1917,7 +1978,9 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     const uint256 &hash = pindex->GetBlockHash();
 
     // Check it again in case a previous version let a bad block in
-    if (!CheckBlock(config, block, state, hash, !fJustCheck, !fJustCheck)) {
+    BlockValidationOptions validationOptions =
+        BlockValidationOptions(!fJustCheck, !fJustCheck, !fJustCheck);
+    if (!CheckBlock(config, block, state, hash, validationOptions)) {
         return error("%s: Consensus::CheckBlock: %s", __func__,
                      FormatStateMessage(state));
     }
@@ -2505,6 +2568,28 @@ static bool DisconnectTip(const Config &config, CValidationState &state,
                           FLUSH_STATE_IF_NEEDED)) {
         return false;
     }
+
+    /*
+    // If this block was deactivating the replay protection, then we need to
+    // remove transactions that are replay protected from the mempool. There is
+    // no easy way to do this so we'll just discard the whole mempool and then
+    // add the transaction of the block we just disconnected back.
+    //
+    // Samewise, if this block enabled the blackops opcodes, then we need to
+    // clear the mempool of any transaction using them.
+    if ((IsReplayProtectionEnabled(config, pindexDelete) &&
+         !IsReplayProtectionEnabled(config, pindexDelete->pprev)) ||
+        (AreBlackOpsEnabled(config, pindexDelete) &&
+         !AreBlackOpsEnabled(config, pindexDelete->pprev))) {
+        mempool.clear();
+        // While not strictly necessary, clearing the disconnect pool is also
+        // beneficial so we don't try to reuse its content at the end of the
+        // reorg, which we know will fail.
+        if (disconnectpool) {
+            disconnectpool->clear();
+        }
+    }
+    */
 
     if (disconnectpool) {
         // Save transactions to re-add to mempool at end of reorg
@@ -3347,8 +3432,7 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos,
     return true;
 }
 
-static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
-{
+static bool CheckBlockSignature(const CBlock& block, const uint256& hash) {
     if (block.IsProofOfWork())
         return block.vchBlockSig.empty();
 
@@ -3392,14 +3476,24 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash)
     return false;
 }
 
-static bool CheckBlockHeader(const Config &config, const CBlockHeader &block,
-                             CValidationState &state, bool fCheckPOW = false) {
+/**
+ * Return true if the provided block header is valid.
+ * Only verify PoW if blockValidationOptions is configured to do so.
+ * This allows validation of headers on which the PoW hasn't been done.
+ * For example: to validate template handed to mining software.
+ * Do not call this for any check that depends on the context.
+ * For context-dependant calls, see ContextualCheckBlockHeader.
+ */
+static bool CheckBlockHeader(
+    const Config &config, const CBlockHeader &block, CValidationState &state,
+    BlockValidationOptions validationOptions = BlockValidationOptions()) {
     if (block.nVersion < 7 && Params().GetConsensus().IsProtocolV2(block.GetBlockTime()))
         return state.Invalid(error("%s: rejected nVersion=%d block", __func__, block.nVersion),
                             REJECT_OBSOLETE, "bad-version");
 
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(), block.nBits, config)) {
+    if (validationOptions.shouldValidatePoW() &&
+        !CheckProofOfWork(block.GetHash(), block.nBits, config)) {
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false,
                             "proof of work failed");
     }
@@ -3413,8 +3507,8 @@ static bool CheckBlockHeader(const Config &config, const CBlockHeader &block,
 }
 
 bool CheckBlock(const Config &config, const CBlock &block,
-                CValidationState &state, const uint256 &hash, bool fCheckPOW,
-                bool fCheckMerkleRoot, bool fCheckSig) {
+                CValidationState &state, const uint256 &hash,
+                BlockValidationOptions validationOptions) {
     // These are checks that are independent of context.
     if (block.fChecked) {
         return true;
@@ -3422,12 +3516,12 @@ bool CheckBlock(const Config &config, const CBlock &block,
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(config, block, state, block.IsProofOfWork())) {
+    if (!CheckBlockHeader(config, block, state, validationOptions)) {
         return false;
     }
 
     // Check the merkle root.
-    if (fCheckMerkleRoot) {
+    if (validationOptions.shouldValidateMerkleRoot()) {
         bool mutated;
         uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
         if (block.hashMerkleRoot != hashMerkleRoot2) {
@@ -3555,7 +3649,8 @@ bool CheckBlock(const Config &config, const CBlock &block,
                                     "block timestamp earlier than transaction timestamp");
     }
 
-    if (fCheckPOW && fCheckMerkleRoot) {
+    if (validationOptions.shouldValidatePoW() &&
+        validationOptions.shouldValidateMerkleRoot()) {
         block.fChecked = true;
     }
 
@@ -4076,7 +4171,7 @@ bool ProcessNewBlock(const Config &config,
 
 bool TestBlockValidity(const Config &config, CValidationState &state,
                        const CBlock &block, CBlockIndex *pindexPrev,
-                       bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) {
+                       BlockValidationOptions validationOptions) {
     AssertLockHeld(cs_main);
     const CChainParams &chainparams = config.GetChainParams();
 
@@ -4100,7 +4195,7 @@ bool TestBlockValidity(const Config &config, CValidationState &state,
         return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__,
                      FormatStateMessage(state));
     }
-    if (!CheckBlock(config, block, state, hash, fCheckPOW, fCheckMerkleRoot)) {
+    if (!CheckBlock(config, block, state, validationOptions)) {
         return error("%s: Consensus::CheckBlock: %s", __func__,
                      FormatStateMessage(state));
     }
@@ -5519,12 +5614,13 @@ void DumpMempool(void) {
 
 //! Guess how far we are in the verification process at the given block index
 double GuessVerificationProgress(const ChainTxData &data, CBlockIndex *pindex) {
-    if (pindex == nullptr) return 0.0;
+    if (pindex == nullptr) {
+        return 0.0;
+    }
 
     int64_t nNow = time(nullptr);
 
     double fTxTotal;
-
     if (pindex->nChainTx <= data.nTxCount) {
         fTxTotal = data.nTxCount + (nNow - data.nTime) * data.dTxRate;
     } else {

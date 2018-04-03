@@ -227,7 +227,10 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn, Amount *pFees, boo
         GetSigOpCountWithoutP2SH(*pblock->vtx[0]);
 
     CValidationState state;
-    if (!fProofOfStake && !TestBlockValidity(*config, state, *pblock, pindexPrev, false, false)) {
+    BlockValidationOptions validationOptions =
+        BlockValidationOptions(false, false, true);
+    if (!fProofOfStake && !TestBlockValidity(*config, state, *pblock, pindexPrev,
+                           validationOptions)) {
         throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s",
                                            __func__,
                                            FormatStateMessage(state)));
