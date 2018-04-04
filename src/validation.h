@@ -187,7 +187,7 @@ static const unsigned int MAX_BLOCKS_TO_ANNOUNCE = 8;
 /** Maximum number of unconnecting headers announcements before DoS score */
 static const int MAX_UNCONNECTING_HEADERS = 10;
 
-static const bool DEFAULT_PEERBLOOMFILTERS = true;
+static const bool DEFAULT_PEERBLOOMFILTERS = false;
 
 /** Default for -stopatheight */
 static const int DEFAULT_STOPATHEIGHT = 0;
@@ -384,7 +384,7 @@ bool ActivateBestChain(
     const Config &config, CValidationState &state,
     std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>(), const uint256 *phash = nullptr);
 Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusParams);
-Amount GetProofOfStakeSubsidy(int nHeight, const Consensus::Params &consensusParams);
+Amount GetProofOfStakeSubsidy();
 
 /** Guess verification progress (as a fraction between 0.0=genesis and
  * 1.0=current tip). */
@@ -586,8 +586,8 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos,
                        const Config &config);
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex,
                        const Config &config);
-bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex, CBlockTreeDB &txdb, COutPoint prevout);
-bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex);
+bool ReadTransactionFromDiskBlock(const CBlockIndex *pindex,
+		 CTransactionRef &txOut);
 
 /** Functions for validating blocks and updating the block tree */
 

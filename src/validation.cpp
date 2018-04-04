@@ -1234,48 +1234,44 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex,
     return true;
 }
 
-bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex, CBlockTreeDB &txdb, COutPoint prevout)
-{
-    if (!txdb.ReadTxIndex(prevout.hash, txindex)) {
-        LogPrintf("no tx index %s \n", prevout.hash.ToString());
-        return false;
-    }
-    if (!ReadFromDisk(tx, txindex))
-        return false;
-    if (prevout.n >= tx.vout.size())
-    {
-        return false;
-    }
-    return true;
-}
+bool ReadTransactionFromDiskBlock(const CBlockIndex *pindex,
+                                   CTransactionRef &txOut){
 
-bool ReadFromDisk(const CTransaction &tx, CDiskTxPos &txindex)
-{
-    CAutoFile filein(OpenBlockFile(txindex, true), SER_DISK, CLIENT_VERSION);
+    const CDiskBlockPos &pos = pindex->GetBlockPos();
+
+    // Open history file to read
+    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
     if (filein.IsNull())
-        return error("CTransaction::ReadFromDisk() : OpenBlockFile failed");
+        return error("%s: OpenBlockFile failed for %s", __func__, pos.ToString());
 
-    // Read transaction
-    CBlockHeader header;
-    CTransactionRef txRef = MakeTransactionRef(tx);
+    CBlockHeader blockHeader;
     try {
-        filein >> header;
-        fseek(filein.Get(), txindex.nTxOffset, SEEK_CUR);
-        filein >> txRef;
-    }
-    catch (const std::exception& e) {
-        return error("%s: Deserialize or I/O error - %s", __func__, e.what());
+        filein >> blockHeader;
+
+        int nTxns = ReadCompactSize(filein);
+
+        if (nTxns <= 0)
+            return error("%s: Block %s, txn not in available range %d.", __func__, pindex->GetBlockPos().ToString(), nTxns);
+
+            filein >> txOut;
+    } catch (const std::exception& e)
+    {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
 
+    if (blockHeader.GetHash() != pindex->GetBlockHash())
+        return error("%s: Hash doesn't match index for %s at %s",
+                     __func__, pindex->ToString(), pindex->GetBlockPos().ToString());
     return true;
+
 }
 
 Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusParams) {
-    return Amount(10000);
+    return Amount(1000000000000);
 }
 
-Amount GetProofOfStakeSubsidy(int nHeight, const Consensus::Params &consensusParams) {
-    return Amount(3 / 2);
+Amount GetProofOfStakeSubsidy() {
+    return Amount(150000000);
 }
 
 bool IsInitialBlockDownload() {
@@ -2012,6 +2008,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     // Check proof-of-stake
     if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
          const COutPoint &prevout = block.vtx[1]->vin[0].prevout;
+
          const Coin &coin = view.AccessCoin(prevout);
           if (coin.IsSpent())
               return state.DoS(100, error("%s: kernel input unavailable", __func__),
@@ -2023,24 +2020,12 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                   error("%s: tried to stake at depth %d", __func__, pindex->nHeight - coin.GetHeight()),
                     REJECT_INVALID, "bad-cs-premature");
 
-
-         Coin coinPrev;
-         CBlockIndex* pindexPrev = pindex->pprev;
-		 if(!view.GetCoin(prevout, coinPrev)){
-			return false;
-		 }
-
-		 if(pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations){
-			return false;
-		 }
-		 CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);
+		 CBlockIndex* blockFrom = pindex->pprev->GetAncestor(coin.GetHeight());
 		 if(!blockFrom) {
 			return false;
 		 }
-		 if(coinPrev.IsSpent()){
-			return false;
-		 }
-         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, blockFrom->nTime, coinPrev.out.nValue, prevout, block.vtx[1]->nTime))
+
+         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, blockFrom->nTime, coin.out.nValue, prevout, block.vtx[1]->nTime))
               return state.DoS(100, error("%s: proof-of-stake hash doesn't match nBits", __func__),
                                  REJECT_INVALID, "bad-cs-proofhash");
     }
@@ -2204,10 +2189,10 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     }
 
     if (block.IsProofOfStake() && block.GetBlockTime() > consensusParams.nProtocolV3Time) {
-        Amount blockReward = nFees + GetProofOfStakeSubsidy(pindex->nHeight, consensusParams);
+        Amount blockReward = nFees + GetProofOfStakeSubsidy();
         if (nActualStakeReward > blockReward)
-            return state.DoS(100, error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d)",
-                                       nActualStakeReward, blockReward),
+            return state.DoS(100, error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d) Fees=%d",
+                                       nActualStakeReward, blockReward, nFees),
                                        REJECT_INVALID, "bad-cs-amount");
     }
 
@@ -3195,11 +3180,11 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
 
         for (const CTxIn &txin : tx.vin) {
             // First try finding the previous transaction in database
-            CTransaction txPrev;
+            CTransactionRef txPrev;
             CDiskTxPos txindex;
-            if (!ReadFromDisk(txPrev, txindex, *pblocktree, txin.prevout))
+            if (!ReadTransactionFromDiskBlock(pindexPrev, txPrev))
                 continue;  // previous transaction not in main chain
-            if (tx.nTime < txPrev.nTime)
+            if (tx.nTime < txPrev->nTime)
                 return false;  // Transaction timestamp violation
 
             if (Params().GetConsensus().IsProtocolV3(tx.nTime))
@@ -3222,10 +3207,10 @@ bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *p
                     continue; // only count coins meeting min age requirement
             }
 
-            int64_t nValueIn = txPrev.vout[txin.prevout.n].nValue.GetSatoshis();
-            bnCentSecond += arith_uint256(nValueIn) * (tx.nTime - txPrev.nTime) / CENT.GetSatoshis();
+            int64_t nValueIn = txPrev->vout[txin.prevout.n].nValue.GetSatoshis();
+            bnCentSecond += arith_uint256(nValueIn) * (tx.nTime - txPrev->nTime) / CENT.GetSatoshis();
 
-            LogPrint(BCLog::STAKE, "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev.nTime, bnCentSecond.ToString());
+            LogPrint(BCLog::STAKE, "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev->nTime, bnCentSecond.ToString());
         }
 
         arith_uint256 bnCoinDay = bnCentSecond * CENT.GetSatoshis() / COIN.GetSatoshis() / (24 * 60 * 60);
