@@ -3036,7 +3036,7 @@ std::string userAgent(const Config &config) {
     // format excessive blocksize value
     std::string eb = getSubVersionEB(config.GetMaxBlockSize());
     std::vector<std::string> uacomments;
-    uacomments.push_back("EB" + eb);
+    // uacomments.push_back("EB" + eb);
 
     // sanitize comments per BIP-0014, format user agent and check total size
     if (gArgs.IsArgSet("-uacomment")) {

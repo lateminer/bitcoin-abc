@@ -587,7 +587,7 @@ bool AreBlackOpsEnabled(const Config &config, const CBlockIndex *pindexPrev) {
         return false;
     }
 
-    return AreBlackOpsEnabled(config, pindexPrev->GetMedianTimePast());
+    return AreBlackOpsEnabled(config, pindexPrev->GetPastTimeLimit());
 }
 
 /**
@@ -3514,9 +3514,12 @@ bool CheckBlock(const Config &config, const CBlock &block,
         return true;
     }
 
+    BlockValidationOptions headerValidationOptions =
+        BlockValidationOptions(block.IsProofOfWork(), validationOptions.shouldValidateMerkleRoot(), validationOptions.shouldValidateSig());
+
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(config, block, state, validationOptions)) {
+    if (!CheckBlockHeader(config, block, state, headerValidationOptions)) {
         return false;
     }
 
@@ -3606,7 +3609,7 @@ bool CheckBlock(const Config &config, const CBlock &block,
     }
 
     // Check proof-of-stake block signature
-    if (fCheckSig && !CheckBlockSignature(block, hash))
+    if (validationOptions.shouldValidateSig() && !CheckBlockSignature(block, hash))
             return state.DoS(100, false, REJECT_INVALID, "bad-block-signature", false,
                          "bad proof-of-stake block signature");
 
@@ -3917,7 +3920,9 @@ static bool AcceptBlockHeader(const Config &config, const CBlockHeader &block,
             return true;
         }
 
-        if (!CheckBlockHeader(config, block, state)) {
+        BlockValidationOptions validationOptions =
+            BlockValidationOptions(false, true, true);
+        if (!CheckBlockHeader(config, block, state, validationOptions)) {
             return error("%s: Consensus::CheckBlockHeader: %s, %s", __func__,
                          hash.ToString(), FormatStateMessage(state));
         }
@@ -4195,7 +4200,7 @@ bool TestBlockValidity(const Config &config, CValidationState &state,
         return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__,
                      FormatStateMessage(state));
     }
-    if (!CheckBlock(config, block, state, validationOptions)) {
+    if (!CheckBlock(config, block, state, hash, validationOptions)) {
         return error("%s: Consensus::CheckBlock: %s", __func__,
                      FormatStateMessage(state));
     }
