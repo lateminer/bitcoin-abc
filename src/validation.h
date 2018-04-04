@@ -275,6 +275,23 @@ static const unsigned int DEFAULT_CHECKLEVEL = 3;
  */
 static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 550 * 1024 * 1024;
 
+class BlockValidationOptions {
+private:
+    bool checkPoW : 1;
+    bool checkMerkleRoot : 1;
+    bool checkSig : 1;
+
+public:
+    // Do full validation by default
+    BlockValidationOptions() : checkPoW(true), checkMerkleRoot(true), checkSig(true) {}
+    BlockValidationOptions(bool checkPoWIn, bool checkMerkleRootIn, bool checkSigIn)
+        : checkPoW(checkPoWIn), checkMerkleRoot(checkMerkleRootIn), checkSig(checkSigIn) {}
+
+    bool shouldValidatePoW() const { return checkPoW; }
+    bool shouldValidateMerkleRoot() const { return checkMerkleRoot; }
+    bool shouldValidateSig() const { return checkSig; }
+};
+
 /**
  * Process an incoming block. This only returns after the best known valid
  * block is made active. Note that it does not, however, guarantee that the
@@ -392,6 +409,9 @@ void PruneAndFlush();
 /** Prune block files up to a given height */
 void PruneBlockFilesManual(int nPruneUpToHeight);
 
+/** Check if BlackOps HF has activated. */
+bool AreBlackOpsEnabled(const Config &config, const CBlockIndex *pindexPrev);
+
 /**
  * (try to) add transaction to memory pool
  */
@@ -457,7 +477,8 @@ uint64_t GetTransactionSigOpCount(const CTransaction &tx,
  */
 bool CheckInputs(const CTransaction &tx, CValidationState &state,
                  const CCoinsViewCache &view, bool fScriptChecks,
-                 uint32_t flags, bool sigCacheStore, bool scriptCacheStore,
+                 const uint32_t flags, bool sigCacheStore,
+                 bool scriptCacheStore,
                  const PrecomputedTransactionData &txdata,
                  std::vector<CScriptCheck> *pvChecks = nullptr);
 
@@ -576,9 +597,9 @@ bool ReadTransactionFromDiskBlock(const CBlockIndex *pindex,
  * Returns true if the provided block is valid (has valid header,
  * transactions are valid, block is a valid size, etc.)
  */
-bool CheckBlock(const Config &Config, const CBlock &block,
-                CValidationState &state, const uint256 &hash, bool fCheckPOW = true,
-                bool fCheckMerkleRoot = true, bool fCheckSig = true);
+bool CheckBlock(
+    const Config &Config, const CBlock &block, CValidationState &state, const uint256 &hash,
+    BlockValidationOptions validationOptions = BlockValidationOptions());
 bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config);
 bool SignBlock(CBlock *pblock, CWalletRef &wallet, Amount &nFees, uint32_t nTime);
 
@@ -607,10 +628,10 @@ bool ContextualCheckTransactionForCurrentBlock(const Config &config,
  * Check a block is completely valid from start to finish (only works on top of
  * our current best block, with cs_main held)
  */
-bool TestBlockValidity(const Config &config, CValidationState &state,
-                       const CBlock &block, CBlockIndex *pindexPrev,
-                       bool fCheckPOW = true, bool fCheckMerkleRoot = true,
-                       bool fCheckSig = true);
+bool TestBlockValidity(
+    const Config &config, CValidationState &state, const CBlock &block,
+    CBlockIndex *pindexPrev,
+    BlockValidationOptions validationOptions = BlockValidationOptions());
 
 /**
  * When there are blocks in the active chain with missing data, rewind the

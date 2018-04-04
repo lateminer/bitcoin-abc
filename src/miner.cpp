@@ -227,7 +227,10 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn, Amount *pFees, boo
         GetSigOpCountWithoutP2SH(*pblock->vtx[0]);
 
     CValidationState state;
-    if (!fProofOfStake && !TestBlockValidity(*config, state, *pblock, pindexPrev, false, false)) {
+    BlockValidationOptions validationOptions =
+        BlockValidationOptions(false, false, true);
+    if (!fProofOfStake && !TestBlockValidity(*config, state, *pblock, pindexPrev,
+                           validationOptions)) {
         throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s",
                                            __func__,
                                            FormatStateMessage(state)));
@@ -672,7 +675,7 @@ void ThreadStakeMiner(CWalletRef &pwallet, const CChainParams& chainparams)
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
     // Make this thread recognisable as the mining thread
-    RenameThread("qtumcoin-miner");
+    RenameThread("blackcoin-miner");
 
     CReserveKey reservekey(pwallet);
 

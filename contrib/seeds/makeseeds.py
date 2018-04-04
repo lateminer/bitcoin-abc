@@ -10,12 +10,12 @@ NSEEDS = 512
 
 MAX_SEEDS_PER_ASN = 2
 
-MIN_BLOCKS = 337600
+MIN_BLOCKS = 1500000
 
 # These are hosts that have been observed to be behaving strangely (e.g.
 # aggressively connecting to every node).
 SUSPICIOUS_HOSTS = {
-    "130.211.129.106", "178.63.107.226",
+    "23.92.36.9", "72.36.89.11", "130.211.129.106", "178.63.107.226",
     "83.81.130.26", "88.198.17.7", "148.251.238.178", "176.9.46.6",
     "54.173.72.127", "54.174.10.182", "54.183.64.54", "54.194.231.211",
     "54.66.214.167", "54.66.220.137", "54.67.33.14", "54.77.251.214",
@@ -32,22 +32,14 @@ PATTERN_IPV4 = re.compile(
 PATTERN_IPV6 = re.compile(r"^\[([0-9a-z:]+)\]:(\d+)$")
 PATTERN_ONION = re.compile(
     r"^([abcdefghijklmnopqrstuvwxyz234567]{16}\.onion):(\d+)$")
-
-# Used to only select nodes with a user agent string compatible with the
-# BCH/UAHF specification.
 PATTERN_AGENT = re.compile(
-    r"^(/BitcoinABC:0.16.(\d+)\(\S+\)/|/BitcoinXT:0.11\(\S+\)/|/BUCash:1.1.(\d+)\(\S+\)/)")
+    r"^(\/Satoshi:0\.8\.6\/|\/Satoshi:0\.9\.(2|3|4|5)\/|\/Satoshi:0\.10\.\d{1,2}\/|\/Satoshi:0\.11\.\d{1,2}\/)$")
 
 
 def parseline(line):
     sline = line.split()
     if len(sline) < 11:
         return None
-    # All BCH clients apart BU and Classic has a space in the useragent string
-    if len(sline) == 13:
-        sline[11] = sline[11] + sline[12]
-    if len(sline) == 14:
-        sline[11] = sline[11] + sline[12] + sline[13]
     m = PATTERN_IPV4.match(sline[0])
     sortkey = None
     ip = None
