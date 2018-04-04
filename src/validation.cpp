@@ -1267,11 +1267,11 @@ bool ReadTransactionFromDiskBlock(const CBlockIndex *pindex,
 }
 
 Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusParams) {
-    return Amount(1000000000000);
+    return Amount(10000 * COIN);
 }
 
 Amount GetProofOfStakeSubsidy() {
-    return Amount(150000000);
+    return Amount(3 / 2 * COIN);
 }
 
 bool IsInitialBlockDownload() {
@@ -2191,7 +2191,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     if (block.IsProofOfStake() && block.GetBlockTime() > consensusParams.nProtocolV3Time) {
         Amount blockReward = nFees + GetProofOfStakeSubsidy();
         if (nActualStakeReward > blockReward)
-            return state.DoS(100, error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d) Fees=%d",
+            return state.DoS(100, error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d) fees=%d",
                                        nActualStakeReward, blockReward, nFees),
                                        REJECT_INVALID, "bad-cs-amount");
     }
@@ -3500,7 +3500,7 @@ bool CheckBlock(const Config &config, const CBlock &block,
     }
 
     BlockValidationOptions headerValidationOptions =
-        BlockValidationOptions(block.IsProofOfWork(), validationOptions.shouldValidateMerkleRoot(), validationOptions.shouldValidateSig());
+        BlockValidationOptions(block.IsProofOfWork(), true, true);
 
     // Check that the header is valid (particularly PoW).  This is mostly
     // redundant with the call in AcceptBlockHeader.

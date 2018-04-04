@@ -675,7 +675,7 @@ void ThreadStakeMiner(CWalletRef &pwallet, const CChainParams& chainparams)
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
 
     // Make this thread recognisable as the mining thread
-    RenameThread("qtumcoin-miner");
+    RenameThread("blackcoin-miner");
 
     CReserveKey reservekey(pwallet);
 
