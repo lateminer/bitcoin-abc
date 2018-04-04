@@ -1233,8 +1233,8 @@ Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusPara
     return Amount(1000000000000);
 }
 
-Amount GetProofOfStakeSubsidy(int nHeight, const Consensus::Params &consensusParams) {
-    return Amount(3 / 2);
+Amount GetProofOfStakeSubsidy() {
+    return Amount(150000000);
 }
 
 bool IsInitialBlockDownload() {
@@ -1945,6 +1945,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     // Check proof-of-stake
     if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
          const COutPoint &prevout = block.vtx[1]->vin[0].prevout;
+
          const Coin &coin = view.AccessCoin(prevout);
           if (coin.IsSpent())
               return state.DoS(100, error("%s: kernel input unavailable", __func__),
@@ -1956,24 +1957,12 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                   error("%s: tried to stake at depth %d", __func__, pindex->nHeight - coin.GetHeight()),
                     REJECT_INVALID, "bad-cs-premature");
 
-
-         Coin coinPrev;
-         CBlockIndex* pindexPrev = pindex->pprev;
-		 if(!view.GetCoin(prevout, coinPrev)){
-			return false;
-		 }
-
-		 if(pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations){
-			return false;
-		 }
-		 CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);
+		 CBlockIndex* blockFrom = pindex->pprev->GetAncestor(coin.GetHeight());
 		 if(!blockFrom) {
 			return false;
 		 }
-		 if(coinPrev.IsSpent()){
-			return false;
-		 }
-         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, blockFrom->nTime, coinPrev.out.nValue, prevout, block.vtx[1]->nTime))
+
+         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, blockFrom->nTime, coin.out.nValue, prevout, block.vtx[1]->nTime))
               return state.DoS(100, error("%s: proof-of-stake hash doesn't match nBits", __func__),
                                  REJECT_INVALID, "bad-cs-proofhash");
     }
@@ -2137,10 +2126,10 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     }
 
     if (block.IsProofOfStake() && block.GetBlockTime() > consensusParams.nProtocolV3Time) {
-        Amount blockReward = nFees + GetProofOfStakeSubsidy(pindex->nHeight, consensusParams);
+        Amount blockReward = nFees + GetProofOfStakeSubsidy();
         if (nActualStakeReward > blockReward)
-            return state.DoS(100, error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d)",
-                                       nActualStakeReward, blockReward),
+            return state.DoS(100, error("ConnectBlock(): coinstake pays too much (actual=%d vs limit=%d) Fees=%d",
+                                       nActualStakeReward, blockReward, nFees),
                                        REJECT_INVALID, "bad-cs-amount");
     }
 

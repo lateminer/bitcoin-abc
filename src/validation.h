@@ -367,7 +367,7 @@ bool ActivateBestChain(
     const Config &config, CValidationState &state,
     std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>(), const uint256 *phash = nullptr);
 Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusParams);
-Amount GetProofOfStakeSubsidy(int nHeight, const Consensus::Params &consensusParams);
+Amount GetProofOfStakeSubsidy();
 
 /** Guess verification progress (as a fraction between 0.0=genesis and
  * 1.0=current tip). */
