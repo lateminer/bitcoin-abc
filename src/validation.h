@@ -600,7 +600,7 @@ bool ReadTransactionFromDiskBlock(const CBlockIndex *pindex,
 bool CheckBlock(
     const Config &Config, const CBlock &block, CValidationState &state, const uint256 &hash,
     BlockValidationOptions validationOptions = BlockValidationOptions());
-bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config);
+bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config, CCoinsViewCache& view);
 bool SignBlock(CBlock *pblock, CWalletRef &wallet, Amount &nFees, uint32_t nTime);
 
 /**

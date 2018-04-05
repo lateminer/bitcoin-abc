@@ -778,7 +778,7 @@ void ThreadStakeMiner(CWalletRef &pwallet, const CChainParams& chainparams)
                             validBlock=true;
                         }
                         if(validBlock) {
-                            CheckStake(pblockfilled, *pwallet, GetConfig());
+                            CheckStake(pblockfilled, *pwallet, GetConfig(), *pcoinsTip);
                             // Update the search time when new valid block is created, needed for status bar icon
                             nLastCoinStakeSearchTime = pblockfilled->GetBlockTime();
                         }

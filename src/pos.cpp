@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include "util.h"
 #include "config.h"
+#include "policy/policy.h"
 
 // Stake Modifier (hash modifier of proof-of-stake):
 // The purpose of stake modifier is to prevent a txout (coin) owner from
@@ -113,58 +114,53 @@ bool IsConfirmedInNPrevBlocks(const CDiskTxPos& txindex, const CBlockIndex* pind
 }
 
 // Check kernel hash target and coinstake signature
-bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned int nBits, CValidationState &state) {
+bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned int nBits, uint32_t nTimeBlock, CCoinsViewCache& view, CValidationState &state) {
     if (!tx.IsCoinStake())
             return error("CheckProofOfStake() : called on non-coinstake %s", tx.GetHash().ToString());
 
-        // Kernel (input 0) must match the stake hash target per coin age (nBits)
-        const CTxIn& txin = tx.vin[0];
+    // Kernel (input 0) must match the stake hash target (nBits)
+	const CTxIn& txin = tx.vin[0];
 
-        // First try finding the previous transaction in database
-        CTransactionRef txPrev;
-        if (!ReadTransactionFromDiskBlock(pindexPrev, txPrev))
-           return state.DoS(1, error("CheckProofOfStake() : INFO: read txPrev failed"));  // previous transaction not in main chain, may occur during initial download
+	Coin coinPrev;
 
-        // Verify signature
-        if (!VerifySignature(txPrev, tx, 0, SCRIPT_VERIFY_NONE, 0))
-           return state.DoS(100, error("CheckProofOfStake() : VerifySignature failed on coinstake %s", tx.GetHash().ToString()));
+	if(!view.GetCoin(txin.prevout, coinPrev)){
+		return state.DoS(100, error("CheckProofOfStake() : Stake prevout does not exist %s", txin.prevout.hash.ToString()));
+	}
 
-        // Read block header
-        CBlock block;
-        const CDiskBlockPos& pos = pindexPrev->GetBlockPos();
-        if (!ReadBlockFromDisk(block, pos, GetConfig()))
-           return state.DoS(100, error("CheckProofOfStake() : read block failed")); // unable to read block of previous transaction
+	if(pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations){
+		return state.DoS(100, error("CheckProofOfStake() : Stake prevout is not mature, expecting %i and only matured to %i", Params().GetConsensus().nStakeMinConfirmations, pindexPrev->nHeight + 1 - coinPrev.nHeight));
+	}
+	CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);
+	if(!blockFrom) {
+		return state.DoS(100, error("CheckProofOfStake() : Block at height %i for prevout can not be loaded", coinPrev.nHeight));
+	}
 
-        // Min age requirement
-        int nDepth;
-        if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, Params().GetConsensus().nStakeMinConfirmations - 1, nDepth))
-           return state.DoS(100, error("CheckProofOfStake() : tried to stake at depth %d", nDepth + 1));
+	// Verify signature
+	if (!VerifySignature(coinPrev, txin.prevout.hash, tx, 0, SCRIPT_VERIFY_NONE))
+		return state.DoS(100, error("CheckProofOfStake() : VerifySignature failed on coinstake %s", tx.GetHash().ToString()));
 
-        if (!CheckStakeKernelHash(pindexPrev, nBits, block.nTime, Coin(txPrev, pindexPrev->nHeight), txin.prevout, tx.nTime))
-           return state.DoS(1, error("CheckProofOfStake() : INFO: check kernel failed on coinstake %s", tx.GetHash().ToString())); // may occur during initial download or if behind on block chain sync
+	if (!CheckStakeKernelHash(pindexPrev, nBits, blockFrom->nTime, coinPrev.out.nValue, txin.prevout, nTimeBlock))
+	   return state.DoS(1, error("CheckProofOfStake() : INFO: check kernel failed on coinstake %s", tx.GetHash().ToString())); // may occur during initial download or if behind on block chain sync
 
-        return true;
+	return true;
 }
 
-bool VerifySignature(const CTransactionRef& txFrom, const CTransaction& txTo, unsigned int nIn, unsigned int flags, int nHashType)
+bool VerifySignature(const Coin& coin, const uint256 txFromHash, const CTransaction& txTo, unsigned int nIn, unsigned int flags)
 {
-    assert(nIn < txTo.vin.size());
+	TransactionSignatureChecker checker(&txTo, nIn, coin.out.nValue);
 
-    CCoinsView viewDummy;
-    CCoinsViewCache view(&viewDummy);
+	    const CTxIn& txin = txTo.vin[nIn];
+	//    if (txin.prevout.n >= txFrom.vout.size())
+	//        return false;
+	//    const CTxOut& txout = txFrom.vout[txin.prevout.n];
 
-    const CTxIn& txin = txTo.vin[nIn];
-    const Coin &coin = view.AccessCoin(txin.prevout);
-    const Amount amount = coin.GetTxOut().nValue;
+	    const CTxOut& txout = coin.out;
 
-    if (txin.prevout.n >= txFrom->vout.size())
-        return false;
-    const CTxOut& txout = txFrom->vout[txin.prevout.n];
+	    if (txin.prevout.hash != txFromHash)
+	        return false;
+	    ScriptError serror = SCRIPT_ERR_OK;
 
-    if (txin.prevout.hash != txFrom->GetHash())
-        return false;
-
-    return VerifyScript(txin.scriptSig, txout.scriptPubKey, flags, TransactionSignatureChecker(&txTo, nIn, amount), nullptr);
+	    return VerifyScript(txin.scriptSig, txout.scriptPubKey, flags, checker, &serror);
 }
 
 bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTimeBlock, const COutPoint& prevout, uint32_t* pBlockTime){

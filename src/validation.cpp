@@ -3645,7 +3645,7 @@ bool CheckBlock(const Config &config, const CBlock &block,
     return true;
 }
 
-bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config) {
+bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config, CCoinsViewCache& view) {
     uint256 hashBlock = pblock->GetHash();
 
     if(!pblock->IsProofOfStake())
@@ -3653,7 +3653,7 @@ bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config) {
 
     CValidationState state;
     // verify hash target and signature of coinstake tx
-    if (!CheckProofOfStake(mapBlockIndex[pblock->hashPrevBlock], *pblock->vtx[1], pblock->nBits, state))
+    if (!CheckProofOfStake(mapBlockIndex[pblock->hashPrevBlock], *pblock->vtx[1], pblock->nBits, pblock->nTime, view, state))
         return error("CheckStake() : proof-of-stake checking failed");
 
     //// debug print
