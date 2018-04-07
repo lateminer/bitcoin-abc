@@ -1271,7 +1271,7 @@ Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusPara
 }
 
 Amount GetProofOfStakeSubsidy() {
-    return Amount(3 / 2 * COIN);
+    return Amount(3 * COIN / 2);
 }
 
 bool IsInitialBlockDownload() {
