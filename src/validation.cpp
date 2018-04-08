@@ -3288,8 +3288,9 @@ static bool FindBlockPos(CValidationState &state, CDiskBlockPos &pos,
                                           pos.nPos);
                     fclose(file);
                 }
-            } else
+            } else {
                 return state.Error("out of disk space");
+            }
         }
     }
 
@@ -4036,7 +4037,9 @@ bool ProcessNewBlock(const Config &config,
                      bool fForceProcessing, bool *fNewBlock, const uint256 &hash) {
     {
         CBlockIndex *pindex = nullptr;
-        if (fNewBlock) *fNewBlock = false;
+        if (fNewBlock) {
+            *fNewBlock = false;
+        }
 
         const CChainParams &chainparams = config.GetChainParams();
 
