@@ -1,44 +1,60 @@
-[Bitcoin ABC](https://www.bitcoinabc.org)
-===========
+Blackcoin Lore
+=====================================
 
-The goal of Bitcoin ABC is to create sound money that is usable by everyone in
-the world. We believe this is a civilization-changing technology which will
-dramatically increase human flourishing, freedom, and prosperity. The project
-aims to achieve this goal by implementing a series of optimizations and
-protocol upgrades that will enable peer-to-peer digital cash to scale many
-orders of magnitude beyond current limits.
+https://blackcoin.co
 
-What is Bitcoin Cash?
----------------------
+What is Blackcoin?
+----------------
 
-[Bitcoin Cash](https://www.bitcoincash.org/) is an experimental digital
-currency that enables instant payments to anyone, anywhere in the world. It
-uses peer-to-peer technology to operate with no central authority: managing
-transactions and issuing money are carried out collectively by the network.
-Bitcoin Cash is a descendant of Bitcoin. It became a separate currency from
-the version supported by Bitcoin Core when the two split on August 1, 2017.
-Bitcoin Cash and the Bitcoin Core version of Bitcoin share the same
-transaction history up until the split.
+Blackcoin is a decentralised digital currency with near-instant transaction speeds and
+negligible transaction fees built upon Proof of Stake 3.0 as introduced by the Blackcoin development team. Blackcoin Lore is the name of open source
+software which enables the use of this currency. It takes Blackcoin to the next level by building upon Bitcoin ABC 0.17 to offer performance enhancements,
+wider compatibility with third party services and a more advanced base.
 
-What is Bitcoin ABC?
---------------------
-
-Bitcoin ABC is the name of open-source software which enables the use of
-Bitcoin Cash. It is a fork of the [Bitcoin Core](https://bitcoincore.org)
-software project.
+For more information, as well as an immediately useable, binary version of
+the Blackcoin Lore software, see https://github.com/janko33bd/bitcoin-abc/releases.
 
 License
 -------
 
-Bitcoin ABC is released under the terms of the MIT license. See
-[COPYING](COPYING) for more information or see
-https://opensource.org/licenses/MIT.
+Blackcoin Lore is released under the terms of the MIT license. See [COPYING](COPYING) for more
+information or see https://opensource.org/licenses/MIT.
 
 Development Process
 -------------------
 
-This Github repository contains only source code of releases.
+The `Blackcoin-Lore` branch is regularly built and tested, but is not guaranteed to be
+completely stable. [Tags](https://github.com/janko33bd/bitcoin-abc/tags) are created
+regularly to indicate new official, stable release versions of Blackcoin Lore.
 
-Bitcoin ABC development takes place at https://reviews.bitcoinabc.org/
+The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-If you would like to contribute, please read [CONTRIBUTING](CONTRIBUTING.md)
+The best place to get started is to join the Development channel on Gitter: https://gitter.im/Blackcoin_Hub/Development.
+
+Testing
+-------
+
+Testing and code review is the bottleneck for development; we get more pull
+requests than we can review and test on short notice. Please be patient and help out by testing
+other people's pull requests, and remember this is a security-critical project where any mistake might cost people
+lots of money.
+
+### Automated Testing
+
+Developers are strongly encouraged to write [unit tests](src/test/README.md) for new code, and to
+submit new unit tests for old code. Unit tests can be compiled and run
+(assuming they weren't disabled in configure) with: `make check`. Further details on running
+and extending unit tests can be found in [/src/test/README.md](/src/test/README.md).
+
+There are also [regression and integration tests](/test), written
+in Python, that are run automatically on the build server.
+These tests can be run (if the [test dependencies](/test) are installed) with: `test/functional/test_runner.py`
+
+The Travis CI system makes sure that every pull request is built for Windows, Linux, and OS X, and that unit/sanity tests are run automatically.
+
+### Manual Quality Assurance (QA) Testing
+
+Changes should be tested by somebody other than the developer who wrote the
+code. This is especially important for large or high-risk changes. It is useful
+to add a test plan to the pull request description if testing the changes is
+not straightforward.
