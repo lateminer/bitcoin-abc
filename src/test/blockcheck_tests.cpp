@@ -19,7 +19,7 @@ static void RunCheckOnBlockImpl(const GlobalConfig &config, const CBlock &block,
     block.fChecked = false;
     BlockValidationOptions validationOptions =
         BlockValidationOptions(false, false, true);
-    bool fValid = CheckBlock(config, block, state, validationOptions);
+    bool fValid = CheckBlock(config, block, state, block.GetHash(), validationOptions);
 
     BOOST_CHECK_EQUAL(fValid, expected);
     BOOST_CHECK_EQUAL(fValid, state.IsValid());
