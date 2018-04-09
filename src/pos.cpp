@@ -69,13 +69,22 @@ bool CheckStakeBlockTimestamp(int64_t nTimeBlock)
 bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits,
         unsigned int nBlockFromTime, Amount prevOutAmount,
         const COutPoint &prevout, unsigned int nTime) {
-    if (nTime < nBlockFromTime)  // Transaction timestamp violation
-        return error("%s: nTime violation", __func__);
+
+    if (nTime < nBlockFromTime){
+    	LogPrintf(" nTime violation \n ");
+    	// Transaction timestamp violation
+    	return error("%s: nTime violation", __func__);
+    }
+
 
     // Weight
     int64_t nValueIn = prevOutAmount.GetSatoshis();
-    if (nValueIn == 0)
-        return false;
+    if (nValueIn == 0){
+    	LogPrintf(" nValueIn == 0 \n ");
+    	return false;
+
+    }
+
 
     // Base target
     arith_uint256 bnTarget;
@@ -83,8 +92,12 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits,
     bool fOverflow;
 
     bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
-    if (fNegative || fOverflow || bnTarget == 0)
-        return error("%s: SetCompact failed.", __func__);
+    if (fNegative || fOverflow || bnTarget == 0){
+    	LogPrintf(" SetCompact failed \n ");
+    	return error("%s: SetCompact failed.", __func__);
+
+    }
+
 
     // Calculate hash
     CHashWriter ss(SER_GETHASH, 0);
@@ -93,8 +106,12 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits,
     uint256 hashProofOfStake = ss.GetHash();
 
     // Now check if proof-of-stake hash meets target protocol
-    if (UintToArith256(hashProofOfStake) / nValueIn > bnTarget)
-        return false;
+    if (UintToArith256(hashProofOfStake) / nValueIn > bnTarget){
+    	LogPrintf("\n stakeModifier %d \n  nBlockFromTime %d \n  prevout.hash %d \n prevout.n %d \n nTime %d \n pindexPrev hash %d \n",
+    			pindexPrev->nStakeModifier.GetHex(), nBlockFromTime, prevout.hash.GetHex(), prevout.n, nTime, pindexPrev->GetBlockHash().GetHex());
+    	return false;
+    }
+
 
     return true;
 }

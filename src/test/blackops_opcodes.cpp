@@ -31,8 +31,9 @@ static void CheckTestResultForAllFlags(const stacktype &original_stack,
         ScriptError err = SCRIPT_ERR_OK;
         stacktype stack{original_stack};
         bool r =
-            EvalScript(stack, script, flags | SCRIPT_ENABLE_MONOLITH_OPCODES,
-                       sigchecker, &err);
+            EvalScript(stack, script, flags
+            		//| SCRIPT_ENABLE_MONOLITH_OPCODES
+                       ,sigchecker, &err);
         BOOST_CHECK(r);
         BOOST_CHECK(stack == expected);
 
@@ -50,8 +51,9 @@ static void CheckError(uint32_t flags, const stacktype &original_stack,
     BaseSignatureChecker sigchecker;
     ScriptError err = SCRIPT_ERR_OK;
     stacktype stack{original_stack};
-    bool r = EvalScript(stack, script, flags | SCRIPT_ENABLE_MONOLITH_OPCODES,
-                        sigchecker, &err);
+    bool r = EvalScript(stack, script, flags
+    		//| SCRIPT_ENABLE_MONOLITH_OPCODES
+                        ,sigchecker, &err);
     BOOST_CHECK(!r);
     BOOST_CHECK_EQUAL(err, expected_error);
 

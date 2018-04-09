@@ -1271,7 +1271,7 @@ Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusPara
 }
 
 Amount GetProofOfStakeSubsidy() {
-    return Amount(3 / 2 * COIN);
+    return Amount(150 * CENT);
 }
 
 bool IsInitialBlockDownload() {
@@ -2007,27 +2007,25 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
 
     // Check proof-of-stake
     if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
-         const COutPoint &prevout = block.vtx[1]->vin[0].prevout;
 
-         const Coin &coin = view.AccessCoin(prevout);
-          if (coin.IsSpent())
-              return state.DoS(100, error("%s: kernel input unavailable", __func__),
-                                REJECT_INVALID, "bad-cs-kernel");
+         const CTxIn& txin = block.vtx[1]->vin[0];
 
-         // Check proof-of-stake min confirmations
-         if (pindex->nHeight - coin.GetHeight() < (uint32_t)Params().GetConsensus().nStakeMinConfirmations)
-              return state.DoS(100,
-                  error("%s: tried to stake at depth %d", __func__, pindex->nHeight - coin.GetHeight()),
-                    REJECT_INVALID, "bad-cs-premature");
+		 Coin coinPrev;
 
-		 CBlockIndex* blockFrom = pindex->pprev->GetAncestor(coin.GetHeight());
+		 if(!view.GetCoin(txin.prevout, coinPrev)){
+			 return state.DoS(100, error("CheckProofOfStake() : Stake prevout does not exist %s", txin.prevout.hash.ToString()));
+		 }
+
+		 CBlockIndex* blockFrom = pindex->GetAncestor(coinPrev.nHeight);
 		 if(!blockFrom) {
 			return false;
 		 }
 
-         if (!CheckStakeKernelHash(pindex->pprev, block.nBits, blockFrom->nTime, coin.out.nValue, prevout, block.vtx[1]->nTime))
-              return state.DoS(100, error("%s: proof-of-stake hash doesn't match nBits", __func__),
-                                 REJECT_INVALID, "bad-cs-proofhash");
+         if (!(pindex->pprev, block.nBits, blockFrom->nTime, coinPrev.out.nValue, txin.prevout, block.nTime)){
+        	 return state.DoS(100, error("%s: proof-of-stake hash doesn't match nBits, coinPrev.nHeight %d", __func__, coinPrev.nHeight),
+        	                                  REJECT_INVALID, "bad-cs-proofhash");
+         }
+
     }
 
     bool fScriptChecks = true;
