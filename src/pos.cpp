@@ -158,27 +158,25 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTimeBloc
 }
 
 bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, const COutPoint& prevout, uint32_t* pBlockTime, const std::map<COutPoint, CStakeCache>& cache) {
-    auto it=cache.find(prevout);
+    auto it = cache.find(prevout);
 
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
 
-    if(it == cache.end()) {
+    if (it == cache.end()) {
         Coin coinPrev;
-        if(!view.GetCoin(prevout, coinPrev)){
+        if (!view.GetCoin(prevout, coinPrev))
             return false;
-        }
 
-        if(pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations) {
+        if(pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations)
             return false;
-        }
+
         CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);
-        if(!blockFrom) {
+        if (!blockFrom)
             return false;
-        }
-        if(coinPrev.IsSpent()){
+
+        if(coinPrev.IsSpent())
             return false;
-        }
 
         return CheckStakeKernelHash(pindexPrev, nBits, blockFrom->nTime, coinPrev.out.nValue, prevout, nTime);
     } else {
@@ -193,23 +191,21 @@ bool CheckKernel(CBlockIndex* pindexPrev, unsigned int nBits, uint32_t nTime, co
 }
 
 void CacheKernel(std::map<COutPoint, CStakeCache>& cache, const COutPoint& prevout, CBlockIndex* pindexPrev, CCoinsViewCache& view) {
-    if(cache.find(prevout) != cache.end()){
-        //already in cache
+    if (cache.find(prevout) != cache.end()) {
+        // already in cache
         return;
     }
 
     Coin coinPrev;
-    if(!view.GetCoin(prevout, coinPrev)){
+    if (!view.GetCoin(prevout, coinPrev))
         return;
-    }
 
-    if(pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations){
+    if (pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations)
         return;
-    }
+
     CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);
-    if(!blockFrom) {
+    if (!blockFrom)
         return;
-    }
 
     CStakeCache c(blockFrom->nTime, coinPrev.out.nValue);
     cache.insert({prevout, c});
