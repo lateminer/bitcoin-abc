@@ -75,9 +75,6 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits,
 
     // Base target
     arith_uint256 bnTarget;
-    bnTarget.SetCompact(nBits);
-
-    arith_uint256 bnTarget;
     bool fNegative;
     bool fOverflow;
 
@@ -98,7 +95,7 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits,
     CHashWriter ss(SER_GETHASH, 0);
     ss << nStakeModifier;
     ss << nBlockFromTime << prevout.hash << prevout.n << nTime;
-    uint256 hashProofOfStake = Hash(ss.begin(), ss.end());
+    uint256 hashProofOfStake = ss.GetHash();
 
     // Now check if proof-of-stake hash meets target protocol
     if (UintToArith256(hashProofOfStake) > bnTarget)

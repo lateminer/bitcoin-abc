@@ -1981,6 +1981,8 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                      FormatStateMessage(state));
     }
 
+    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : hash);
+
     // Check difficulty
     if (block.nBits != GetNextTargetRequired(pindex->pprev, &block, block.IsProofOfStake(), config))
         return state.DoS(100, error("%s: incorrect difficulty", __func__),
@@ -1988,13 +1990,9 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
 
     // Check proof-of-stake
     if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
-        uint256 hashProof, targetProofOfStake;
         if (!CheckProofOfStake(pindex->pprev, *block.vtx[1], block.nBits, block.nTime, view, state))
             return state.DoS(100, error("%s: Check proof of stake failed", __func__), REJECT_INVALID, "bad-proof-of-stake");
-         }
     }
-
-    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : hash);
 
     // Verify that the view's current state corresponds to the previous block
     uint256 hashPrevBlock =
