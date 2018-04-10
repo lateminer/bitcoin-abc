@@ -1271,7 +1271,7 @@ Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusPara
 }
 
 Amount GetProofOfStakeSubsidy() {
-    return Amount(150 * CENT);
+    return Amount(3 * COIN / 2);
 }
 
 bool IsInitialBlockDownload() {
@@ -1981,6 +1981,19 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                      FormatStateMessage(state));
     }
 
+    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : hash);
+
+    // Check difficulty
+    if (block.nBits != GetNextTargetRequired(pindex->pprev, &block, block.IsProofOfStake(), config))
+        return state.DoS(100, error("%s: incorrect difficulty", __func__),
+                                REJECT_INVALID, "bad-diffbits");
+
+    // Check proof-of-stake
+    if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
+        if (!CheckProofOfStake(pindex->pprev, *block.vtx[1], block.nBits, block.nTime, view, state))
+            return state.DoS(100, error("%s: Check proof of stake failed", __func__), REJECT_INVALID, "bad-proof-of-stake");
+    }
+
     // Verify that the view's current state corresponds to the previous block
     uint256 hashPrevBlock =
         pindex->pprev == nullptr ? uint256() : pindex->pprev->GetBlockHash();
@@ -1996,36 +2009,6 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
         }
 
         return true;
-    }
-
-    // Check difficulty
-    if (block.nBits != GetNextTargetRequired(pindex->pprev, &block, block.IsProofOfStake(), config))
-        return state.DoS(100, error("%s: incorrect difficulty", __func__),
-                                REJECT_INVALID, "bad-diffbits");
-
-    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : hash);
-
-    // Check proof-of-stake
-    if (block.IsProofOfStake() && block.GetBlockTime() > Params().GetConsensus().nProtocolV3Time) {
-
-         const CTxIn& txin = block.vtx[1]->vin[0];
-
-		 Coin coinPrev;
-
-		 if(!view.GetCoin(txin.prevout, coinPrev)){
-			 return state.DoS(100, error("CheckProofOfStake() : Stake prevout does not exist %s", txin.prevout.hash.ToString()));
-		 }
-
-		 CBlockIndex* blockFrom = pindex->GetAncestor(coinPrev.nHeight);
-		 if(!blockFrom) {
-			return false;
-		 }
-
-         if (!(pindex->pprev, block.nBits, blockFrom->nTime, coinPrev.out.nValue, txin.prevout, block.nTime)){
-        	 return state.DoS(100, error("%s: proof-of-stake hash doesn't match nBits, coinPrev.nHeight %d", __func__, coinPrev.nHeight),
-        	                                  REJECT_INVALID, "bad-cs-proofhash");
-         }
-
     }
 
     bool fScriptChecks = true;
