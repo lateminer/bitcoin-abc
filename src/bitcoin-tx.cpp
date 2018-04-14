@@ -619,6 +619,7 @@ static void MutateTxSign(CMutableTransaction &tx, const std::string &flagStr) {
 
         std::map<std::string, UniValue::VType> types = {
             {"txid", UniValue::VSTR},
+			{"txTime", UniValue::VNUM},
             {"vout", UniValue::VNUM},
             {"scriptPubKey", UniValue::VSTR}};
         if (!prevOut.checkObject(types)) {
@@ -626,6 +627,8 @@ static void MutateTxSign(CMutableTransaction &tx, const std::string &flagStr) {
         }
 
         uint256 txid = ParseHashUV(prevOut["txid"], "txid");
+        unsigned int nTime = find_value(prevOut, "txTime").get_int();
+
 
         int nOut = atoi(prevOut["vout"].getValStr());
         if (nOut < 0) {
@@ -654,7 +657,7 @@ static void MutateTxSign(CMutableTransaction &tx, const std::string &flagStr) {
                 txout.nValue = AmountFromValue(prevOut["amount"]);
             }
 
-            view.AddCoin(out, Coin(txout, 1, false, false), true);
+            view.AddCoin(out, Coin(txout, 1, nTime, false, false), true);
         }
 
         // If redeemScript given and private keys given, add redeemScript to the

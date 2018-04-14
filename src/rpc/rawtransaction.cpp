@@ -772,6 +772,8 @@ static UniValue signrawtransaction(const Config &config,
             "       {\n"
             "         \"txid\":\"id\",             (string, required) The "
             "transaction id\n"
+			"		\"txTime\":\"time\",             (numeric, required) The "
+			            "transaction time\n"
             "         \"vout\":n,                  (numeric, required) The "
             "output number\n"
             "         \"scriptPubKey\": \"hex\",   (string, required) script "
@@ -928,6 +930,7 @@ static UniValue signrawtransaction(const Config &config,
             RPCTypeCheckObj(prevOut,
                             {
                                 {"txid", UniValueType(UniValue::VSTR)},
+								{"txTime", UniValueType(UniValue::VNUM)},
                                 {"vout", UniValueType(UniValue::VNUM)},
                                 {"scriptPubKey", UniValueType(UniValue::VSTR)},
                                 // "amount" is also required but check is done
@@ -937,6 +940,7 @@ static UniValue signrawtransaction(const Config &config,
                             });
 
             uint256 txid = ParseHashO(prevOut, "txid");
+            unsigned int nTime = find_value(prevOut, "txTime").get_int();
 
             int nOut = find_value(prevOut, "vout").get_int();
             if (nOut < 0) {
@@ -977,7 +981,7 @@ static UniValue signrawtransaction(const Config &config,
                     throw JSONRPCError(RPC_INVALID_PARAMETER, "Missing amount");
                 }
 
-                view.AddCoin(out, Coin(txout, 1, false, false), true);
+                view.AddCoin(out, Coin(txout, 1, nTime, false, false), true);
             }
 
             // If redeemScript given and not using the local wallet (private

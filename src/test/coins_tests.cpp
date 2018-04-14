@@ -165,10 +165,10 @@ BOOST_AUTO_TEST_CASE(coins_cache_simulation_test) {
                     // Random sizes so we can test memory usage accounting
                     txout.scriptPubKey.assign(InsecureRandBits(6), 0);
                     (coin.IsSpent() ? added_an_entry : updated_an_entry) = true;
-                    coin = Coin(txout, 1, false, false);
+                    coin = Coin(txout, 1, 0,false, false);
                 }
 
-                Coin newcoin(txout, 1, false, false);
+                Coin newcoin(txout, 1, 0, false, false);
                 stack.back()->AddCoin(COutPoint(txid, 0), newcoin,
                                       !coin.IsSpent() || insecure_rand() & 1);
             } else {
@@ -382,7 +382,7 @@ BOOST_AUTO_TEST_CASE(updatecoins_simulation_test) {
             assert(tx.vout.size() == 1);
             const COutPoint outpoint(tx.GetId(), 0);
             result[outpoint] =
-                Coin(tx.vout[0], height, CTransaction(tx).IsCoinBase(), CTransaction(tx).IsCoinStake());
+                Coin(tx.vout[0], height, CTransaction(tx).nTime, CTransaction(tx).IsCoinBase(), CTransaction(tx).IsCoinStake());
 
             // Call UpdateCoins on the top cache
             CTxUndo undo;
@@ -573,7 +573,7 @@ static void SetCoinValue(const Amount value, Coin &coin) {
     if (value != PRUNED) {
         CTxOut out;
         out.nValue = value;
-        coin = Coin(std::move(out), 1, false, false);
+        coin = Coin(std::move(out), 1, 0, false, false);
         assert(!coin.IsSpent());
     }
 }
@@ -742,7 +742,7 @@ void CheckAddCoinBase(Amount base_value, Amount cache_value,
     try {
         CTxOut output;
         output.nValue = modify_value;
-        test.cache.AddCoin(OUTPOINT, Coin(std::move(output), 1, coinbase, false),
+        test.cache.AddCoin(OUTPOINT, Coin(std::move(output), 1, 0, coinbase, false),
                            coinbase);
         test.cache.SelfTest();
         GetCoinMapEntry(test.cache.map(), result_value, result_flags);

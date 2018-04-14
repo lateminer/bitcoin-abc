@@ -38,13 +38,14 @@ public:
 
     //! at which height this containing transaction was included in the active block chain
     uint32_t nHeight : 30;
+    uint32_t nTime;
 
     //! Empty constructor
-    Coin() : fCoinBase(false), fCoinStake(false) {}
+    Coin() : fCoinBase(false), fCoinStake(false) , nTime(0){}
 
     //! Constructor from a CTxOut and height/coinbase information.
-    Coin(CTxOut&& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
-    Coin(const CTxOut& outIn, int nHeightIn, bool fCoinBaseIn, bool fCoinStakeIn) : out(outIn), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn) {}
+    Coin(CTxOut&& outIn, int nHeightIn, int nTimeIn, bool fCoinBaseIn, bool fCoinStakeIn) : out(std::move(outIn)), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn), nTime(nTimeIn) {}
+    Coin(const CTxOut& outIn, int nHeightIn, int nTimeIn, bool fCoinBaseIn, bool fCoinStakeIn) : out(outIn), fCoinBase(fCoinBaseIn), fCoinStake(fCoinStakeIn), nHeight(nHeightIn), nTime(nTimeIn) {}
 
     bool IsSpent() const { return out.IsNull(); }
 
@@ -63,11 +64,16 @@ public:
         return nHeight;
     }
 
+    uint32_t GetTime() const {
+            return nTime;
+    }
+
     void Clear() {
         out.SetNull();
         fCoinBase = false;
         fCoinStake = false;
         nHeight = 0;
+        nTime = 0;
     }
 
     template <typename Stream> void Serialize(Stream &s) const {
@@ -75,6 +81,7 @@ public:
         uint32_t code = (nHeight << 2) + (fCoinBase ? 1 : 0) + (fCoinStake ? 2 : 0);
         ::Serialize(s, VARINT(code));
         ::Serialize(s, CTxOutCompressor(REF(out)));
+        ::Serialize(s, VARINT(nTime));
     }
 
     template <typename Stream> void Unserialize(Stream &s) {
@@ -84,6 +91,7 @@ public:
         fCoinBase = code & 1;
         fCoinStake = (code >> 1) & 1;
         ::Unserialize(s, REF(CTxOutCompressor(out)));
+        ::Unserialize(s, VARINT(nTime));
     }
 
     size_t DynamicMemoryUsage() const {

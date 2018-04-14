@@ -135,10 +135,6 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     if (pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations)
         return state.DoS(100, error("CheckProofOfStake(): Stake prevout is not mature, expecting %i and only matured to %i", Params().GetConsensus().nStakeMinConfirmations, pindexPrev->nHeight + 1 - coinPrev.nHeight));
 
-    CBlockIndex* blockFrom = pindexPrev->GetAncestor(coinPrev.nHeight);
-    if (!blockFrom)
-        return state.DoS(100, error("CheckProofOfStake(): Block at height %i for prevout can not be loaded", coinPrev.nHeight));
-
     // Verify script
     CScript kernelPubKey = coinPrev.out.scriptPubKey;
     ScriptError serror = SCRIPT_ERR_OK;
@@ -146,7 +142,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
         return state.DoS(100, error("CheckProofOfStake(): VerifyScript failed on coinstake %s", tx.GetHash().ToString()));
 
     // Check kernel
-    if (!CheckStakeKernelHash(pindexPrev, nBits, blockFrom->nTime, coinPrev.out.nValue, txin.prevout, nTimeBlock))
+    if (!CheckStakeKernelHash(pindexPrev, nBits, coinPrev.nTime, coinPrev.out.nValue, txin.prevout, nTimeBlock))
         return state.DoS(1, error("CheckProofOfStake(): CheckStakeKernelHash failed on coinstake %s", tx.GetHash().ToString())); // may occur during initial download or if behind on block chain sync
 
     return true;

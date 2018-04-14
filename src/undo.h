@@ -39,6 +39,7 @@ public:
             ::Serialize(s, (unsigned char)0);
         }
         ::Serialize(s, CTxOutCompressor(REF(pcoin->GetTxOut())));
+        ::Serialize(s, VARINT(pcoin->GetTime()));
     }
 };
 
@@ -64,8 +65,10 @@ public:
 
         CTxOut txout;
         ::Unserialize(s, REF(CTxOutCompressor(REF(txout))));
+        uint32_t nTime = 0;
+        ::Unserialize(s, VARINT(nTime));
 
-        *pcoin = Coin(std::move(txout), nHeight, fCoinBase, fCoinStake);
+        *pcoin = Coin(std::move(txout), nHeight, nTime, fCoinBase, fCoinStake);
     }
 };
 
