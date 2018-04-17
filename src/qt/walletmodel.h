@@ -234,6 +234,8 @@ public:
     int getDefaultConfirmTarget() const;
     const CChainParams &getChainParams() const;
 
+    int updateWeight();
+
 private:
     CWallet *wallet;
     bool fHaveWatchOnly;

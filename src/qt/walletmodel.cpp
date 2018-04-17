@@ -28,6 +28,8 @@
 #include <QSet>
 #include <QTimer>
 
+double GetPoSKernelPS();
+
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *_wallet,
                          OptionsModel *_optionsModel, QObject *parent)
     : QObject(parent), wallet(_wallet), optionsModel(_optionsModel),
@@ -270,6 +272,7 @@ WalletModel::prepareTransaction(WalletModelTransaction &transaction,
 
         CWalletTx *newTx = transaction.getTransaction();
         CReserveKey *keyChange = transaction.getPossibleKeyChange();
+        LogPrintf("CreateTransaction");
         bool fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange,
                                                   nFeeRequired, nChangePosRet,
                                                   strFailReason, coinControl);
@@ -278,6 +281,7 @@ WalletModel::prepareTransaction(WalletModelTransaction &transaction,
             transaction.reassignAmounts(nChangePosRet);
 
         if (!fCreated) {
+        	LogPrintf("CreateTransaction failed");
             if (!fSubtractFeeFromAmount && (total + nFeeRequired) > nBalance) {
                 return SendCoinsReturn(AmountWithFeeExceedsBalance);
             }
@@ -688,12 +692,19 @@ bool WalletModel::transactionCanBeAbandoned(uint256 hash) const {
 }
 
 bool WalletModel::abandonTransaction(uint256 hash) const {
-    LOCK2(cs_main, wallet->cs_wallet);
+	LOCK(wallet->cs_wallet);
     return wallet->AbandonTransaction(hash);
 }
 
 bool WalletModel::isWalletEnabled() {
     return !gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET);
+}
+
+int WalletModel::updateWeight()
+{
+	LOCK2(cs_main, wallet->cs_wallet);
+	return wallet->GetStakeWeight();
+
 }
 
 bool WalletModel::hdEnabled() const {

@@ -59,6 +59,8 @@ public:
 
     void showOutOfSyncWarning(bool fShow);
 
+    int updateWeight();
+
 private:
     ClientModel *clientModel;
     WalletModel *walletModel;
@@ -107,6 +109,8 @@ public Q_SLOTS:
     void unlockWallet(bool fromMenu = false);
 
     void lockWallet();
+
+    bool isWalletLocked();
 
     /** Show used sending addresses */
     void usedSendingAddresses();

@@ -1134,7 +1134,7 @@ public:
     bool SelectCoinsForStaking(Amount &nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> > &setCoinsRet, Amount &nValueRet) const;
     void AvailableCoinsForStaking(std::vector<COutput> &vCoins) const;
     bool HaveAvailableCoinsForStaking() const;
-    uint64_t GetStakeWeight() const;
+    int GetStakeWeight() const;
 
     static const bool DEFAULT_STAKE_CACHE = true;
 

@@ -297,6 +297,16 @@ void WalletView::unlockWallet(bool fromMenu) {
     }
 }
 
+bool WalletView::isWalletLocked() {
+	if (!walletModel) return false;
+   // Unlock wallet when requested by wallet model
+   if (walletModel->getEncryptionStatus() == WalletModel::Locked)
+	   return true;
+   return false;
+}
+
+
+
 void WalletView::lockWallet() {
     if (!walletModel) return;
     walletModel->setWalletLocked(true);
@@ -337,4 +347,8 @@ void WalletView::showProgress(const QString &title, int nProgress) {
 
 void WalletView::requestedSyncWarningInfo() {
     Q_EMIT outOfSyncWarningClicked();
+}
+
+int WalletView::updateWeight() {
+	return this->walletModel->updateWeight();
 }

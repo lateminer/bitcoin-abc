@@ -198,10 +198,10 @@ BitcoinGUI::BitcoinGUI(const Config *cfg, const PlatformStyle *_platformStyle,
 
     if (gArgs.GetBoolArg("-staking", true))
     {
-        QTimer *timerStakingIcon = new QTimer(labelStakingIcon);
-        connect(timerStakingIcon, SIGNAL(timeout()), this, SLOT(updateStakingIcon()));
-        QTimer::singleShot(1000, this, SLOT(updateStakingIcon()));
-        timerStakingIcon->start(30 * 1000);
+    	QTimer *timerStakingIcon = new QTimer(labelStakingIcon);
+    	connect(timerStakingIcon, SIGNAL(timeout()), this, SLOT(updateStakingIcon()));
+    	timerStakingIcon->start(1000);
+    	updateStakingIcon();
     }
 
     // Progress bar and label for blocks download
@@ -1181,34 +1181,13 @@ void BitcoinGUI::toggleHidden() {
     showNormalIfMinimized(true);
 }
 
-void BitcoinGUI::updateWeight()
-{
-    CWallet *pwallet;
-
-    if(!pwallet)
-        return;
-
-    TRY_LOCK(cs_main, lockMain);
-    if (!lockMain)
-        return;
-
-    TRY_LOCK(pwallet->cs_wallet, lockWallet);
-    if (!lockWallet)
-        return;
-
-#ifdef ENABLE_WALLET
-    if (pwallet)
-    nWeight = pwallet->GetStakeWeight();
-#endif
-}
-
 void BitcoinGUI::updateStakingIcon()
 {
-    updateWeight();
+	int nWeight = walletFrame->updateWeight();
 
-    if (nLastCoinStakeSearchInterval && nWeight)
+    if (nLastCoinStakeSearchInterval && nWeight > 0)
     {
-        uint64_t nWeight = this->nWeight;
+
         uint64_t nNetworkWeight = 1.1429 * GetPoSKernelPS();
         unsigned nEstimateTime = 1.0455 * 64 * nNetworkWeight / nWeight;
 
@@ -1237,7 +1216,6 @@ void BitcoinGUI::updateStakingIcon()
     }
     else
     {
-        CWallet *pwallet;
 
         labelStakingIcon->setPixmap(platformStyle->SingleColorIcon(":/icons/staking_off").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
         if (g_connman == 0 || g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) == 0)
@@ -1246,7 +1224,7 @@ void BitcoinGUI::updateStakingIcon()
             labelStakingIcon->setToolTip(tr("Not staking because wallet is syncing"));
         else if (!nWeight)
             labelStakingIcon->setToolTip(tr("Not staking because you don't have mature coins"));
-        else if (pwallet && pwallet->IsLocked())
+        else if (walletFrame->isWalletLocked())
             labelStakingIcon->setToolTip(tr("Not staking because wallet is locked"));
         else
             labelStakingIcon->setToolTip(tr("Not staking"));

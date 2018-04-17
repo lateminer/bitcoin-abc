@@ -33,6 +33,20 @@ void WalletFrame::setClientModel(ClientModel *_clientModel) {
     this->clientModel = _clientModel;
 }
 
+int WalletFrame::updateWeight() {
+	WalletView *walletView = currentWalletView();
+	if (!walletView)
+		return -1;
+	return walletView->updateWeight();
+}
+
+bool WalletFrame::isWalletLocked(){
+	WalletView *walletView = currentWalletView();
+	if (!walletView)
+		return false;
+	return walletView->isWalletLocked();
+}
+
 bool WalletFrame::addWallet(const QString &name, WalletModel *walletModel) {
     if (!gui || !clientModel || !walletModel || mapWalletViews.count(name) > 0)
         return false;

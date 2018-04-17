@@ -36,6 +36,8 @@ public:
     ~WalletFrame();
 
     void setClientModel(ClientModel *clientModel);
+    int updateWeight();
+    bool isWalletLocked();
 
     bool addWallet(const QString &name, WalletModel *walletModel);
     bool setCurrentWallet(const QString &name);

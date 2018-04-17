@@ -133,8 +133,6 @@ private:
     int prevBlocks;
     int spinnerFrame;
 
-    uint64_t nWeight;
-
     const PlatformStyle *platformStyle;
     const Config *cfg;
 
@@ -248,11 +246,10 @@ private Q_SLOTS:
     void showNormalIfMinimized(bool fToggleHidden = false);
     /** Simply calls showNormalIfMinimized(true) for use in SLOT() macro */
     void toggleHidden();
-
+#ifdef ENABLE_WALLET
     /** Update staking icon */
-    void updateWeight();
     void updateStakingIcon();
-
+#endif // ENABLE_WALLET
     /** called by a timer to check if fRequestShutdown has been set **/
     void detectShutdown();
 

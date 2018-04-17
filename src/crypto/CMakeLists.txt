@@ -13,6 +13,7 @@ add_library(crypto
 	sha256.cpp
 	sha256_sse4.cpp
 	sha512.cpp
+		scrypt.cpp
 )
 
 target_include_directories(crypto
