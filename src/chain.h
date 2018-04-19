@@ -407,6 +407,8 @@ public:
     
     int64_t GetHeaderTimeReceived() const { return nTimeReceived; }
 
+    int64_t GetHeaderTimeReceived() const { return nTimeReceived; }
+
     enum { nMedianTimeSpan = 11 };
 
     int64_t GetMedianTimePast() const {
