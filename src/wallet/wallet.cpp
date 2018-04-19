@@ -3370,7 +3370,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient> &vecSend,
         }
 
         if (sign) {
-            SigHashType sigHashType = SigHashType().withForkId();
+            SigHashType sigHashType = SigHashType().withBaseType(BaseSigHashType::ALL);
 
             CTransaction txNewConst(txNew);
             int nIn = 0;

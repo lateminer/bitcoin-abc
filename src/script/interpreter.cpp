@@ -239,14 +239,14 @@ bool CheckSignatureEncoding(const std::vector<uint8_t> &vchSig, uint32_t flags,
         if (!IsDefinedHashtypeSignature(vchSig)) {
             return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
         }
-        bool usesForkId = GetHashType(vchSig).hasForkId();
-        bool forkIdEnabled = flags & SCRIPT_ENABLE_SIGHASH_FORKID;
-        if (!forkIdEnabled && usesForkId) {
-            return set_error(serror, SCRIPT_ERR_ILLEGAL_FORKID);
-        }
-        if (forkIdEnabled && !usesForkId) {
-            return set_error(serror, SCRIPT_ERR_MUST_USE_FORKID);
-        }
+//        bool usesForkId = GetHashType(vchSig).hasForkId();
+//        bool forkIdEnabled = flags & SCRIPT_ENABLE_SIGHASH_FORKID;
+//        if (!forkIdEnabled && usesForkId) {
+//            return set_error(serror, SCRIPT_ERR_ILLEGAL_FORKID);
+//        }
+//        if (forkIdEnabled && !usesForkId) {
+//            return set_error(serror, SCRIPT_ERR_MUST_USE_FORKID);
+//        }
     }
     return true;
 }
