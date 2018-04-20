@@ -692,7 +692,7 @@ bool WalletModel::transactionCanBeAbandoned(uint256 hash) const {
 }
 
 bool WalletModel::abandonTransaction(uint256 hash) const {
-	LOCK(wallet->cs_wallet);
+    LOCK2(cs_main, wallet->cs_wallet);
     return wallet->AbandonTransaction(hash);
 }
 
