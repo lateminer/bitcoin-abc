@@ -211,9 +211,9 @@ public:
         consensus.nTargetTimespan = 16 * 60;
         consensus.nTargetSpacingV1 = 60;
         consensus.nTargetSpacing = 64;
-        consensus.fPowAllowMinDifficultyBlocks = false;
+        consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
-        consensus.nRuleChangeActivationThreshold = 1916; // 75% for testchains
+        consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nTargetTimespan / nTargetSpacing
         
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
