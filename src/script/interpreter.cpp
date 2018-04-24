@@ -1086,18 +1086,18 @@ bool EvalScript(std::vector<valtype> &stack, const CScript &script,
                         valtype &vchSig = stacktop(-2);
                         valtype &vchPubKey = stacktop(-1);
 
-                        if (!CheckSignatureEncoding(vchSig, flags, serror) ||
-                            !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
-                            // serror is set
-                            return false;
-                        }
-
                         // Subset of script starting at the most recent
                         // codeseparator
                         CScript scriptCode(pbegincodehash, pend);
 
                         // Drop the signature in pre-segwit scripts
                         scriptCode.FindAndDelete(CScript(vchSig));
+
+                        if (!CheckSignatureEncoding(vchSig, flags, serror) ||
+                            !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
+                            // serror is set
+                            return false;
+                        }
 
                         bool fSuccess = checker.CheckSig(vchSig, vchPubKey,
                                                          scriptCode, flags);
@@ -1548,6 +1548,7 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
         sigHashType = sigHashType.withForkValue(0xff0000 | newForkValue);
     }
 
+    /*
     if (true) {
         uint256 hashPrevouts;
         uint256 hashSequence;
@@ -1595,6 +1596,7 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
 
         return ss.GetHash();
     }
+    */
 
     static const uint256 one(uint256S(
         "0000000000000000000000000000000000000000000000000000000000000001"));
