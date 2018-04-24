@@ -143,10 +143,10 @@ public:
         diskMagic[1] = 0x35;
         diskMagic[2] = 0x22;
         diskMagic[3] = 0x05;
-        netMagic[0] = 0x70;
-        netMagic[1] = 0x35;
-        netMagic[2] = 0x22;
-        netMagic[3] = 0x05;
+        netMagic[0] = diskMagic[0];
+        netMagic[1] = diskMagic[1];
+        netMagic[2] = diskMagic[2];
+        netMagic[3] = diskMagic[3];
         nDefaultPort = 15714;
         nPruneAfterHeight = 100000;
 
@@ -205,7 +205,7 @@ public:
     CTestNetParams() {
         strNetworkID = "test";
         consensus.nMaxReorganizationDepth = 50;
-        consensus.powLimit = uint256S("0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.posLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.posLimitV2 = uint256S("000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nTargetTimespan = 16 * 60;
@@ -222,11 +222,11 @@ public:
 
         consensus.nMinimumChainWork = uint256S("0x00");
         consensus.defaultAssumeValid = uint256S("0x00");
-        
+
         consensus.nProtocolV1RetargetingFixedTime = 1395631999;
         consensus.nProtocolV2Time = 1407053625;
         consensus.nProtocolV3Time = 1444028400;
-        consensus.nLastPOWBlock = 0x7fffffff;
+        consensus.nLastPOWBlock = 10000;
         consensus.nStakeTimestampMask = 0xf;
         consensus.nCoinbaseMaturity = 50;
         consensus.nStakeMinConfirmations = 50;
@@ -239,16 +239,16 @@ public:
         diskMagic[1] = 0xf2;
         diskMagic[2] = 0xc0;
         diskMagic[3] = 0xef;
-        netMagic[0] = 0xcd;
-        netMagic[1] = 0xf2;
-        netMagic[2] = 0xc0;
-        netMagic[3] = 0xef;
+        netMagic[0] = diskMagic[0];
+        netMagic[1] = diskMagic[1];
+        netMagic[2] = diskMagic[2];
+        netMagic[3] = diskMagic[3];
         nDefaultPort = 25714;
-        nPruneAfterHeight = 1000;
+        nPruneAfterHeight = 10000;
 
-        genesis = CreateGenesisBlock(1393221600, 216178, 0x1f00ffff, 1, Amount(0));
+        genesis = CreateGenesisBlock(1393221600, 164482, 0x1e0fffff, 1, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x0000724595fb3b9609d441cbfb9577615c292abf07d996d3edabc48de843642d"));
+        assert(consensus.hashGenesisBlock == uint256S("0x000001faef25dec4fbcf906e6242621df2c183bf232f263d0ba5b101911e4563"));
         assert(genesis.hashMerkleRoot == uint256S("0x12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90"));
 
         vFixedSeeds.clear();
@@ -270,7 +270,7 @@ public:
 
         checkpointData = {
             .mapCheckpoints = {
-                {0, uint256S("0x0000724595fb3b9609d441cbfb9577615c292abf07d996d3edabc48de843642d")},
+                {0, uint256S("0x000001faef25dec4fbcf906e6242621df2c183bf232f263d0ba5b101911e4563")},
             }};
 
         chainTxData = ChainTxData{0, 0, 0};
