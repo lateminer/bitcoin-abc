@@ -62,19 +62,10 @@ std::string FormatScript(const CScript &script) {
 const std::map<uint8_t, std::string> mapSigHashTypes = {
     {SIGHASH_ALL, "ALL"},
     {SIGHASH_ALL | SIGHASH_ANYONECANPAY, "ALL|ANYONECANPAY"},
-    {SIGHASH_ALL | SIGHASH_FORKID, "ALL|FORKID"},
-    {SIGHASH_ALL | SIGHASH_FORKID | SIGHASH_ANYONECANPAY,
-     "ALL|FORKID|ANYONECANPAY"},
     {SIGHASH_NONE, "NONE"},
     {SIGHASH_NONE | SIGHASH_ANYONECANPAY, "NONE|ANYONECANPAY"},
-    {SIGHASH_NONE | SIGHASH_FORKID, "NONE|FORKID"},
-    {SIGHASH_NONE | SIGHASH_FORKID | SIGHASH_ANYONECANPAY,
-     "NONE|FORKID|ANYONECANPAY"},
     {SIGHASH_SINGLE, "SINGLE"},
     {SIGHASH_SINGLE | SIGHASH_ANYONECANPAY, "SINGLE|ANYONECANPAY"},
-    {SIGHASH_SINGLE | SIGHASH_FORKID, "SINGLE|FORKID"},
-    {SIGHASH_SINGLE | SIGHASH_FORKID | SIGHASH_ANYONECANPAY,
-     "SINGLE|FORKID|ANYONECANPAY"},
 };
 
 /**
@@ -116,14 +107,7 @@ std::string ScriptToAsmStr(const CScript &script,
                     // Multisig scripts due to the restrictions on the pubkey
                     // formats (see IsCompressedOrUncompressedPubKey) being
                     // incongruous with the checks in CheckSignatureEncoding.
-                    uint32_t flags = SCRIPT_VERIFY_STRICTENC;
-                    if (vch.back() & SIGHASH_FORKID) {
-                        // If the transaction is using SIGHASH_FORKID, we need
-                        // to set the apropriate flag.
-                        // TODO: Remove after the Hard Fork.
-                        flags |= SCRIPT_ENABLE_SIGHASH_FORKID;
-                    }
-                    if (CheckSignatureEncoding(vch, flags, nullptr)) {
+                    if (CheckSignatureEncoding(vch, SCRIPT_VERIFY_STRICTENC, nullptr)) {
                         const uint8_t chSigHashType = vch.back();
                         if (mapSigHashTypes.count(chSigHashType)) {
                             strSigHashDecode =

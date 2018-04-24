@@ -197,16 +197,6 @@ static SigHashType GetHashType(const valtype &vchSig) {
     return SigHashType(vchSig[vchSig.size() - 1]);
 }
 
-static void CleanupScriptCode(CScript &scriptCode,
-                              const std::vector<uint8_t> &vchSig,
-                              uint32_t flags) {
-    // Drop the signature in scripts when SIGHASH_FORKID is not used.
-    SigHashType sigHashType = GetHashType(vchSig);
-    if (!(flags & SCRIPT_ENABLE_SIGHASH_FORKID) || !sigHashType.hasForkId()) {
-        scriptCode.FindAndDelete(CScript(vchSig));
-    }
-}
-
 static bool IsDefinedHashtypeSignature(const valtype &vchSig) {
     if (vchSig.size() == 0) {
         return false;
@@ -239,14 +229,6 @@ bool CheckSignatureEncoding(const std::vector<uint8_t> &vchSig, uint32_t flags,
         if (!IsDefinedHashtypeSignature(vchSig)) {
             return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
         }
-//        bool usesForkId = GetHashType(vchSig).hasForkId();
-//        bool forkIdEnabled = flags & SCRIPT_ENABLE_SIGHASH_FORKID;
-//        if (!forkIdEnabled && usesForkId) {
-//            return set_error(serror, SCRIPT_ERR_ILLEGAL_FORKID);
-//        }
-//        if (forkIdEnabled && !usesForkId) {
-//            return set_error(serror, SCRIPT_ERR_MUST_USE_FORKID);
-//        }
     }
     return true;
 }
@@ -1104,16 +1086,18 @@ bool EvalScript(std::vector<valtype> &stack, const CScript &script,
                         valtype &vchSig = stacktop(-2);
                         valtype &vchPubKey = stacktop(-1);
 
+                        // Subset of script starting at the most recent
+                        // codeseparator
+                        CScript scriptCode(pbegincodehash, pend);
+
+                        // Drop the signature in pre-segwit scripts
+                        scriptCode.FindAndDelete(CScript(vchSig));
+
                         if (!CheckSignatureEncoding(vchSig, flags, serror) ||
                             !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
                             // serror is set
                             return false;
                         }
-
-                        // Subset of script starting at the most recent
-                        // codeseparator
-                        CScript scriptCode(pbegincodehash, pend);
-                        CleanupScriptCode(scriptCode, vchSig, flags);
 
                         bool fSuccess = checker.CheckSig(vchSig, vchPubKey,
                                                          scriptCode, flags);
@@ -1185,11 +1169,10 @@ bool EvalScript(std::vector<valtype> &stack, const CScript &script,
                         // codeseparator
                         CScript scriptCode(pbegincodehash, pend);
 
-                        // Drop the signature in pre-segwit scripts but not
-                        // segwit scripts
+                        // Drop the signature in pre-segwit scripts
                         for (int k = 0; k < nSigsCount; k++) {
                             valtype &vchSig = stacktop(-isig - k);
-                            CleanupScriptCode(scriptCode, vchSig, flags);
+                            scriptCode.FindAndDelete(CScript(vchSig));
                         }
 
                         bool fSuccess = true;
@@ -1565,7 +1548,8 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
         sigHashType = sigHashType.withForkValue(0xff0000 | newForkValue);
     }
 
-    if (sigHashType.hasForkId() && (flags & SCRIPT_ENABLE_SIGHASH_FORKID)) {
+    /*
+    if (true) {
         uint256 hashPrevouts;
         uint256 hashSequence;
         uint256 hashOutputs;
@@ -1612,6 +1596,7 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
 
         return ss.GetHash();
     }
+    */
 
     static const uint256 one(uint256S(
         "0000000000000000000000000000000000000000000000000000000000000001"));
@@ -1761,11 +1746,6 @@ bool VerifyScript(const CScript &scriptSig, const CScript &scriptPubKey,
                   uint32_t flags, const BaseSignatureChecker &checker,
                   ScriptError *serror) {
     set_error(serror, SCRIPT_ERR_UNKNOWN_ERROR);
-
-    // If FORKID is enabled, we also ensure strict encoding.
-    if (flags & SCRIPT_ENABLE_SIGHASH_FORKID) {
-        flags |= SCRIPT_VERIFY_STRICTENC;
-    }
 
     if ((flags & SCRIPT_VERIFY_SIGPUSHONLY) != 0 && !scriptSig.IsPushOnly()) {
         return set_error(serror, SCRIPT_ERR_SIG_PUSHONLY);

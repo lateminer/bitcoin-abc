@@ -384,6 +384,6 @@ bool DummySignatureCreator::CreateSig(std::vector<uint8_t> &vchSig,
     vchSig[4 + 33] = 0x02;
     vchSig[5 + 33] = 32;
     vchSig[6 + 33] = 0x01;
-    vchSig[6 + 33 + 32] = SIGHASH_ALL | SIGHASH_FORKID;
+    vchSig[6 + 33 + 32] = SIGHASH_ALL;
     return true;
 }

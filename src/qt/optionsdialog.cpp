@@ -202,6 +202,7 @@ void OptionsDialog::setMapper() {
     mapper->addMapping(ui->threadsScriptVerif,
                        OptionsModel::ThreadsScriptVerif);
     mapper->addMapping(ui->databaseCache, OptionsModel::DatabaseCache);
+    mapper->addMapping(ui->reserveBalance, OptionsModel::ReserveBalance);
 
     /* Wallet */
     mapper->addMapping(ui->spendZeroConfChange,

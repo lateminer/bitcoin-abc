@@ -1943,6 +1943,17 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
         }
     }
 
+#ifdef ENABLE_WALLET
+    // ppcoin: reserve balance amount
+    if (gArgs.IsArgSet("-reservebalance")) {
+        if (!ParseMoney(gArgs.GetArg("-reservebalance", ""), nReserveBalance)) {
+            InitError(strprintf(_("Invalid amount for -reservebalance=<amount>: '%s'"),
+                gArgs.GetArg("-reservebalance", "")));
+            return false;
+        }
+    }
+#endif
+
     if (gArgs.IsArgSet("-seednode")) {
         for (const std::string &strDest : gArgs.GetArgs("-seednode")) {
             connman.AddOneShot(strDest);

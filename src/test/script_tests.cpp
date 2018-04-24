@@ -91,8 +91,6 @@ static ScriptErrorDesc script_errors[] = {
     {SCRIPT_ERR_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM,
      "DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM"},
     {SCRIPT_ERR_NONCOMPRESSED_PUBKEY, "NONCOMPRESSED_PUBKEY"},
-    {SCRIPT_ERR_ILLEGAL_FORKID, "ILLEGAL_FORKID"},
-    {SCRIPT_ERR_MUST_USE_FORKID, "MISSING_FORKID"},
     {SCRIPT_ERR_DIV_BY_ZERO, "DIV_BY_ZERO"},
     {SCRIPT_ERR_MOD_BY_ZERO, "MOD_BY_ZERO"},
 };
@@ -184,7 +182,7 @@ static void DoTest(const CScript &scriptPubKey, const CScript &scriptSig,
     stream << tx2;
     int libconsensus_flags = flags & bitcoinconsensus_SCRIPT_FLAGS_VERIFY_ALL;
     if (libconsensus_flags == flags) {
-        if (flags & bitcoinconsensus_SCRIPT_ENABLE_SIGHASH_FORKID) {
+        if (flags) {
             BOOST_CHECK_MESSAGE(bitcoinconsensus_verify_script_with_amount(
                                     scriptPubKey.data(), scriptPubKey.size(),
                                     txCredit.vout[0].nValue.GetSatoshis(),
@@ -318,7 +316,7 @@ public:
                          SigHashType sigHashType = SigHashType(),
                          unsigned int lenR = 32, unsigned int lenS = 32,
                          Amount amount = Amount(0),
-                         uint32_t flags = SCRIPT_ENABLE_SIGHASH_FORKID) {
+                         uint32_t flags = 0) {
         uint256 hash = SignatureHash(script, CTransaction(spendTx), 0,
                                      sigHashType, amount, nullptr, flags);
         std::vector<uint8_t> vchSig, r, s;
@@ -1041,46 +1039,23 @@ BOOST_AUTO_TEST_CASE(script_build) {
             .PushRedeem());
 
     static const Amount TEST_AMOUNT(12345000000000);
-    tests.push_back(
-        TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
-                    "P2PK FORKID", SCRIPT_ENABLE_SIGHASH_FORKID, false,
-                    TEST_AMOUNT)
-            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32,
-                     TEST_AMOUNT));
-
-    tests.push_back(
-        TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
-                    "P2PK INVALID AMOUNT", SCRIPT_ENABLE_SIGHASH_FORKID, false,
-                    TEST_AMOUNT)
-            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32,
-                     TEST_AMOUNT + Amount(1))
-            .ScriptError(SCRIPT_ERR_EVAL_FALSE));
-    tests.push_back(
-        TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
-                    "P2PK INVALID FORKID", SCRIPT_VERIFY_STRICTENC, false,
-                    TEST_AMOUNT)
-            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32, TEST_AMOUNT)
-            .ScriptError(SCRIPT_ERR_ILLEGAL_FORKID));
 
     // Test replay protection
     tests.push_back(
         TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
                     "P2PK REPLAY PROTECTED",
-                    SCRIPT_ENABLE_SIGHASH_FORKID |
-                        SCRIPT_ENABLE_REPLAY_PROTECTION,
+                    SCRIPT_ENABLE_REPLAY_PROTECTION,
                     false, TEST_AMOUNT)
-            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32, TEST_AMOUNT,
-                     SCRIPT_ENABLE_SIGHASH_FORKID |
-                         SCRIPT_ENABLE_REPLAY_PROTECTION));
+            .PushSig(keys.key0, SigHashType(SIGHASH_ALL), 32, 32, TEST_AMOUNT,
+                     SCRIPT_ENABLE_REPLAY_PROTECTION));
 
     tests.push_back(
         TestBuilder(CScript() << ToByteVector(keys.pubkey0) << OP_CHECKSIG,
                     "P2PK REPLAY PROTECTED",
-                    SCRIPT_ENABLE_SIGHASH_FORKID |
-                        SCRIPT_ENABLE_REPLAY_PROTECTION,
+                    SCRIPT_ENABLE_REPLAY_PROTECTION,
                     false, TEST_AMOUNT)
-            .PushSig(keys.key0, SigHashType().withForkId(), 32, 32, TEST_AMOUNT,
-                     SCRIPT_ENABLE_SIGHASH_FORKID)
+            .PushSig(keys.key0, SigHashType(SIGHASH_ALL), 32, 32, TEST_AMOUNT,
+                     SCRIPT_ENABLE_REPLAY_PROTECTION)
             .ScriptError(SCRIPT_ERR_EVAL_FALSE));
 
     std::set<std::string> tests_set;
@@ -1630,16 +1605,6 @@ BOOST_AUTO_TEST_CASE(script_GetScriptAsm) {
                                  << vchPubKey,
                        true));
     BOOST_CHECK_EQUAL(
-        derSig + "[ALL|FORKID] " + pubKey,
-        ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "41"))
-                                 << vchPubKey,
-                       true));
-    BOOST_CHECK_EQUAL(
-        derSig + "[ALL|FORKID|ANYONECANPAY] " + pubKey,
-        ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "c1"))
-                                 << vchPubKey,
-                       true));
-    BOOST_CHECK_EQUAL(
         derSig + "[NONE] " + pubKey,
         ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "02"))
                                  << vchPubKey,
@@ -1650,16 +1615,6 @@ BOOST_AUTO_TEST_CASE(script_GetScriptAsm) {
                                  << vchPubKey,
                        true));
     BOOST_CHECK_EQUAL(
-        derSig + "[NONE|FORKID] " + pubKey,
-        ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "42"))
-                                 << vchPubKey,
-                       true));
-    BOOST_CHECK_EQUAL(
-        derSig + "[NONE|FORKID|ANYONECANPAY] " + pubKey,
-        ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "c2"))
-                                 << vchPubKey,
-                       true));
-    BOOST_CHECK_EQUAL(
         derSig + "[SINGLE] " + pubKey,
         ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "03"))
                                  << vchPubKey,
@@ -1667,16 +1622,6 @@ BOOST_AUTO_TEST_CASE(script_GetScriptAsm) {
     BOOST_CHECK_EQUAL(
         derSig + "[SINGLE|ANYONECANPAY] " + pubKey,
         ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "83"))
-                                 << vchPubKey,
-                       true));
-    BOOST_CHECK_EQUAL(
-        derSig + "[SINGLE|FORKID] " + pubKey,
-        ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "43"))
-                                 << vchPubKey,
-                       true));
-    BOOST_CHECK_EQUAL(
-        derSig + "[SINGLE|FORKID|ANYONECANPAY] " + pubKey,
-        ScriptToAsmStr(CScript() << ToByteVector(ParseHex(derSig + "c3"))
                                  << vchPubKey,
                        true));
 

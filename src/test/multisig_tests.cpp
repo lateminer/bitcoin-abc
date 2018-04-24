@@ -353,7 +353,7 @@ BOOST_AUTO_TEST_CASE(multisig_Sign) {
     for (int i = 0; i < 3; i++) {
         BOOST_CHECK_MESSAGE(SignSignature(keystore, CTransaction(txFrom),
                                           txTo[i], 0,
-                                          SigHashType().withForkId()),
+                                          SigHashType(SIGHASH_ALL)),
                             strprintf("SignSignature %d", i));
     }
 }

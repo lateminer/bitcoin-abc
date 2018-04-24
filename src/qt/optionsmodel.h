@@ -45,6 +45,7 @@ public:
         DatabaseCache,       // int
         SpendZeroConfChange, // bool
         Listen,              // bool
+        ReserveBalance,      // Amount
         OptionIDRowCount,
     };
 
@@ -98,6 +99,7 @@ Q_SIGNALS:
     void displayUnitChanged(int unit);
     void coinControlFeaturesChanged(bool);
     void hideTrayIconChanged(bool);
+    void reserveBalanceChanged(Amount);
 };
 
 #endif // BITCOIN_QT_OPTIONSMODEL_H

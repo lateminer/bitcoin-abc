@@ -15,7 +15,6 @@ enum {
     SIGHASH_ALL = 1,
     SIGHASH_NONE = 2,
     SIGHASH_SINGLE = 3,
-    SIGHASH_FORKID = 0x40,
     SIGHASH_ANYONECANPAY = 0x80,
 };
 
@@ -47,13 +46,8 @@ public:
         return SigHashType((sigHash & ~0x1f) | uint32_t(baseSigHashType));
     }
 
-    SigHashType withForkValue(uint32_t forkId) const {
-        return SigHashType((forkId << 8) | (sigHash & 0xff));
-    }
-
-    SigHashType withForkId(bool forkId = true) const {
-        return SigHashType((sigHash & ~SIGHASH_FORKID) |
-                           (forkId ? SIGHASH_FORKID : 0));
+    SigHashType withForkValue(uint32_t forkValue) const {
+        return SigHashType((forkValue << 8) | (sigHash & 0xff));
     }
 
     SigHashType withAnyoneCanPay(bool anyoneCanPay = true) const {
@@ -72,8 +66,6 @@ public:
         return baseType >= BaseSigHashType::ALL &&
                baseType <= BaseSigHashType::SINGLE;
     }
-
-    bool hasForkId() const { return (sigHash & SIGHASH_FORKID) != 0; }
 
     bool hasAnyoneCanPay() const {
         return (sigHash & SIGHASH_ANYONECANPAY) != 0;
