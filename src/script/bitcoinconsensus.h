@@ -59,8 +59,6 @@ enum {
     bitcoinconsensus_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY = (1U << 10),
     // enable WITNESS (BIP141)
     bitcoinconsensus_SCRIPT_FLAGS_VERIFY_WITNESS_DEPRECATED = (1U << 11),
-    // enable SIGHASH_FORKID replay protection
-    bitcoinconsensus_SCRIPT_ENABLE_SIGHASH_FORKID = (1U << 16),
     bitcoinconsensus_SCRIPT_FLAGS_VERIFY_ALL =
         bitcoinconsensus_SCRIPT_FLAGS_VERIFY_P2SH |
         bitcoinconsensus_SCRIPT_FLAGS_VERIFY_DERSIG |

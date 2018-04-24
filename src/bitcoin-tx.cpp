@@ -504,15 +504,6 @@ static const struct {
     {"ALL|ANYONECANPAY", SIGHASH_ALL | SIGHASH_ANYONECANPAY},
     {"NONE|ANYONECANPAY", SIGHASH_NONE | SIGHASH_ANYONECANPAY},
     {"SINGLE|ANYONECANPAY", SIGHASH_SINGLE | SIGHASH_ANYONECANPAY},
-    {"ALL|FORKID", SIGHASH_ALL | SIGHASH_FORKID},
-    {"NONE|FORKID", SIGHASH_NONE | SIGHASH_FORKID},
-    {"SINGLE|FORKID", SIGHASH_SINGLE | SIGHASH_FORKID},
-    {"ALL|FORKID|ANYONECANPAY",
-     SIGHASH_ALL | SIGHASH_FORKID | SIGHASH_ANYONECANPAY},
-    {"NONE|FORKID|ANYONECANPAY",
-     SIGHASH_NONE | SIGHASH_FORKID | SIGHASH_ANYONECANPAY},
-    {"SINGLE|FORKID|ANYONECANPAY",
-     SIGHASH_SINGLE | SIGHASH_FORKID | SIGHASH_ANYONECANPAY},
 };
 
 static bool findSigHashFlags(SigHashType &sigHashType,
@@ -566,7 +557,7 @@ static Amount AmountFromValue(const UniValue &value) {
 }
 
 static void MutateTxSign(CMutableTransaction &tx, const std::string &flagStr) {
-    SigHashType sigHashType = SigHashType().withForkId();
+    SigHashType sigHashType = SigHashType().withBaseType(BaseSigHashType::ALL);
 
     if ((flagStr.size() > 0) && !findSigHashFlags(sigHashType, flagStr)) {
         throw std::runtime_error("unknown sighash flag/sign option");
@@ -619,7 +610,7 @@ static void MutateTxSign(CMutableTransaction &tx, const std::string &flagStr) {
 
         std::map<std::string, UniValue::VType> types = {
             {"txid", UniValue::VSTR},
-			{"txTime", UniValue::VNUM},
+            {"txTime", UniValue::VNUM},
             {"vout", UniValue::VNUM},
             {"scriptPubKey", UniValue::VSTR}};
         if (!prevOut.checkObject(types)) {

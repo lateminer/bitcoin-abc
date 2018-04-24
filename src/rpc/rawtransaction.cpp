@@ -800,12 +800,6 @@ static UniValue signrawtransaction(const Config &config,
             "       \"ALL|ANYONECANPAY\"\n"
             "       \"NONE|ANYONECANPAY\"\n"
             "       \"SINGLE|ANYONECANPAY\"\n"
-            "       \"ALL|FORKID\"\n"
-            "       \"NONE|FORKID\"\n"
-            "       \"SINGLE|FORKID\"\n"
-            "       \"ALL|FORKID|ANYONECANPAY\"\n"
-            "       \"NONE|FORKID|ANYONECANPAY\"\n"
-            "       \"SINGLE|FORKID|ANYONECANPAY\"\n"
 
             "\nResult:\n"
             "{\n"
@@ -1013,34 +1007,19 @@ static UniValue signrawtransaction(const Config &config,
     const CKeyStore &keystore = tempKeystore;
 #endif
 
-    SigHashType sigHashType = SigHashType().withForkId();
+    SigHashType sigHashType = SigHashType().withBaseType(BaseSigHashType::ALL);
     if (request.params.size() > 3 && !request.params[3].isNull()) {
         static std::map<std::string, int> mapSigHashValues = {
             {"ALL", SIGHASH_ALL},
             {"ALL|ANYONECANPAY", SIGHASH_ALL | SIGHASH_ANYONECANPAY},
-            {"ALL|FORKID", SIGHASH_ALL | SIGHASH_FORKID},
-            {"ALL|FORKID|ANYONECANPAY",
-             SIGHASH_ALL | SIGHASH_FORKID | SIGHASH_ANYONECANPAY},
             {"NONE", SIGHASH_NONE},
             {"NONE|ANYONECANPAY", SIGHASH_NONE | SIGHASH_ANYONECANPAY},
-            {"NONE|FORKID", SIGHASH_NONE | SIGHASH_FORKID},
-            {"NONE|FORKID|ANYONECANPAY",
-             SIGHASH_NONE | SIGHASH_FORKID | SIGHASH_ANYONECANPAY},
             {"SINGLE", SIGHASH_SINGLE},
             {"SINGLE|ANYONECANPAY", SIGHASH_SINGLE | SIGHASH_ANYONECANPAY},
-            {"SINGLE|FORKID", SIGHASH_SINGLE | SIGHASH_FORKID},
-            {"SINGLE|FORKID|ANYONECANPAY",
-             SIGHASH_SINGLE | SIGHASH_FORKID | SIGHASH_ANYONECANPAY},
         };
         std::string strHashType = request.params[3].get_str();
         if (!mapSigHashValues.count(strHashType)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid sighash param");
-        }
-
-        sigHashType = SigHashType(mapSigHashValues[strHashType]);
-        if (!sigHashType.hasForkId()) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER,
-                               "Signature must use SIGHASH_FORKID");
         }
     }
 

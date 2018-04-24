@@ -108,10 +108,6 @@ enum {
     //
     SCRIPT_VERIFY_COMPRESSED_PUBKEYTYPE = (1U << 15),
 
-    // Do we accept signature using SIGHASH_FORKID
-    //
-    SCRIPT_ENABLE_SIGHASH_FORKID = (1U << 16),
-
     // Do we accept activate replay protection using a different fork id.
     //
     SCRIPT_ENABLE_REPLAY_PROTECTION = (1U << 17),
@@ -128,7 +124,7 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
                       unsigned int nIn, SigHashType sigHashType,
                       const Amount amount,
                       const PrecomputedTransactionData *cache = nullptr,
-                      uint32_t flags = SCRIPT_ENABLE_SIGHASH_FORKID);
+                      uint32_t flags);
 
 class BaseSignatureChecker {
 public:

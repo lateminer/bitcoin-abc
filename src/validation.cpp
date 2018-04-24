@@ -968,9 +968,7 @@ static bool AcceptToMemoryPoolWorker(
         // Check inputs based on the set of flags we activate.
         uint32_t scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
         if (!config.GetChainParams().RequireStandard()) {
-            scriptVerifyFlags =
-                SCRIPT_ENABLE_SIGHASH_FORKID |
-                gArgs.GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
+            scriptVerifyFlags = gArgs.GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
         }
 
         // Make sure whatever we need to activate is actually activated.

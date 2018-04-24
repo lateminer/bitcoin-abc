@@ -115,8 +115,7 @@ int bitcoinconsensus_verify_script(const uint8_t *scriptPubKey,
                                    const uint8_t *txTo, unsigned int txToLen,
                                    unsigned int nIn, unsigned int flags,
                                    bitcoinconsensus_error *err) {
-    if (flags & bitcoinconsensus_SCRIPT_ENABLE_SIGHASH_FORKID ||
-        flags & bitcoinconsensus_SCRIPT_FLAGS_VERIFY_WITNESS_DEPRECATED) {
+    if (flags & bitcoinconsensus_SCRIPT_FLAGS_VERIFY_WITNESS_DEPRECATED) {
         return set_error(err, bitcoinconsensus_ERR_AMOUNT_REQUIRED);
     }
 

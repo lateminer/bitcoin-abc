@@ -87,9 +87,9 @@ BOOST_AUTO_TEST_CASE(rpc_rawparams) {
     BOOST_CHECK_THROW(CallRPC("signrawtransaction ff00"), std::runtime_error);
     BOOST_CHECK_NO_THROW(CallRPC(std::string("signrawtransaction ") + rawtx));
     BOOST_CHECK_NO_THROW(CallRPC(std::string("signrawtransaction ") + rawtx +
-                                 " null null NONE|FORKID|ANYONECANPAY"));
+                                 " null null NONE|ANYONECANPAY"));
     BOOST_CHECK_NO_THROW(CallRPC(std::string("signrawtransaction ") + rawtx +
-                                 " [] [] NONE|FORKID|ANYONECANPAY"));
+                                 " [] [] NONE|ANYONECANPAY"));
     BOOST_CHECK_THROW(CallRPC(std::string("signrawtransaction ") + rawtx +
                               " null null badenum"),
                       std::runtime_error);
