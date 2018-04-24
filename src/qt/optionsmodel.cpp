@@ -109,11 +109,11 @@ void OptionsModel::Init(bool resetSettings) {
     }
 
     if (!settings.contains("nReserveBalance"))
-        settings.setValue("nReserveBalance", (qint64)nReserveBalance);
+        settings.setValue("nReserveBalance", (qint64)nReserveBalance.GetSatoshis());
     if (!gArgs.SoftSetArg("-reservebalance", settings.value("nReserveBalance").toString().toStdString()))
-        nReserveBalance = gArgs.GetArg("-reservebalance", nReserveBalance);
+        nReserveBalance = Amount(gArgs.GetArg("-reservebalance", (qint64)nReserveBalance.GetSatoshis()));
     else
-        nReserveBalance = settings.value("nReserveBalance").toLongLong();
+        nReserveBalance = Amount(settings.value("nReserveBalance").toLongLong());
 
     Q_EMIT reserveBalanceChanged(nReserveBalance);
 
