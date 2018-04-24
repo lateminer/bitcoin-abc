@@ -22,8 +22,7 @@ static void CheckSigHashType(SigHashType t, BaseSigHashType baseType,
 
 BOOST_AUTO_TEST_CASE(sighash_construction_test) {
     // Check default values.
-    CheckSigHashType(SigHashType(), BaseSigHashType::ALL, true, 0, false,
-                     false);
+    CheckSigHashType(SigHashType(), BaseSigHashType::ALL, true, 0, false);
 
     // Check all possible permutations.
     std::set<BaseSigHashType> baseTypes{
@@ -89,9 +88,9 @@ BOOST_AUTO_TEST_CASE(sighash_serialization_test) {
 
             // Check deserialization.
             CheckSigHashType(tbase, BaseSigHashType(baseType),
-                             hasSupportedBaseType, forkValue, false, false);
+                             hasSupportedBaseType, forkValue, false);
             CheckSigHashType(tanyonecanspend, BaseSigHashType(baseType),
-                             hasSupportedBaseType, forkValue, false, true);
+                             hasSupportedBaseType, forkValue, true);
 
             // Check raw value.
             BOOST_CHECK_EQUAL(tbase.getRawSigHashType(), rawType);

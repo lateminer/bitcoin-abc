@@ -316,7 +316,7 @@ public:
                          SigHashType sigHashType = SigHashType(),
                          unsigned int lenR = 32, unsigned int lenS = 32,
                          Amount amount = Amount(0),
-                         uint32_t flags) {
+                         uint32_t flags = 0) {
         uint256 hash = SignatureHash(script, CTransaction(spendTx), 0,
                                      sigHashType, amount, nullptr, flags);
         std::vector<uint8_t> vchSig, r, s;

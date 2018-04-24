@@ -124,7 +124,7 @@ uint256 SignatureHash(const CScript &scriptCode, const CTransaction &txTo,
                       unsigned int nIn, SigHashType sigHashType,
                       const Amount amount,
                       const PrecomputedTransactionData *cache = nullptr,
-                      uint32_t flags);
+                      uint32_t flags = 0);
 
 class BaseSignatureChecker {
 public:
