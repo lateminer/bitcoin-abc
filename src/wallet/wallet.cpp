@@ -4440,6 +4440,8 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
         strprintf(
             _("Fee (in %s/kB) to add to transactions you send (default: %s)"),
             CURRENCY_UNIT, FormatMoney(payTxFee.GetFeePerK())));
+    strUsage += HelpMessageOpt("-staking", _("Stake your coins to support network and gain reward (default: true)"));
+    strUsage += HelpMessageOpt("-reservebalance=<amount>", _("Ensure available balance remains above reservebalance (default: 0)"));
     strUsage += HelpMessageOpt(
         "-rescan",
         _("Rescan the block chain for missing wallet transactions on startup"));

@@ -115,6 +115,8 @@ static const CRPCConvertParam vRPCConvertParams[] = {
     {"setnetworkactive", 0, "state"},
     {"getmempoolancestors", 1, "verbose"},
     {"getmempooldescendants", 1, "verbose"},
+    {"reservebalance", 0, "reserve"},
+    {"reservebalance", 1, "amount"},
     {"disconnectnode", 1, "nodeid"},
     // Echo with conversion (For testing only)
     {"echojson", 0, "arg0"},

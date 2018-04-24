@@ -472,6 +472,8 @@ static const char UNUSED *bitcoin_strings[] = {
         "bitcoin-abc",
         "Invalid amount for -paytxfee=<amount>: '%s' (must be at least %s)"),
     QT_TRANSLATE_NOOP("bitcoin-abc",
+                      "Invalid amount for -reservebalance=<amount>: '%s'"),
+    QT_TRANSLATE_NOOP("bitcoin-abc",
                       "Invalid netmask specified in -whitelist: '%s'"),
     QT_TRANSLATE_NOOP(
         "bitcoin-abc",

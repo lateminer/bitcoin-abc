@@ -2700,6 +2700,42 @@ static UniValue encryptwallet(const Config &config,
            "backup.";
 }
 
+static UniValue reservebalance(const Config &config,
+                            const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() > 2)
+        throw std::runtime_error(
+            "reservebalance [<reserve> [amount]]\n"
+            "<reserve> is true or false to turn balance reserve on or off.\n"
+            "<amount> is a real and rounded to cent.\n"
+            "Set reserve amount not participating in network protection.\n"
+            "If no parameters provided current setting is printed.\n");
+
+    if (request.params.size() > 0)
+    {
+        bool fReserve = request.params[0].get_bool();
+        if (fReserve)
+        {
+            if (request.params.size() == 1)
+                throw std::runtime_error("must provide amount to reserve balance.\n");
+            Amount nAmount = AmountFromValue(request.params[1]);
+            if (nAmount < Amount(0))
+                throw std::runtime_error("amount cannot be negative.\n");
+            nReserveBalance = nAmount;
+        }
+        else
+        {
+            if (request.params.size() > 1)
+                throw std::runtime_error("cannot specify amount to turn off reserve.\n");
+            nReserveBalance = Amount(0);
+        }
+    }
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("reserve", (nReserveBalance > Amount(0))));
+    result.push_back(Pair("amount", ValueFromAmount(nReserveBalance)));
+    return result;
+}
+
 static UniValue lockunspent(const Config &config,
                             const JSONRPCRequest &request) {
     CWallet *const pwallet = GetWalletForJSONRPCRequest(request);
@@ -3549,6 +3585,7 @@ static const CRPCCommand commands[] = {
     { "wallet",             "listwallets",              listwallets,              true,   {} },
     { "wallet",             "lockunspent",              lockunspent,              true,   {"unlock","transactions"} },
     { "wallet",             "move",                     movecmd,                  false,  {"fromaccount","toaccount","amount","minconf","comment"} },
+    { "wallet",             "reservebalance",           reservebalance,           false,  {"reserve", "amount"}},
     { "wallet",             "sendfrom",                 sendfrom,                 false,  {"fromaccount","toaddress","amount","minconf","comment","comment_to"} },
     { "wallet",             "sendmany",                 sendmany,                 false,  {"fromaccount","amounts","minconf","comment","subtractfeefrom"} },
     { "wallet",             "sendtoaddress",            sendtoaddress,            false,  {"address","amount","comment","comment_to","subtractfeefromamount"} },
