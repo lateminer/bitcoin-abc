@@ -7,6 +7,7 @@
 #endif
 
 #include "optionsmodel.h"
+#include "utilmoneystr.h"
 
 #include "bitcoinunits.h"
 #include "guiutil.h"
@@ -109,13 +110,10 @@ void OptionsModel::Init(bool resetSettings) {
     }
 
     if (!settings.contains("nReserveBalance"))
-        settings.setValue("nReserveBalance", (qint64)nReserveBalance.GetSatoshis());
-    if (!gArgs.SoftSetArg("-reservebalance", settings.value("nReserveBalance").toString().toStdString()))
-        nReserveBalance = Amount(gArgs.GetArg("-reservebalance", (qint64)nReserveBalance.GetSatoshis()));
-    else
-        nReserveBalance = Amount(settings.value("nReserveBalance").toLongLong());
-
-    Q_EMIT reserveBalanceChanged(nReserveBalance);
+        settings.setValue("nReserveBalance", "0");
+    if (!gArgs.SoftSetArg("-reservebalance", FormatMoney(Amount(settings.value("nReserveBalance").toLongLong()))))
+        addOverriddenOption("-reservebalance");
+    nReserveBalance = Amount(settings.value("nReserveBalance").toLongLong());
 
     if (!settings.contains("nThreadsScriptVerif")) {
         settings.setValue("nThreadsScriptVerif", DEFAULT_SCRIPTCHECK_THREADS);
@@ -302,6 +300,8 @@ QVariant OptionsModel::data(const QModelIndex &index, int role) const {
                 return fCoinControlFeatures;
             case DatabaseCache:
                 return settings.value("nDatabaseCache");
+            case ReserveBalance:
+                return settings.value("nReserveBalance");
             case ThreadsScriptVerif:
                 return settings.value("nThreadsScriptVerif");
             case Listen:
@@ -455,6 +455,12 @@ bool OptionsModel::setData(const QModelIndex &index, const QVariant &value,
                 if (settings.value("nDatabaseCache") != value) {
                     settings.setValue("nDatabaseCache", value);
                     setRestartRequired(true);
+                }
+                break;
+            case ReserveBalance:
+                if (settings.value("nReserveBalance") != value) {
+                    settings.setValue("nReserveBalance", value);
+                    Q_EMIT reserveBalanceChanged(Amount(value.toLongLong());
                 }
                 break;
             case ThreadsScriptVerif:
