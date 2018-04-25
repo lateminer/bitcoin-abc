@@ -460,7 +460,8 @@ bool OptionsModel::setData(const QModelIndex &index, const QVariant &value,
             case ReserveBalance:
                 if (settings.value("nReserveBalance") != value) {
                     settings.setValue("nReserveBalance", value);
-                    Q_EMIT reserveBalanceChanged(Amount(value.toLongLong()));
+                    nReserveBalance = Amount(value.toLongLong());
+                    Q_EMIT reserveBalanceChanged(nReserveBalance);
                 }
                 break;
             case ThreadsScriptVerif:
