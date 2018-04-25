@@ -72,8 +72,8 @@ const uint256 CMerkleTx::ABANDON_HASH(uint256S(
 Amount nReserveBalance(0);
 Amount nMinimumInputValue(0);
 
-CTxDestination nDonationAddress = nullptr;
-unsigned int nDonationPercentage = 0;
+CTxDestination nDonationAddress;
+unsigned int nDonationPercentage;
 
 /** @defgroup mapWallet
  *
@@ -863,7 +863,7 @@ Amount GetProofOfStakeReward(const CBlockIndex *pindexPrev, int64_t nCoinAge, Am
     if (Params().GetConsensus().IsProtocolV3(pindexPrev->nTime))
         nSubsidy = Amount(3 * COIN / 2);
     else
-        nSubsidy = Amount(nCoinAge * CENT * 33 / (365 * 33 + 8));
+        nSubsidy = Amount(nCoinAge * CENT.GetSatoshis() * 33 / (365 * 33 + 8));
 
     LogPrint(BCLog::STAKE, "GetProofOfStakeReward(): create=%s nCoinAge=%d\n", FormatMoney(nSubsidy), nCoinAge);
 

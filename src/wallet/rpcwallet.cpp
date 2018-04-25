@@ -2757,14 +2757,14 @@ static UniValue donate(const Config &config,
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, expected valid percentage");
 
     nDonationAddress = dest;
-    nDonationPercentage = (unsigned int)params[1].get_int();
+    nDonationPercentage = (unsigned int)request.params[1].get_int();
 
     if (nDonationPercentage > 100 )
         nDonationPercentage = 100;
 
     UniValue result(UniValue::VOBJ);
-    result.push_back(Pair("address", EncodeDestination(nDonationAddress));
-    result.push_back(Pair("percent", nDonationPercentage));
+    result.push_back(Pair("address", EncodeDestination(nDonationAddress)));
+    result.push_back(Pair("percent", uint64_t(nDonationPercentage)));
     return result;
 }
 
