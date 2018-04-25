@@ -2302,8 +2302,21 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
 #ifdef ENABLE_WALLET
     if (!gArgs.GetBoolArg("-staking", true))
         LogPrintf("Staking disabled\n");
-    else
-    {
+    else {
+
+        if (gArgs.IsArgSet("-donationaddress")) {
+            CTxDestination dest = DecodeDestination(gArgs.GetArg("-donationaddress", ""), config.GetChainParams());
+            if (!IsValidDestination(dest)) {
+                InitError(strprintf(_("Invalid Blackcoin address for -donationaddress=<address>: '%s'"),
+                    gArgs.GetArg("-donationaddress", "")));
+                return false;
+            }
+            else {
+                nDonationAddress = gArgs.GetArg("-donationaddress", "");
+                nDonationPercentage = gArgs.GetArg("-donationpercent", DEFAULT_DONATION_PERCENT);
+            }
+        }
+        
         size_t nWallets = vpwallets.size();
         assert(nWallets > 0);
 

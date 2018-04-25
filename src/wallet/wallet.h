@@ -43,6 +43,8 @@ extern unsigned int nTxConfirmTarget;
 extern bool bSpendZeroConfChange;
 extern bool fSendFreeTransactions;
 extern bool fWalletUnlockStakingOnly;
+extern CTxDestination nDonationAddress;
+extern unsigned int nDonationPercentage;
 
 static const unsigned int DEFAULT_KEYPOOL_SIZE = 1000;
 //! -paytxfee default
@@ -71,6 +73,8 @@ static const bool DEFAULT_WALLETBROADCAST = true;
 static const bool DEFAULT_DISABLE_WALLET = false;
 //! if set, all keys will be derived by using BIP32
 static const bool DEFAULT_USE_HD_WALLET = true;
+//! Default for -donationpercent
+static const unsigned int DEFAULT_DONATION_PERCENT = 50;
 
 extern const char *DEFAULT_WALLET_DAT;
 

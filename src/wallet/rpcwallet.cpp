@@ -2736,6 +2736,38 @@ static UniValue reservebalance(const Config &config,
     return result;
 }
 
+static UniValue donate(const Config &config,
+                            const JSONRPCRequest &request) {
+    if (request.fHelp || request.params.size() > 2)
+        throw std::runtime_error(
+            "donate [<blackcoinaddress> [percent]]\n"
+            "<address> (string) the bitcoin address\n"
+            "<percent> (numeric) percent from 0 to 100\n"
+            "Percentage of block reward donated to specified address.\n");
+
+    std::string strAddress = request.params[0].get_str();
+    CTxDestination dest =
+        DecodeDestination(strAddress, config.GetChainParams());
+    if (!IsValidDestination(dest)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                           "Invalid Bitcoin address");
+    }
+
+    if (request.params[1].get_int() < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, expected valid percentage");
+
+    nDonationAddress = dest;
+    nDonationPercentage = (unsigned int)params[1].get_int();
+
+    if (nDonationPercentage > 100 )
+        nDonationPercentage = 100;
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("address", EncodeDestination(nDonationAddress));
+    result.push_back(Pair("percent", nDonationPercentage));
+    return result;
+}
+
 static UniValue lockunspent(const Config &config,
                             const JSONRPCRequest &request) {
     CWallet *const pwallet = GetWalletForJSONRPCRequest(request);

@@ -68,8 +68,12 @@ CFeeRate CWallet::fallbackFee = CFeeRate(DEFAULT_FALLBACK_FEE);
 
 const uint256 CMerkleTx::ABANDON_HASH(uint256S(
     "0000000000000000000000000000000000000000000000000000000000000001"));
+
 Amount nReserveBalance(0);
 Amount nMinimumInputValue(0);
+
+CTxDestination nDonationAddress = nullptr;
+unsigned int nDonationPercentage = 0;
 
 /** @defgroup mapWallet
  *
@@ -857,9 +861,9 @@ Amount GetProofOfStakeReward(const CBlockIndex *pindexPrev, int64_t nCoinAge, Am
 {
     Amount nSubsidy;
     if (Params().GetConsensus().IsProtocolV3(pindexPrev->nTime))
-        nSubsidy = Amount(3 / 2);
+        nSubsidy = Amount(3 * COIN / 2);
     else
-        nSubsidy = Amount(nCoinAge * (33 / (365 * 33 + 8)) / 100);
+        nSubsidy = Amount(nCoinAge * CENT * 33 / (365 * 33 + 8));
 
     LogPrint(BCLog::STAKE, "GetProofOfStakeReward(): create=%s nCoinAge=%d\n", FormatMoney(nSubsidy), nCoinAge);
 
@@ -4440,8 +4444,6 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
         strprintf(
             _("Fee (in %s/kB) to add to transactions you send (default: %s)"),
             CURRENCY_UNIT, FormatMoney(payTxFee.GetFeePerK())));
-    strUsage += HelpMessageOpt("-staking", _("Stake your coins to support network and gain reward (default: true)"));
-    strUsage += HelpMessageOpt("-reservebalance=<amount>", _("Ensure available balance remains above reservebalance (default: 0)"));
     strUsage += HelpMessageOpt(
         "-rescan",
         _("Rescan the block chain for missing wallet transactions on startup"));
@@ -4514,6 +4516,12 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
                         "mempool chain limits (default: %d)"),
                       DEFAULT_WALLET_REJECT_LONG_CHAINS));
     }
+
+    strUsage += HelpMessageGroup(_("Staking options:"));
+    strUsage += HelpMessageOpt("-staking", _("Stake your coins to support network and gain reward (default: true)"));
+    strUsage += HelpMessageOpt("-reservebalance=<amount>", _("Ensure available balance remains above reservebalance (default: 0)"));
+    strUsage += HelpMessageOpt("-donationaddress=<address>", _("The Blackcoin address to donate to"));
+    strUsage += HelpMessageOpt("-donationpercent=<n>", strprintf("Percentage of block reward donated to specified address (default: %u)", DEFAULT_DONATION_PERCENT));
 
     return strUsage;
 }
