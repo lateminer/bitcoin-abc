@@ -653,6 +653,10 @@ std::string HelpMessage(HelpMessageMode mode) {
             strprintf("Run checks every <n> transactions (default: %u)",
                       defaultChainParams->DefaultConsistencyChecks()));
         strUsage += HelpMessageOpt(
+            "-checkpoints", strprintf("Only accept block chain matching "
+                                      "built-in checkpoints (default: %d)",
+                                      DEFAULT_CHECKPOINTS_ENABLED));
+        strUsage += HelpMessageOpt(
             "-disablesafemode", strprintf("Disable safemode, override a real "
                                           "safe mode event (default: %d)",
                                           DEFAULT_DISABLE_SAFEMODE));
