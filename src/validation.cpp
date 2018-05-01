@@ -1969,17 +1969,16 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     AssertLockHeld(cs_main);
 
     int64_t nTimeStart = GetTimeMicros();
-    const uint256 &hash = pindex->GetBlockHash();
 
     // Check it again in case a previous version let a bad block in
     BlockValidationOptions validationOptions =
         BlockValidationOptions(!fJustCheck, !fJustCheck, !fJustCheck);
-    if (!CheckBlock(config, block, state, hash, validationOptions)) {
+    if (!CheckBlock(config, block, state, validationOptions)) {
         return error("%s: Consensus::CheckBlock: %s", __func__,
                      FormatStateMessage(state));
     }
 
-    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : hash);
+    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : block.GetHash());
 
     // Check difficulty
     if (block.nBits != GetNextTargetRequired(pindex->pprev, &block, block.IsProofOfStake(), config))
@@ -2001,7 +2000,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
     // transactions (its coinbase is unspendable)
     const Consensus::Params &consensusParams =
         config.GetChainParams().GetConsensus();
-    if (hash == consensusParams.hashGenesisBlock) {
+    if (block.GetHash() == consensusParams.hashGenesisBlock) {
         if (!fJustCheck) {
             view.SetBestBlock(pindex->GetBlockHash());
         }
@@ -3451,27 +3450,32 @@ static bool CheckBlockSignature(const CBlock& block, const uint256& hash) {
 static bool CheckBlockHeader(
     const Config &config, const CBlockHeader &block, CValidationState &state,
     BlockValidationOptions validationOptions = BlockValidationOptions()) {
-    if (block.nVersion < 7 && Params().GetConsensus().IsProtocolV2(block.GetBlockTime()))
-        return state.Invalid(error("%s: rejected nVersion=%d block", __func__, block.nVersion),
-                            REJECT_OBSOLETE, "bad-version");
 
-    // Check proof of work matches claimed amount
-    if (validationOptions.shouldValidatePoW() &&
-        !CheckProofOfWork(block.GetHash(), block.nBits, config)) {
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false,
-                            "proof of work failed");
-    }
+	if (block.GetHash() != config.GetChainParams().GetConsensus().hashGenesisBlock) {
+		if (block.nVersion < 7 && Params().GetConsensus().IsProtocolV2(block.GetBlockTime()))
+		        return state.Invalid(error("%s: rejected nVersion=%d block", __func__, block.nVersion),
+		                            REJECT_OBSOLETE, "bad-version");
 
-    // Check timestamp
-    if (block.GetBlockTime() > FutureDrift(GetAdjustedTime()))
-        return state.Invalid(false, REJECT_INVALID, "time-too-new",
-                             "block timestamp too far in the future");
+		    // Check proof of work matches claimed amount
+		    if (validationOptions.shouldValidatePoW() &&
+		        !CheckProofOfWork(block.GetHash(), block.nBits, config) &&
+				!config.GetChainParams().GetConsensus().fPowNoRetargeting) {
+		        return state.DoS(50, false, REJECT_INVALID, "high-hash", false,
+		                            "proof of work failed");
+		    }
+
+		    // Check timestamp
+		    if (block.GetBlockTime() > FutureDrift(GetAdjustedTime()))
+		        return state.Invalid(false, REJECT_INVALID, "time-too-new",
+		                             "block timestamp too far in the future");
+	}
+
 
     return true;
 }
 
 bool CheckBlock(const Config &config, const CBlock &block,
-                CValidationState &state, const uint256 &hash,
+                CValidationState &state,
                 BlockValidationOptions validationOptions) {
     // These are checks that are independent of context.
     if (block.fChecked) {
@@ -3573,9 +3577,9 @@ bool CheckBlock(const Config &config, const CBlock &block,
     }
 
     // Check proof-of-stake block signature
-    if (validationOptions.shouldValidateSig() && !CheckBlockSignature(block, hash))
-            return state.DoS(100, false, REJECT_INVALID, "bad-block-signature", false,
-                         "bad proof-of-stake block signature");
+	if (validationOptions.shouldValidateSig() && !CheckBlockSignature(block, block.GetHash()))
+			return state.DoS(100, false, REJECT_INVALID, "bad-block-signature", false,
+					"bad proof-of-stake block signature");
 
     // Check transactions
     auto txCount = block.vtx.size();
@@ -4032,7 +4036,7 @@ static bool AcceptBlock(const Config &config,
     }
 
     const CChainParams &chainparams = config.GetChainParams();
-    if (!CheckBlock(config, block, state, hash) ||
+    if (!CheckBlock(config, block, state) ||
         !ContextualCheckBlock(config, block, state, pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
@@ -4112,7 +4116,8 @@ bool ProcessNewBlock(const Config &config,
 
         // Ensure that CheckBlock() passes before calling AcceptBlock, as
         // belt-and-suspenders.
-        bool ret = CheckBlock(config, *pblock, state, hash);
+        bool ret = CheckBlock(config, *pblock, state);
+//TODO add cheching block signatures
 
         LOCK(cs_main);
 
@@ -4164,7 +4169,7 @@ bool TestBlockValidity(const Config &config, CValidationState &state,
         return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__,
                      FormatStateMessage(state));
     }
-    if (!CheckBlock(config, block, state, hash, validationOptions)) {
+    if (!CheckBlock(config, block, state, validationOptions)) {
         return error("%s: Consensus::CheckBlock: %s", __func__,
                      FormatStateMessage(state));
     }
@@ -4630,7 +4635,7 @@ bool CVerifyDB::VerifyDB(const Config &config, CCoinsView *coinsview,
 
         // check level 1: verify block validity
         uint256 hash = block.GetHash();
-        if (nCheckLevel >= 1 && !CheckBlock(config, block, state, hash)) {
+        if (nCheckLevel >= 1 && !CheckBlock(config, block, state)) {
             return error("%s: *** found bad block at %d, hash=%s (%s)\n",
                          __func__, pindex->nHeight,
                          pindex->GetBlockHash().ToString(),

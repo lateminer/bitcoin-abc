@@ -238,7 +238,7 @@ ReadStatus PartiallyDownloadedBlock::FillBlock(
     }
 
     CValidationState state;
-    if (!CheckBlock(*config, block, state, hash)) {
+    if (!CheckBlock(*config, block, state)) {
         // TODO: We really want to just check merkle tree manually here, but
         // that is expensive, and CheckBlock caches a block's "checked-status"
         // (in the CBlock?). CBlock should be able to check its own merkle root

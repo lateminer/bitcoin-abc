@@ -51,7 +51,7 @@ static void DeserializeAndCheckBlockTest(benchmark::State &state) {
         CValidationState validationState;
         const uint256 hash = block.GetHash();
 
-        assert(CheckBlock(config, block, validationState, hash));
+        assert(CheckBlock(config, block, validationState));
     }
 }
 

@@ -598,7 +598,7 @@ bool ReadTransactionFromDiskBlock(const CBlockIndex *pindex,
  * transactions are valid, block is a valid size, etc.)
  */
 bool CheckBlock(
-    const Config &Config, const CBlock &block, CValidationState &state, const uint256 &hash,
+    const Config &Config, const CBlock &block, CValidationState &state,
     BlockValidationOptions validationOptions = BlockValidationOptions());
 bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config, CCoinsViewCache& view);
 bool SignBlock(CBlock *pblock, CWalletRef &wallet, Amount &nFees, uint32_t nTime);

@@ -284,14 +284,14 @@ class CRegTestParams : public CChainParams {
 public:
     CRegTestParams() {
         consensus.nMaxReorganizationDepth = 50;
-        consensus.powLimit = uint256S("0000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        consensus.posLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        consensus.posLimitV2 = uint256S("000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+		consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+		consensus.posLimitV2 = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nTargetTimespan = 16 * 60;
         consensus.nTargetSpacingV1 = 60;
         consensus.nTargetSpacing = 64;
         consensus.fPowAllowMinDifficultyBlocks = true;
-        consensus.fPowNoRetargeting = false;
+        consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
         
@@ -325,10 +325,11 @@ public:
         nDefaultPort = 25714;
         nPruneAfterHeight = 1000;
 
-        genesis = CreateGenesisBlock(1393221600, 216178, 0x1f00ffff, 1, Amount(0));
+        genesis = CreateGenesisBlock(1504695029, 17, 0x207fffff, 7, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x0000724595fb3b9609d441cbfb9577615c292abf07d996d3edabc48de843642d"));
-        assert(genesis.hashMerkleRoot == uint256S("0x12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90"));
+        strprintf("hashMerkleRoot %s", genesis.hashMerkleRoot.ToString());
+        assert(consensus.hashGenesisBlock == uint256S("0xf42eb1d043cb8003e491b48e6404f7c3465df16c04ba9370b8307fad87b21216"));
+        assert(genesis.hashMerkleRoot == uint256S("0xca4884e59066db370e5bf6d368c49d5ec8c7dc1161109f71be5f17c6aeb0e30f"));
 
         //!< Regtest mode doesn't have any fixed seeds.
         vFixedSeeds.clear();
@@ -339,11 +340,6 @@ public:
         fDefaultConsistencyChecks = true;
         fRequireStandard = false;
         fMineBlocksOnDemand = true;
-
-        checkpointData = {.mapCheckpoints = {
-                              {0, uint256S("0f9188f13cb7b2c71f2a335e3a4fc328bf5"
-                                           "beb436012afca590b1a11466e2206")},
-                          }};
 
         chainTxData = ChainTxData{0, 0, 0};
 

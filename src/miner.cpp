@@ -221,7 +221,9 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn, Amount *pFees, boo
     pblock->nTime = std::max(pindexPrev->GetPastTimeLimit()+1, GetMaxTransactionTime(pblock));
     if (!fProofOfStake)
        UpdateTime(pblock, *config, pindexPrev);
+
     pblock->nBits = GetNextTargetRequired(pindexPrev, pblock, fProofOfStake, *config);
+
     pblock->nNonce = 0;
     pblocktemplate->vTxSigOpsCount[0] =
         GetSigOpCountWithoutP2SH(*pblock->vtx[0]);
