@@ -41,7 +41,6 @@ extern Amount nReserveBalance;
 extern Amount nMinimumInputValue;
 extern unsigned int nTxConfirmTarget;
 extern bool bSpendZeroConfChange;
-extern bool fSendFreeTransactions;
 extern bool fWalletUnlockStakingOnly;
 extern CTxDestination nDonationAddress;
 extern unsigned int nDonationPercentage;
@@ -61,8 +60,6 @@ static const Amount MIN_CHANGE = CENT;
 static const Amount MIN_FINAL_CHANGE = MIN_CHANGE / 2;
 //! Default for -spendzeroconfchange
 static const bool DEFAULT_SPEND_ZEROCONF_CHANGE = true;
-//! Default for -sendfreetransactions
-static const bool DEFAULT_SEND_FREE_TRANSACTIONS = false;
 //! Default for -walletrejectlongchains
 static const bool DEFAULT_WALLET_REJECT_LONG_CHAINS = false;
 //! -txconfirmtarget default
