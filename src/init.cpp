@@ -456,8 +456,8 @@ std::string HelpMessage(HelpMessageMode mode) {
                                 "the getrawtransaction rpc call (default: %d)"),
                               DEFAULT_TXINDEX));
     strUsage += HelpMessageOpt(
-        "-usecashaddr", _("Use Cash Address for destination encoding instead "
-                          "of base58 (activate by default on Jan, 14)"));
+        "-usecashaddr", strprintf(_("Use Cash Address for destination encoding instead "
+                          "of base58 (default: %d)"), false));
 
     strUsage += HelpMessageGroup(_("Connection options:"));
     strUsage += HelpMessageOpt(
@@ -2196,9 +2196,9 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
     fFeeEstimatesInitialized = true;
 
     // Encoded addresses using cashaddr instead of base58
-    // Activates by default on Jan, 14
+    // Disabled by default
     config.SetCashAddrEncoding(
-        gArgs.GetBoolArg("-usecashaddr", GetAdjustedTime() > 1515900000));
+        gArgs.GetBoolArg("-usecashaddr", false));
 
 // Step 8: load wallet
 #ifdef ENABLE_WALLET
