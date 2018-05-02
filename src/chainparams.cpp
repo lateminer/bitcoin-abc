@@ -283,10 +283,11 @@ public:
 class CRegTestParams : public CChainParams {
 public:
     CRegTestParams() {
+        strNetworkID = "regtest";
         consensus.nMaxReorganizationDepth = 50;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-		consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-		consensus.posLimitV2 = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.posLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.posLimitV2 = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nTargetTimespan = 16 * 60;
         consensus.nTargetSpacingV1 = 60;
         consensus.nTargetSpacing = 64;
