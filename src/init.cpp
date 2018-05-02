@@ -17,6 +17,7 @@
 #include "compat/sanity.h"
 #include "config.h"
 #include "consensus/validation.h"
+#include "dstencode.h"
 #include "fs.h"
 #include "httprpc.h"
 #include "httpserver.h"
@@ -2302,8 +2303,21 @@ bool AppInitMain(Config &config, boost::thread_group &threadGroup,
 #ifdef ENABLE_WALLET
     if (!gArgs.GetBoolArg("-staking", true))
         LogPrintf("Staking disabled\n");
-    else
-    {
+    else {
+
+        if (gArgs.IsArgSet("-donationaddress")) {
+            std::string daddress = gArgs.GetArg("-donationaddress", "");
+            CTxDestination dest = DecodeDestination(daddress, config.GetChainParams());
+            if (!IsValidDestination(dest)) {
+                InitError(strprintf(_("Invalid Blackcoin address for -donationaddress=<address>: '%s'"), daddress));
+                return false;
+            }
+            else {
+                nDonationAddress = dest;
+                nDonationPercentage = gArgs.GetArg("-donationpercent", DEFAULT_DONATION_PERCENT);
+            }
+        }
+        
         size_t nWallets = vpwallets.size();
         assert(nWallets > 0);
 

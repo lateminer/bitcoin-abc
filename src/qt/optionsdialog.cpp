@@ -194,6 +194,8 @@ void OptionsDialog::setModel(OptionsModel *_model) {
     connect(ui->lang, SIGNAL(valueChanged()), this, SLOT(showRestartWarning()));
     connect(ui->thirdPartyTxUrls, SIGNAL(textChanged(const QString &)), this,
             SLOT(showRestartWarning()));
+
+    ui->reserveBalance->setSingleStep(COIN);
 }
 
 void OptionsDialog::setMapper() {
