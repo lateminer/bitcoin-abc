@@ -306,7 +306,7 @@ public:
         consensus.nProtocolV1RetargetingFixedTime = 1395631999;
         consensus.nProtocolV2Time = 1407053625;
         consensus.nProtocolV3Time = 1444028400;
-        consensus.nLastPOWBlock = 0x7fffffff;
+        consensus.nLastPOWBlock = 10000;
         consensus.nStakeTimestampMask = 0xf;
         consensus.nCoinbaseMaturity = 50;
         consensus.nStakeMinConfirmations = 50;
@@ -319,16 +319,15 @@ public:
         diskMagic[1] = 0xf2;
         diskMagic[2] = 0xc0;
         diskMagic[3] = 0xef;
-        netMagic[0] = 0xcd;
-        netMagic[1] = 0xf2;
-        netMagic[2] = 0xc0;
-        netMagic[3] = 0xef;
+        netMagic[0] = diskMagic[0];
+        netMagic[1] = diskMagic[1];
+        netMagic[2] = diskMagic[2];
+        netMagic[3] = diskMagic[3];
         nDefaultPort = 25714;
         nPruneAfterHeight = 1000;
 
         genesis = CreateGenesisBlock(1504695029, 17, 0x207fffff, 7, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
-        strprintf("hashMerkleRoot %s", genesis.hashMerkleRoot.ToString());
         assert(consensus.hashGenesisBlock == uint256S("0xf42eb1d043cb8003e491b48e6404f7c3465df16c04ba9370b8307fad87b21216"));
         assert(genesis.hashMerkleRoot == uint256S("0xca4884e59066db370e5bf6d368c49d5ec8c7dc1161109f71be5f17c6aeb0e30f"));
 
