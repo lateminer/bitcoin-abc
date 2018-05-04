@@ -675,6 +675,7 @@ void IncrementExtraNonce(const Config &config, CBlock *pblock,
 void ThreadStakeMiner(CWalletRef &pwallet, const CChainParams& chainparams)
 {
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
+    LogPrintf("Staking started\n");
 
     // Make this thread recognisable as the mining thread
     RenameThread("blackcoin-miner");
@@ -689,7 +690,7 @@ void ThreadStakeMiner(CWalletRef &pwallet, const CChainParams& chainparams)
 
     while (true)
     {
-        while (pwallet->HaveAvailableCoinsForStaking())
+        while (pwallet->IsLocked())
         {
             nLastCoinStakeSearchInterval = 0;
             MilliSleep(10000);

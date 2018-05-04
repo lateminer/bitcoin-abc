@@ -928,7 +928,7 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
         COutPoint prevoutStake = COutPoint(pcoin.first->GetId(), pcoin.second);
         uint32_t nBlockTime;
         //LogPrintf("looking for coinstake \n");
-        if (CheckKernel(pindexPrev, nBits, txNew.nTime - tx.nTime, prevoutStake, &nBlockTime, stakeCache))
+        if (CheckKernel(pindexPrev, nBits, txNew.nTime, prevoutStake, &nBlockTime, stakeCache))
         {
             // Found a kernel
             LogPrint(BCLog::STAKE, "CreateCoinStake : kernel found");
