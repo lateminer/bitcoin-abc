@@ -942,20 +942,31 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
                 break;
             }
             LogPrint(BCLog::STAKE, "CreateCoinStake : parsed kernel type=%d", whichType);
-            CKeyID spendId;
-            spendId = CKeyID(uint160(vSolutions[0]));
-            if (!GetKey(spendId, key))
-            {
-                LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d", whichType);
-                break;  // unable to find corresponding key
-            };
+
             if (whichType == TX_PUBKEYHASH)
             {
+            	CKeyID spendId = CKeyID(uint160(vSolutions[0]));
+            	if (!GetKey(spendId, key))
+				{
+					LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d", whichType);
+					break;  // unable to find corresponding key
+				};
                 scriptPubKeyOut << ToByteVector(spendId) << OP_CHECKSIG;
 
             } else
             if (whichType == TX_PUBKEY)
             {
+				if (!GetKey(Hash160(vSolutions[0]), key))
+				{
+					LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
+					break;  // unable to find corresponding public key
+				}
+
+				if (key.GetPubKey() != vSolutions[0])
+				{
+					LogPrint(BCLog::STAKE, "CreateCoinStake : invalid key for kernel type=%d\n", whichType);
+					break; // keys mismatch
+				}
                 scriptPubKeyOut = scriptPubKeyKernel;
 
             } else
