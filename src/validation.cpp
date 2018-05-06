@@ -3142,61 +3142,6 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
     return true;
 }
 
-// ppcoin: total coin age spent in transaction, in the unit of coin-days.
-// Only those coins meeting minimum age requirement counts. As those
-// transactions not in main chain are not currently indexed so we
-// might not find out about their coin age. Older transactions are
-// guaranteed to be in main chain by sync-checkpoint. This rule is
-// introduced to help nodes establish a consistent view of the coin
-// age (trust score) of competing branches.
-bool GetCoinAge(const CTransaction &tx, CBlockTreeDB &txdb, const CBlockIndex *pindexPrev, uint64_t &nCoinAge) {
-        arith_uint256 bnCentSecond = 0;  // coin age in the unit of cent-seconds
-        nCoinAge = 0;
-
-        if (tx.IsCoinBase())
-            return true;
-
-        for (const CTxIn &txin : tx.vin) {
-            // First try finding the previous transaction in database
-            CTransactionRef txPrev;
-            CDiskTxPos txindex;
-            if (!ReadTransactionFromDiskBlock(pindexPrev, txPrev))
-                continue;  // previous transaction not in main chain
-            if (tx.nTime < txPrev->nTime)
-                return false;  // Transaction timestamp violation
-
-            if (Params().GetConsensus().IsProtocolV3(tx.nTime))
-            {
-                int nSpendDepth;
-                if (IsConfirmedInNPrevBlocks(txindex, pindexPrev, Params().GetConsensus().nStakeMinConfirmations - 1, nSpendDepth))
-                {
-                    LogPrintf("coinage", "coin age skip nSpendDepth=%d\n", nSpendDepth + 1);
-                    continue; // only count coins meeting min confirmations requirement
-                }
-            }
-            else
-            {
-                // Read block header
-                CBlock block;
-                const CDiskBlockPos& pos = CDiskBlockPos(txindex.nFile, txindex.nPos);
-                if (!ReadBlockFromDisk(block, pos, GetConfig()))
-                    return false; // unable to read block of previous transaction
-                if (block.GetBlockTime() + Params().GetConsensus().nStakeMinAge > tx.nTime)
-                    continue; // only count coins meeting min age requirement
-            }
-
-            int64_t nValueIn = txPrev->vout[txin.prevout.n].nValue.GetSatoshis();
-            bnCentSecond += arith_uint256(nValueIn) * (tx.nTime - txPrev->nTime) / CENT.GetSatoshis();
-
-            LogPrint(BCLog::STAKE, "coin age nValueIn=%d nTimeDiff=%d bnCentSecond=%s\n", nValueIn, tx.nTime - txPrev->nTime, bnCentSecond.ToString());
-        }
-
-        arith_uint256 bnCoinDay = bnCentSecond * CENT.GetSatoshis() / COIN.GetSatoshis() / (24 * 60 * 60);
-        LogPrintf("coinage", "coin age bnCoinDay=%s\n", bnCoinDay.ToString());
-        nCoinAge = bnCoinDay.GetLow64();
-        return true;
-}
-
 static CBlockIndex *AddToBlockIndex(const CBlockHeader &block, const uint256 &hash) {
     // Check for duplicate
     BlockMap::iterator it = mapBlockIndex.find(hash);

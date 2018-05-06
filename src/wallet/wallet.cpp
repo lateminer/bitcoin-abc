@@ -856,20 +856,6 @@ bool CWallet::SelectCoinsForStaking(Amount &nTargetValue, std::set<std::pair<con
     return true;
 }
 
-// miner's coin stake reward
-Amount GetProofOfStakeReward(const CBlockIndex *pindexPrev, int64_t nCoinAge, Amount nFees)
-{
-    Amount nSubsidy;
-    if (Params().GetConsensus().IsProtocolV3(pindexPrev->nTime))
-        nSubsidy = Amount(3 * COIN / 2);
-    else
-        nSubsidy = Amount(nCoinAge * CENT.GetSatoshis() * 33 / (365 * 33 + 8));
-
-    LogPrint(BCLog::STAKE, "GetProofOfStakeReward(): create=%s nCoinAge=%d\n", FormatMoney(nSubsidy), nCoinAge);
-
-    return nSubsidy + nFees;
-}
-
 bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTransaction &tx, CKey &key)
 {
     CBlockIndex* pindexPrev = pindexBestHeader;
@@ -1018,15 +1004,7 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
 
         // Calculate coin age reward
         {
-            uint64_t nCoinAge;
-            CTransaction txImmutable(txNew);
-            if (!GetCoinAge(txImmutable, *pblocktree, pindexPrev, nCoinAge))
-                return error("CreateCoinStake : failed to calculate coin age");
-
-            Amount nReward = GetProofOfStakeReward(pindexPrev, nCoinAge, nTotalFees);
-            if (nReward <= Amount(0))
-                return false;
-
+            Amount nReward = Amount(3 * COIN / 2);
             nCredit += nReward;
         }
 
