@@ -188,7 +188,7 @@ BlockAssembler::CreateNewBlock(const CScript &scriptPubKeyIn, Amount *pFees, boo
     CMutableTransaction coinbaseTx;
     coinbaseTx.nTime = pblock->nTime;
     coinbaseTx.vin.resize(1);
-    coinbaseTx.vin[0].prevout.SetNull();
+    coinbaseTx.vin[0].prevout = COutPoint();
     coinbaseTx.vout.resize(1);
 
     if (!fProofOfStake) {
