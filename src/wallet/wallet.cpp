@@ -961,15 +961,14 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
                 break;  // only support pay to address (pay to pubkey hash)
             };
 
-            txNew.nTime -= tx.nTime;
             txNew.vin.push_back(CTxIn(pcoin.first->GetId(), pcoin.second));
-            nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
-            vwtxPrev.push_back(pcoin.first);
-            txNew.vout.push_back(CTxOut(Amount(0), scriptPubKeyOut));
+			nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
+			vwtxPrev.push_back(pcoin.first);
+			txNew.vout.push_back(CTxOut(Amount(0), scriptPubKeyOut));
 
-            LogPrint(BCLog::STAKE, "CreateCoinStake : added kernel type=%d", whichType);
-            fKernelFound = true;
-            break;
+			LogPrint(BCLog::STAKE, "CreateCoinStake : added kernel type=%d\n", whichType);
+			fKernelFound = true;
+			break;
         }
 
 
@@ -1002,11 +1001,9 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
         }
     }
 
-        // Calculate coin age reward
-        {
-            Amount nReward = Amount(3 * COIN / 2);
-            nCredit += nReward;
-        }
+	Amount nReward = Amount(150 * CENT);
+	nCredit += nReward + nTotalFees;
+
 
     if (nCredit >= GetStakeSplitThreshold())
         txNew.vout.push_back(CTxOut(Amount(0), txNew.vout[1].scriptPubKey)); //split stake
@@ -1014,7 +1011,7 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
     // Set output amount
     if (txNew.vout.size() == 3)
     {
-        txNew.vout[1].nValue = Amount(nCredit.GetSatoshis() / 2 / CENT.GetSatoshis() * CENT.GetSatoshis());
+        txNew.vout[1].nValue = nCredit / 2 / CENT * CENT;
         txNew.vout[2].nValue = nCredit - txNew.vout[1].nValue;
     }
     else

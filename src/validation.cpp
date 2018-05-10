@@ -1269,7 +1269,7 @@ Amount GetProofOfWorkSubsidy(int nHeight, const Consensus::Params &consensusPara
 }
 
 Amount GetProofOfStakeSubsidy() {
-    return Amount(3 * COIN / 2);
+    return Amount(150 * CENT);
 }
 
 bool IsInitialBlockDownload() {
@@ -3635,6 +3635,8 @@ bool SignBlock(CBlock *block, CWalletRef &wallet, Amount &nTotalFees, uint32_t n
     txCoinStake.nTime &= ~Params().GetConsensus().nStakeTimestampMask;
 
     if (wallet->CreateCoinStake(block->nBits, nTotalFees, txCoinStake, key)) {
+    	LogPrintf("txCoinStake.nTime %d", txCoinStake.nTime);
+    	LogPrintf("pindexBestHeader->GetPastTimeLimit() + 1 %d", pindexBestHeader->GetPastTimeLimit() + 1);
         if (txCoinStake.nTime >= pindexBestHeader->GetPastTimeLimit() + 1) {
             // make sure coinstake would meet timestamp protocol
             //    as it would be the same as the block timestamp
