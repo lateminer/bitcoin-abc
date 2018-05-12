@@ -3440,6 +3440,8 @@ bool CheckBlock(const Config &config, const CBlock &block,
     if (validationOptions.shouldValidateMerkleRoot()) {
         bool mutated;
         uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
+        LogPrintf("hashMerkleRoot2 %s \n", hashMerkleRoot2.ToString());
+        LogPrintf("lock.hashMerkleRoot %s \n", block.hashMerkleRoot.ToString());
         if (block.hashMerkleRoot != hashMerkleRoot2) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txnmrklroot",
                              true, "hashMerkleRoot mismatch");
@@ -3582,7 +3584,7 @@ bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config, CCoinsVie
     CValidationState state;
     // verify hash target and signature of coinstake tx
     if (!CheckProofOfStake(mapBlockIndex[pblock->hashPrevBlock], *pblock->vtx[1], pblock->nBits, pblock->nTime, view, state))
-        return error("CheckStake() : proof-of-stake checking failed");
+        return error("CheckProofOfStake() : proof-of-stake checking failed");
 
     //// debug print
     LogPrintf("%s\n", pblock->ToString());
@@ -3601,10 +3603,11 @@ bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config, CCoinsVie
         }
 
         // Process this block the same as if we had received it from another node
-        /*
-        if (!ProcessBlockFound(pblock, config, pblock->GetHash()))
+        std::shared_ptr<const CBlock> staked_pblock =
+                    std::make_shared<const CBlock>(*pblock);
+        if (!ProcessNewBlock(GetConfig(), staked_pblock, true, nullptr, pblock->GetHash()))
             return error("CheckStake() : ProcessBlock, block not accepted");
-        */
+
     }
 
     return true;
@@ -3635,16 +3638,12 @@ bool SignBlock(CBlock *block, CWalletRef &wallet, Amount &nTotalFees, uint32_t n
     txCoinStake.nTime &= ~Params().GetConsensus().nStakeTimestampMask;
 
     if (wallet->CreateCoinStake(block->nBits, nTotalFees, txCoinStake, key)) {
-    	LogPrintf("txCoinStake.nTime %d", txCoinStake.nTime);
-    	LogPrintf("pindexBestHeader->GetPastTimeLimit() + 1 %d", pindexBestHeader->GetPastTimeLimit() + 1);
         if (txCoinStake.nTime >= pindexBestHeader->GetPastTimeLimit() + 1) {
             // make sure coinstake would meet timestamp protocol
             //    as it would be the same as the block timestamp
             txCoinBase.nTime = block->nTime = txCoinStake.nTime;
 
             block->vtx[0] = MakeTransactionRef(std::move(txCoinBase));
-            block->hashMerkleRoot = BlockMerkleRoot(*block);
-
             // we have to make sure that we have no future timestamps in
             //    our transactions set
             for (std::vector<CTransactionRef>::const_iterator it = block->vtx.begin(); it != block->vtx.end();)
@@ -3652,6 +3651,7 @@ bool SignBlock(CBlock *block, CWalletRef &wallet, Amount &nTotalFees, uint32_t n
 
             block->vtx.insert(block->vtx.begin() + 1, MakeTransactionRef(txCoinStake));
 
+            block->hashMerkleRoot = BlockMerkleRoot(*block);
             // append a signature to our block
             return key.Sign(block->GetHash(), block->vchBlockSig);
         }
@@ -4064,7 +4064,6 @@ bool ProcessNewBlock(const Config &config,
         // Ensure that CheckBlock() passes before calling AcceptBlock, as
         // belt-and-suspenders.
         bool ret = CheckBlock(config, *pblock, state);
-//TODO add cheching block signatures
 
         LOCK(cs_main);
 

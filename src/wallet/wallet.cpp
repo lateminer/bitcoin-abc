@@ -39,6 +39,7 @@
 #include <cassert>
 
 std::vector<CWalletRef> vpwallets;
+typedef vector<unsigned char> valtype;
 
 /** Transaction fee set by the user */
 CFeeRate payTxFee(DEFAULT_TRANSACTION_FEE);
@@ -918,7 +919,7 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
         {
             // Found a kernel
             LogPrint(BCLog::STAKE, "CreateCoinStake : kernel found");
-            std::vector<vector<unsigned char> > vSolutions;
+            vector<valtype> vSolutions;
             txnouttype whichType;
             CScript scriptPubKeyOut;
             scriptPubKeyKernel = pcoin.first->tx->vout[pcoin.second].scriptPubKey;
@@ -937,18 +938,19 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
 					LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d", whichType);
 					break;  // unable to find corresponding key
 				};
-                scriptPubKeyOut << ToByteVector(spendId) << OP_CHECKSIG;
+                scriptPubKeyOut << key.GetPubKey().getvch() << OP_CHECKSIG;
 
             } else
             if (whichType == TX_PUBKEY)
             {
-				if (!GetKey(Hash160(vSolutions[0]), key))
+            	valtype& vchPubKey = vSolutions[0];
+				if (!GetKey(Hash160(vchPubKey), key))
 				{
 					LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
 					break;  // unable to find corresponding public key
 				}
 
-				if (key.GetPubKey() != vSolutions[0])
+				if (key.GetPubKey() != vchPubKey)
 				{
 					LogPrint(BCLog::STAKE, "CreateCoinStake : invalid key for kernel type=%d\n", whichType);
 					break; // keys mismatch
@@ -1001,8 +1003,8 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
         }
     }
 
-	Amount nReward = Amount(150 * CENT);
-	nCredit += nReward + nTotalFees;
+	Amount nReward = Amount(150 * CENT) + nTotalFees;
+	nCredit += nReward;
 
 
     if (nCredit >= GetStakeSplitThreshold())
@@ -1011,7 +1013,7 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
     // Set output amount
     if (txNew.vout.size() == 3)
     {
-        txNew.vout[1].nValue = nCredit / 2 / CENT * CENT;
+        txNew.vout[1].nValue = (nCredit / 2 / CENT) * CENT;
         txNew.vout[2].nValue = nCredit - txNew.vout[1].nValue;
     }
     else
