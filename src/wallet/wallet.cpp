@@ -915,62 +915,54 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
         COutPoint prevoutStake = COutPoint(pcoin.first->GetId(), pcoin.second);
         uint32_t nBlockTime;
         //LogPrintf("looking for coinstake \n");
-        if (CheckKernel(pindexPrev, nBits, txNew.nTime, prevoutStake, &nBlockTime, stakeCache))
-        {
+        if (CheckKernel(pindexPrev, nBits, txNew.nTime, prevoutStake, &nBlockTime, stakeCache)) {
             // Found a kernel
             LogPrint(BCLog::STAKE, "CreateCoinStake : kernel found");
             vector<valtype> vSolutions;
             txnouttype whichType;
             CScript scriptPubKeyOut;
             scriptPubKeyKernel = pcoin.first->tx->vout[pcoin.second].scriptPubKey;
-            if (!Solver(scriptPubKeyKernel, whichType, vSolutions))
-            {
+            if (!Solver(scriptPubKeyKernel, whichType, vSolutions)) {
                 LogPrint(BCLog::STAKE, "CreateCoinStake : failed to parse kernel %d", whichType);
                 break;
             }
             LogPrint(BCLog::STAKE, "CreateCoinStake : parsed kernel type=%d", whichType);
 
-            if (whichType == TX_PUBKEYHASH)
-            {
-            	CKeyID spendId = CKeyID(uint160(vSolutions[0]));
-            	if (!GetKey(spendId, key))
-				{
-					LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d", whichType);
-					break;  // unable to find corresponding key
-				};
+            if (whichType == TX_PUBKEYHASH) {
+                CKeyID spendId = CKeyID(uint160(vSolutions[0]));
+                if (!GetKey(spendId, key)) {
+                    LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d", whichType);
+                    break;  // unable to find corresponding key
+                };
                 scriptPubKeyOut << key.GetPubKey().getvch() << OP_CHECKSIG;
 
             } else
-            if (whichType == TX_PUBKEY)
-            {
-            	valtype& vchPubKey = vSolutions[0];
-				if (!GetKey(Hash160(vchPubKey), key))
-				{
-					LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
-					break;  // unable to find corresponding public key
-				}
+            if (whichType == TX_PUBKEY) {
+                valtype& vchPubKey = vSolutions[0];
+                if (!GetKey(Hash160(vchPubKey), key)) {
+                    LogPrint(BCLog::STAKE, "CreateCoinStake : failed to get key for kernel type=%d\n", whichType);
+                    break;  // unable to find corresponding public key
+                }
 
-				if (key.GetPubKey() != vchPubKey)
-				{
-					LogPrint(BCLog::STAKE, "CreateCoinStake : invalid key for kernel type=%d\n", whichType);
-					break; // keys mismatch
-				}
+                if (key.GetPubKey() != vchPubKey) {
+                    LogPrint(BCLog::STAKE, "CreateCoinStake : invalid key for kernel type=%d\n", whichType);
+                    break; // keys mismatch
+                }
                 scriptPubKeyOut = scriptPubKeyKernel;
 
-            } else
-            {
+            } else {
                 LogPrint(BCLog::STAKE, "only support pay to address (pay to pubkey hash)", whichType);
                 break;  // only support pay to address (pay to pubkey hash)
             };
 
             txNew.vin.push_back(CTxIn(pcoin.first->GetId(), pcoin.second));
-			nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
-			vwtxPrev.push_back(pcoin.first);
-			txNew.vout.push_back(CTxOut(Amount(0), scriptPubKeyOut));
+            nCredit += pcoin.first->tx->vout[pcoin.second].nValue;
+            vwtxPrev.push_back(pcoin.first);
+            txNew.vout.push_back(CTxOut(Amount(0), scriptPubKeyOut));
 
-			LogPrint(BCLog::STAKE, "CreateCoinStake : added kernel type=%d\n", whichType);
-			fKernelFound = true;
-			break;
+            LogPrint(BCLog::STAKE, "CreateCoinStake : added kernel type=%d\n", whichType);
+            fKernelFound = true;
+            break;
         }
 
 
@@ -1003,9 +995,8 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
         }
     }
 
-	Amount nReward = Amount(150 * CENT) + nTotalFees;
-	nCredit += nReward;
-
+    Amount nReward = Amount(150 * CENT) + nTotalFees;
+    nCredit += nReward;
 
     if (nCredit >= GetStakeSplitThreshold())
         txNew.vout.push_back(CTxOut(Amount(0), txNew.vout[1].scriptPubKey)); //split stake
