@@ -92,6 +92,7 @@ add_test_to_suite(bitcoin test_bitcoin
 	rpc_tests.cpp
 	sanity_tests.cpp
 	scheduler_tests.cpp
+	script_commitment_tests.cpp
 	script_P2PKH_tests.cpp
 	script_P2SH_tests.cpp
 	script_tests.cpp
