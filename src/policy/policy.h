@@ -65,16 +65,14 @@ static const unsigned int STANDARD_NOT_MANDATORY_VERIFY_FLAGS =
  * non-consensus code. */
 static const unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS = 0;
 
-bool IsStandard(const CScript &scriptPubKey, txnouttype &whichType,
-                bool allowLargeOpReturn = true);
+bool IsStandard(const CScript &scriptPubKey, txnouttype &whichType);
 
 /**
  * Check for standard transaction types
  * @return True if all outputs (scriptPubKeys) use only standard transaction
  * forms
  */
-bool IsStandardTx(const CTransaction &tx, std::string &reason,
-                  bool allowLargeOpReturn = true);
+bool IsStandardTx(const CTransaction &tx, std::string &reason);
 
 /**
  * Check for standard transaction types
