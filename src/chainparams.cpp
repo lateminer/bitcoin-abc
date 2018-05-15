@@ -180,6 +180,7 @@ public:
                 {254348, uint256S("9bf8d9bd757d3ef23d5906d70567e5f0da93f1e0376588c8d421a95e2421838b")},  // minor network split
                 {319002, uint256S("0011494d03b2cdf1ecfc8b0818f1e0ef7ee1d9e9b3d1279c10d35456bc3899ef")},  // hardfork
                 {872456, uint256S("e4fd321ced1de06213d2e246b150b4bfd8c4aa0989965dce88f2a58668c64860")}, // hardfork
+             /* {530359, uint256S("0000000000000000011ada8bd08f46074f44a8f155396f43e38acf9501c49103")}, // BlackOps */
             }};
 
         // Data as of block
