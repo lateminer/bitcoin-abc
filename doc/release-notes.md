@@ -1,11 +1,3 @@
-Bitcoin ABC version 0.17.2 is now available from:
+Bitcoin ABC version 0.17.3 is now available from:
 
-  <https://download.bitcoinabc.org/0.17.2/>
-
-This release includes the following features and fixes:
- - Remove deprecated `estimatepriority` RPC.
- - Remove deprecated `estimatesmartpriority` RPC.
- - Remove support for `-sendfreetransactions`.
- - Remove unstable `estimatesmartfee` RPC.
- - Update berkley DB to 6.2 minimum. Developers should update their build environment accordingly.
- - Remove `-incrementalrelayfee` option
+  <https://download.bitcoinabc.org/0.17.3/>
