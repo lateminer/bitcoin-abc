@@ -50,7 +50,7 @@ struct CoinEntry {
         s >> key;
         uint256 id;
         s >> id;
-        uint32_t n;
+        uint32_t n = 0;
         s >> VARINT(n);
         *outpoint = COutPoint(id, n);
     }
