@@ -13,6 +13,7 @@ add_executable(test_bitcoin
 	bip32_tests.cpp
 	blockcheck_tests.cpp
 	blockencodings_tests.cpp
+	blockstatus_tests.cpp
 	bloom_tests.cpp
 	bswap_tests.cpp
 	cashaddr_tests.cpp

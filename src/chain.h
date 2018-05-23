@@ -188,6 +188,9 @@ enum BlockStatusEnum : uint32_t {
                        BLOCK_VALID_TRANSACTIONS | BLOCK_VALID_CHAIN |
                        BLOCK_VALID_SCRIPTS,
 
+    // Just a helper
+    BLOCK_HAVE_NOTHING = 0,
+
     // Full block available in blk*.dat
     BLOCK_HAVE_DATA = 8,
     // Undo data available in rev*.dat
@@ -204,6 +207,72 @@ enum BlockStatusEnum : uint32_t {
     BLOCK_PROOF_OF_STAKE = 128,
     BLOCK_STAKE_ENTROPY = 256,
     BLOCK_STAKE_MODIFIER = 512,
+};
+
+struct BlockStatus {
+private:
+    uint32_t status;
+
+    explicit BlockStatus(uint32_t nStatusIn) : status(nStatusIn) {}
+
+public:
+    explicit BlockStatus() : status(BLOCK_VALID_UNKNOWN) {}
+
+    BlockValidity getValidity() const {
+        return BlockValidity(status & BLOCK_VALID_MASK);
+    }
+
+    BlockStatus withValidity(BlockValidity validity) const {
+        return BlockStatus((status & ~BLOCK_VALID_MASK) | uint32_t(validity));
+    }
+
+    bool hasData() const { return status & BLOCK_HAVE_DATA; }
+    BlockStatus withData(bool hasData = true) const {
+        return BlockStatus((status & ~BLOCK_HAVE_DATA) |
+                           (hasData ? BLOCK_HAVE_DATA : BLOCK_HAVE_NOTHING));
+    }
+
+    bool hasUndo() const { return status & BLOCK_HAVE_UNDO; }
+    BlockStatus withUndo(bool hasUndo = true) const {
+        return BlockStatus((status & ~BLOCK_HAVE_UNDO) |
+                           (hasUndo ? BLOCK_HAVE_UNDO : BLOCK_HAVE_NOTHING));
+    }
+
+    /**
+     * Check whether this block index entry is valid up to the passed validity
+     * level.
+     */
+    bool isValid(enum BlockValidity nUpTo = BlockValidity::TRANSACTIONS) const {
+        if (status & BLOCK_FAILED_MASK) {
+            return false;
+        }
+
+        return getValidity() >= nUpTo;
+    }
+
+    // To transition from this and the plain old intereger.
+    // TODO: delete.
+    uint32_t operator&(uint32_t rhs) const { return status & rhs; }
+    uint32_t operator|(uint32_t rhs) const { return status | rhs; }
+
+    BlockStatus &operator&=(uint32_t rhs) {
+        this->status &= rhs;
+        return *this;
+    }
+    BlockStatus &operator|=(uint32_t rhs) {
+        this->status |= rhs;
+        return *this;
+    }
+
+    operator bool() const { return status != 0; }
+    operator uint32_t() const { return status; }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream &s, Operation ser_action) {
+        READWRITE(VARINT(status));
+    }
 };
 
 /**
@@ -253,7 +322,7 @@ public:
     unsigned int nChainTx;
 
     //! Verification status of this block. See enum BlockStatus
-    uint32_t nStatus;
+    BlockStatus nStatus;
 
     //! hash modifier of proof-of-stake
     uint256 nStakeModifier;
@@ -286,7 +355,7 @@ public:
         nChainWork = arith_uint256();
         nTx = 0;
         nChainTx = 0;
-        nStatus = 0;
+        nStatus = BlockStatus();
         nStakeModifier = uint256();
         nSequenceId = 0;
         nTimeMax = 0;
@@ -396,12 +465,7 @@ public:
     //! Check whether this block index entry is valid up to the passed validity
     //! level.
     bool IsValid(enum BlockValidity nUpTo = BlockValidity::TRANSACTIONS) const {
-        // Only validity flags allowed.
-        if (nStatus & BLOCK_FAILED_MASK) {
-            return false;
-        }
-
-        return BlockValidity(nStatus & BLOCK_VALID_MASK) >= nUpTo;
+        return nStatus.isValid(nUpTo);
     }
 
     //! Raise the validity level of this block index entry.
@@ -416,7 +480,7 @@ public:
             return false;
         }
 
-        nStatus = (nStatus & ~BLOCK_VALID_MASK) | uint32_t(nUpTo);
+        nStatus = nStatus.withValidity(nUpTo);
         return true;
     }
 
@@ -481,7 +545,7 @@ public:
         }
 
         READWRITE(VARINT(nHeight));
-        READWRITE(VARINT(nStatus));
+        READWRITE(nStatus);
         READWRITE(nStakeModifier);
         READWRITE(nHashBlock);
         READWRITE(VARINT(nTx));
