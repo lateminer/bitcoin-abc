@@ -548,7 +548,7 @@ static UniValue getblocktemplate(const Config &config,
             BlockMap::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end()) {
                 CBlockIndex *pindex = mi->second;
-                if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+                if (pindex->IsValid(BlockValidity::SCRIPTS)) {
                     return "duplicate";
                 }
                 if (pindex->nStatus & BLOCK_FAILED_MASK) {
@@ -905,7 +905,7 @@ static UniValue submitblock(const Config &config,
         BlockMap::iterator mi = mapBlockIndex.find(hash);
         if (mi != mapBlockIndex.end()) {
             CBlockIndex *pindex = mi->second;
-            if (pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+            if (pindex->IsValid(BlockValidity::SCRIPTS)) {
                 return "duplicate";
             }
             if (pindex->nStatus & BLOCK_FAILED_MASK) {

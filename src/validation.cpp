@@ -2184,7 +2184,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
 
     // Write undo information to disk
     if (pindex->GetUndoPos().IsNull() ||
-        !pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
+        !pindex->IsValid(BlockValidity::SCRIPTS)) {
         if (pindex->GetUndoPos().IsNull()) {
             CDiskBlockPos _pos;
             if (!FindUndoPos(
@@ -2203,7 +2203,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
             pindex->nStatus |= BLOCK_HAVE_UNDO;
         }
 
-        pindex->RaiseValidity(BLOCK_VALID_SCRIPTS);
+        pindex->RaiseValidity(BlockValidity::SCRIPTS);
         setDirtyBlockIndex.insert(pindex);
     }
 
@@ -3039,7 +3039,7 @@ bool PreciousBlock(const Config &config, CValidationState &state,
             // call preciousblock 2**31-1 times on the same set of tips...
             nBlockReverseSequenceId--;
         }
-        if (pindex->IsValid(BLOCK_VALID_TRANSACTIONS) && pindex->nChainTx) {
+        if (pindex->IsValid(BlockValidity::TRANSACTIONS) && pindex->nChainTx) {
             setBlockIndexCandidates.insert(pindex);
             PruneBlockIndexCandidates();
         }
@@ -3081,7 +3081,7 @@ bool InvalidateBlock(const Config &config, CValidationState &state,
     // so add it again.
     BlockMap::iterator it = mapBlockIndex.begin();
     while (it != mapBlockIndex.end()) {
-        if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) &&
+        if (it->second->IsValid(BlockValidity::TRANSACTIONS) &&
             it->second->nChainTx &&
             !setBlockIndexCandidates.value_comp()(it->second,
                                                   chainActive.Tip())) {
@@ -3107,7 +3107,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
             it->second->GetAncestor(nHeight) == pindex) {
             it->second->nStatus &= ~BLOCK_FAILED_MASK;
             setDirtyBlockIndex.insert(it->second);
-            if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) &&
+            if (it->second->IsValid(BlockValidity::TRANSACTIONS) &&
                 it->second->nChainTx &&
                 setBlockIndexCandidates.value_comp()(chainActive.Tip(),
                                                      it->second)) {
@@ -3161,7 +3161,7 @@ static CBlockIndex *AddToBlockIndex(const CBlockHeader &block, const uint256 &ha
     pindexNew->nChainWork =
         (pindexNew->pprev ? pindexNew->pprev->nChainWork : 0) +
         GetBlockProof(*pindexNew);
-    pindexNew->RaiseValidity(BLOCK_VALID_TREE);
+    pindexNew->RaiseValidity(BlockValidity::TREE);
     if (pindexBestHeader == nullptr ||
         pindexBestHeader->nChainWork < pindexNew->nChainWork) {
         pindexBestHeader = pindexNew;
@@ -3187,7 +3187,7 @@ bool ReceivedBlockTransactions(const CBlock &block, CValidationState &state,
     pindexNew->nDataPos = pos.nPos;
     pindexNew->nUndoPos = 0;
     pindexNew->nStatus |= BLOCK_HAVE_DATA;
-    pindexNew->RaiseValidity(BLOCK_VALID_TRANSACTIONS);
+    pindexNew->RaiseValidity(BlockValidity::TRANSACTIONS);
     setDirtyBlockIndex.insert(pindexNew);
 
     if (pindexNew->pprev == nullptr || pindexNew->pprev->nChainTx) {
@@ -3224,7 +3224,8 @@ bool ReceivedBlockTransactions(const CBlock &block, CValidationState &state,
             }
         }
     } else {
-        if (pindexNew->pprev && pindexNew->pprev->IsValid(BLOCK_VALID_TREE)) {
+        if (pindexNew->pprev &&
+            pindexNew->pprev->IsValid(BlockValidity::TREE)) {
             mapBlocksUnlinked.insert(
                 std::make_pair(pindexNew->pprev, pindexNew));
         }
@@ -4396,7 +4397,7 @@ static bool LoadBlockIndexDB(const CChainParams &chainparams) {
                 pindex->nChainTx = pindex->nTx;
             }
         }
-        if (pindex->IsValid(BLOCK_VALID_TRANSACTIONS) &&
+        if (pindex->IsValid(BlockValidity::TRANSACTIONS) &&
             (pindex->nChainTx || pindex->pprev == nullptr)) {
             setBlockIndexCandidates.insert(pindex);
         }
@@ -4408,7 +4409,7 @@ static bool LoadBlockIndexDB(const CChainParams &chainparams) {
         if (pindex->pprev) {
             pindex->BuildSkip();
         }
-        if (pindex->IsValid(BLOCK_VALID_TREE) &&
+        if (pindex->IsValid(BlockValidity::TREE) &&
             (pindexBestHeader == nullptr ||
              CBlockIndexWorkComparator()(pindexBestHeader, pindex))) {
             pindexBestHeader = pindex;
@@ -4813,7 +4814,7 @@ bool RewindBlockIndex(const Config &config) {
          it != mapBlockIndex.end(); it++) {
         CBlockIndex *pindexIter = it->second;
 
-        if (pindexIter->IsValid(BLOCK_VALID_TRANSACTIONS) &&
+        if (pindexIter->IsValid(BlockValidity::TRANSACTIONS) &&
             pindexIter->nChainTx) {
             setBlockIndexCandidates.insert(pindexIter);
         }
