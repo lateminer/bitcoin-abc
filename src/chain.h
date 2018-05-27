@@ -271,8 +271,6 @@ public:
 
     // To transition from this and the plain old intereger.
     // TODO: delete.
-    uint32_t operator&(uint32_t rhs) const { return status & rhs; }
-
     BlockStatus &operator&=(uint32_t rhs) {
         this->status &= rhs;
         return *this;
@@ -282,9 +280,6 @@ public:
         this->status |= rhs;
         return *this;
     }
-
-    operator bool() const { return status != 0; }
-    operator uint32_t() const { return status; }
 
     ADD_SERIALIZE_METHODS;
 
