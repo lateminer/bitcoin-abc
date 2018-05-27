@@ -5628,9 +5628,9 @@ public:
     CMainCleanup() {}
     ~CMainCleanup() {
         // block headers
-        BlockMap::iterator it1 = mapBlockIndex.begin();
-        for (; it1 != mapBlockIndex.end(); it1++) {
-            delete (*it1).second;
+        for (const std::pair<const uint256, CBlockIndex *> &it :
+             mapBlockIndex) {
+            delete it.second;
         }
         mapBlockIndex.clear();
     }
