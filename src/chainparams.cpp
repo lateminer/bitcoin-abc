@@ -156,7 +156,6 @@ public:
         assert(genesis.hashMerkleRoot == uint256S("0x12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90"));
 
         vSeeds.push_back(CDNSSeedData("vasin.nl", "dnsseed.vasin.nl", true));
-        vSeeds.push_back(CDNSSeedData("vps.joshuajbouw.com", "dnsseed.joshuajbouw.com", true));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<uint8_t>(1, 25);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<uint8_t>(1, 85);
@@ -204,7 +203,7 @@ class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
         strNetworkID = "test";
-        consensus.nMaxReorganizationDepth = 50;
+        consensus.nMaxReorganizationDepth = 500;
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.posLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.posLimitV2 = uint256S("000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffff");
@@ -212,7 +211,7 @@ public:
         consensus.nTargetSpacingV1 = 60;
         consensus.nTargetSpacing = 64;
         consensus.fPowAllowMinDifficultyBlocks = true;
-        consensus.fPowNoRetargeting = false;
+        consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nTargetTimespan / nTargetSpacing
         
@@ -246,31 +245,29 @@ public:
         nDefaultPort = 25714;
         nPruneAfterHeight = 10000;
 
-        genesis = CreateGenesisBlock(1393221600, 164482, 0x1e0fffff, 1, Amount(0));
+        genesis = CreateGenesisBlock(1504695029, 17, 0x207fffff, 7, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x000001faef25dec4fbcf906e6242621df2c183bf232f263d0ba5b101911e4563"));
-        assert(genesis.hashMerkleRoot == uint256S("0x12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90"));
+        assert(consensus.hashGenesisBlock == uint256S("0xf42eb1d043cb8003e491b48e6404f7c3465df16c04ba9370b8307fad87b21216"));
+        assert(genesis.hashMerkleRoot == uint256S("0xca4884e59066db370e5bf6d368c49d5ec8c7dc1161109f71be5f17c6aeb0e30f"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
+        vSeeds.push_back(CDNSSeedData("13.93.55.135", true));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<uint8_t>(1, 111);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<uint8_t>(1, 196);
         base58Prefixes[SECRET_KEY] = std::vector<uint8_t>(1, 239);
         base58Prefixes[EXT_PUBLIC_KEY] = {0x04, 0x35, 0x87, 0xCF};
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
-        cashaddrPrefix = "blktest";
-        vFixedSeeds = std::vector<SeedSpec6>(
-            pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
 
         fMiningRequiresPeers = true;
         fDefaultConsistencyChecks = false;
         fRequireStandard = false;
-        fMineBlocksOnDemand = false;
+        fMineBlocksOnDemand = true;
 
         checkpointData = {
             .mapCheckpoints = {
-                {0, uint256S("0x000001faef25dec4fbcf906e6242621df2c183bf232f263d0ba5b101911e4563")},
+                {0, uint256S("0xf42eb1d043cb8003e491b48e6404f7c3465df16c04ba9370b8307fad87b21216")},
             }};
 
         chainTxData = ChainTxData{0, 0, 0};

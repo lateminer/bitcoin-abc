@@ -442,12 +442,9 @@ extern "C" void *ThreadStats(void *) {
 }
 
 static const std::string mainnet_seeds[] = {
-    "seed.bitcoinabc.org", "seed-abc.bitcoinforks.org", "seed.bitprim.org",
-    "seed.deadalnix.me",   "seeder.criptolayer.net",    ""};
+    "vasin.nl", "dnsseed.vasin.nl", ""};
 static const std::string testnet_seeds[] = {
-    "testnet-seed.bitcoinabc.org",    "testnet-seed-abc.bitcoinforks.org",
-    "testnet-seed.bitprim.org",       "testnet-seed.deadalnix.me",
-    "testnet-seeder.criptolayer.net", ""};
+    "13.93.55.135", ""};
 static const std::string *seeds = mainnet_seeds;
 
 const static unsigned int MAX_HOSTS_PER_SEED = 128;
@@ -504,13 +501,14 @@ int main(int argc, char **argv) {
             SetProxy(NET_IPV6, service);
         }
     }
+
     bool fDNS = true;
     if (opts.fUseTestNet) {
         printf("Using testnet.\n");
-        netMagic[0] = 0xf4;
-        netMagic[1] = 0xe5;
-        netMagic[2] = 0xf3;
-        netMagic[3] = 0xf4;
+        netMagic[0] = 0xcd;
+        netMagic[1] = 0xf2;
+        netMagic[2] = 0xc0;
+        netMagic[3] = 0xef;
         seeds = testnet_seeds;
         fTestNet = true;
     }
