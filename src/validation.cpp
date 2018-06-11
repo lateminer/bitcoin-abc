@@ -3611,7 +3611,7 @@ bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config, CCoinsVie
     return true;
 }
 
-#ifdef ENABLE_WALLET
+//#ifdef ENABLE_WALLET
 // novacoin: attempt to generate suitable proof-of-stake
 bool SignBlock(CBlock *block, CWalletRef &wallet, Amount &nTotalFees, uint32_t nTime)
 {
@@ -3644,8 +3644,8 @@ bool SignBlock(CBlock *block, CWalletRef &wallet, Amount &nTotalFees, uint32_t n
             block->vtx[0] = MakeTransactionRef(std::move(txCoinBase));
             // we have to make sure that we have no future timestamps in
             //    our transactions set
-            for (std::vector<CTransactionRef>::const_iterator it = block->vtx.begin(); it != block->vtx.end();)
-                if (it->get()->nTime > block->nTime) { it = block->vtx.erase(it); } else { ++it; }
+            for (std::vector<CTransactionRef>::iterator it = block->vtx.begin(); it != block->vtx.end();)
+                                if (it->get()->nTime > block->nTime) { it = block->vtx.erase(it); } else { ++it; }
 
             block->vtx.insert(block->vtx.begin() + 1, MakeTransactionRef(txCoinStake));
 
@@ -3657,7 +3657,7 @@ bool SignBlock(CBlock *block, CWalletRef &wallet, Amount &nTotalFees, uint32_t n
         return false;
     } else return false;
 }
-#endif
+//#endif
 
 static bool CheckIndexAgainstCheckpoint(const CBlockIndex *pindexPrev,
                                         CValidationState &state,
