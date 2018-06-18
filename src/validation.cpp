@@ -3440,8 +3440,6 @@ bool CheckBlock(const Config &config, const CBlock &block,
     if (validationOptions.shouldValidateMerkleRoot()) {
         bool mutated;
         uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
-        LogPrintf("hashMerkleRoot2 %s \n", hashMerkleRoot2.ToString());
-        LogPrintf("lock.hashMerkleRoot %s \n", block.hashMerkleRoot.ToString());
         if (block.hashMerkleRoot != hashMerkleRoot2) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txnmrklroot",
                              true, "hashMerkleRoot mismatch");
@@ -3584,7 +3582,7 @@ bool CheckStake(CBlock *pblock, CWallet &wallet, const Config &config, CCoinsVie
     CValidationState state;
     // verify hash target and signature of coinstake tx
     if (!CheckProofOfStake(mapBlockIndex[pblock->hashPrevBlock], *pblock->vtx[1], pblock->nBits, pblock->nTime, view, state))
-        return error("CheckProofOfStake() : proof-of-stake checking failed");
+        return error("CheckStake() : proof-of-stake checking failed");
 
     //// debug print
     LogPrintf("%s\n", pblock->ToString());
