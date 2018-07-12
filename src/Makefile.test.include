@@ -78,7 +78,6 @@ BITCOIN_TESTS =\
   test/scriptflags.cpp \
   test/scriptflags.h \
   test/scriptnum_tests.cpp \
-  test/scrypt_tests.cpp \
   test/serialize_tests.cpp \
   test/sighash_tests.cpp \
   test/sigopcount_tests.cpp \

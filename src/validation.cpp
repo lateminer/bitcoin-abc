@@ -742,7 +742,7 @@ static bool AcceptToMemoryPoolWorker(
     if (tx.nTime > FutureDrift(GetAdjustedTime())) {
         return state.DoS(0, false, REJECT_NONSTANDARD, "time-too-new");
     }
-    
+
     // Is it already in the memory pool?
     if (pool.exists(txid)) {
         return state.Invalid(false, REJECT_ALREADY_KNOWN,
@@ -1204,15 +1204,6 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos,
         return error("%s: Deserialize or I/O error - %s at %s", __func__,
                      e.what(), pos.ToString());
     }
-
-    // Check the header
-    // Skip check
-    /*
-    if (!CheckProofOfWork(block.GetPoWHash(), block.nBits, config)) {
-        return error("ReadBlockFromDisk: Errors in block header at %s",
-                     pos.ToString());
-    }
-    */
 
     return true;
 }
@@ -3872,7 +3863,7 @@ static bool AcceptBlockHeader(const Config &config, const CBlockHeader &block,
     if (pindex == nullptr) {
         pindex = AddToBlockIndex(block, hash);
     }
-    
+
     if (pindex->nHeight > chainparams.GetConsensus().nLastPOWBlock)
         pindex->SetProofOfStake();
 
