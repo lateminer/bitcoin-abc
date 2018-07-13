@@ -151,7 +151,7 @@ UniValue generateBlocks(const Config &config,
         }
 
         while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount &&
-               !CheckProofOfWork(pblock->GetHash(), pblock->nBits, config)) {
+               !CheckProofOfWork(pblock->GetPoWHash(), pblock->nBits, config)) {
             ++pblock->nNonce;
             --nMaxTries;
         }
