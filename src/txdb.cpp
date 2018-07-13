@@ -284,41 +284,40 @@ bool CBlockTreeDB::LoadBlockIndexGuts(
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         std::pair<char, uint256> key;
-        if (!pcursor->GetKey(key) || key.first != DB_BLOCK_INDEX) {
+        if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
+            CDiskBlockIndex diskindex;
+            if (pcursor->GetValue(diskindex)) {
+                // Construct block index object
+                CBlockIndex* pindexNew = InsertBlockIndex(diskindex.GetBlockHash());
+                pindexNew->pprev          = InsertBlockIndex(diskindex.hashPrev);
+                pindexNew->nHeight        = diskindex.nHeight;
+                pindexNew->nFile          = diskindex.nFile;
+                pindexNew->nDataPos       = diskindex.nDataPos;
+                pindexNew->nUndoPos       = diskindex.nUndoPos;
+                pindexNew->nVersion       = diskindex.nVersion;
+                pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
+                pindexNew->nTime          = diskindex.nTime;
+                pindexNew->nBits          = diskindex.nBits;
+                pindexNew->nNonce         = diskindex.nNonce;
+                pindexNew->nStatus        = diskindex.nStatus;
+                pindexNew->nTx            = diskindex.nTx;
+
+                // Litecoin: Disable PoW Sanity check while loading block index from disk.
+                // We use the sha256 hash for the block index for performance reasons, which is recorded for later use.
+                // CheckProofOfWork() uses the scrypt hash which is discarded after a block is accepted.
+                // While it is technically feasible to verify the PoW, doing so takes several minutes as it
+                // requires recomputing every PoW hash during every Litecoin startup.
+                // We opt instead to simply trust the data that is on your local disk.
+                //if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, consensusParams))
+                //    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
+
+                pcursor->Next();
+            } else {
+                return error("%s: failed to read value", __func__);
+            }
+        } else {
             break;
         }
-
-        CDiskBlockIndex diskindex;
-        if (!pcursor->GetValue(diskindex)) {
-            return error("LoadBlockIndex() : failed to read value");
-        }
-
-        // Construct block index object
-        CBlockIndex *pindexNew = insertBlockIndex(diskindex.GetBlockHash());
-        pindexNew->pprev = insertBlockIndex(diskindex.hashPrev);
-        pindexNew->nHeight = diskindex.nHeight;
-        pindexNew->nFile = diskindex.nFile;
-        pindexNew->nDataPos = diskindex.nDataPos;
-        pindexNew->nUndoPos = diskindex.nUndoPos;
-        pindexNew->nVersion = diskindex.nVersion;
-        pindexNew->hashMerkleRoot = diskindex.hashMerkleRoot;
-        pindexNew->nTime = diskindex.nTime;
-        pindexNew->nBits = diskindex.nBits;
-        pindexNew->nNonce = diskindex.nNonce;
-        pindexNew->nStatus = diskindex.nStatus;
-        pindexNew->nStakeModifier = diskindex.nStakeModifier;
-        pindexNew->nTx = diskindex.nTx;
-
-        // Litecoin: Disable PoW Sanity check while loading block index from disk.
-                        // We use the sha256 hash for the block index for performance reasons, which is recorded for later use.
-                        // CheckProofOfWork() uses the scrypt hash which is discarded after a block is accepted.
-                        // While it is technically feasible to verify the PoW, doing so takes several minutes as it
-                        // requires recomputing every PoW hash during every Litecoin startup.
-                        // We opt instead to simply trust the data that is on your local disk.
-                        //if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, Params().GetConsensus()))
-        //    return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
-
-        pcursor->Next();
     }
 
     return true;
@@ -330,7 +329,7 @@ class CCoins {
 public:
     //! whether transaction is a coinbase
     bool fCoinBase;
-    
+
     //! whether transaction is a coinstake
     bool fCoinStake;
 
