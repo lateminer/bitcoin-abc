@@ -7,8 +7,8 @@ define(_CLIENT_VERSION_BUILD, 0)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2018)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
-define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Blackcoin]])
-AC_INIT([Blackcoin Lore],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/janko33bd/bitcoin-abc/issues],[blackcoin-lore],[http://blackcoin.co/])
+define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Blackcoin Lore]])
+AC_INIT([Blackcoin Lore],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/janko33bd/bitcoin-abc/issues],[blackcoin-lore],[http://blackcoin.org/])
 AC_CONFIG_SRCDIR([src/validation.cpp])
 AC_CONFIG_HEADERS([src/config/bitcoin-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -187,6 +187,12 @@ AC_ARG_ENABLE([zmq],
   [disable ZMQ notifications])],
   [use_zmq=$enableval],
   [use_zmq=yes])
+
+AC_ARG_ENABLE([sse2],
+    [AS_HELP_STRING([--enable-sse2],
+    [enable SSE2 instructions in the scrypt library. (default is disabled)])],
+    [use_sse2=$enableval],
+    [use_sse2=no])
 
 AC_ARG_WITH([protoc-bindir],[AS_HELP_STRING([--with-protoc-bindir=BIN_DIR],[specify protoc bin path])], [protoc_bin_path=$withval], [])
 
@@ -462,7 +468,7 @@ case $host in
          dnl the user (--without-wallet or --without-gui for example).
 
          openssl_prefix=`$BREW --prefix openssl 2>/dev/null`
-         bdb_prefix=`$BREW --prefix berkeley-db4 2>/dev/null`
+         bdb_prefix=`$BREW --prefix berkeley-db6 2>/dev/null`
          qt5_prefix=`$BREW --prefix qt5 2>/dev/null`
          if test x$openssl_prefix != x; then
            PKG_CONFIG_PATH="$openssl_prefix/lib/pkgconfig:$PKG_CONFIG_PATH"
@@ -1203,6 +1209,16 @@ else
   BUILD_TEST=""
 fi
 
+AC_MSG_CHECKING([whether to enable sse2 instructions])
+if test x$use_sse2 != xno; then
+  AC_MSG_RESULT(yes)
+  AC_DEFINE([USE_SSE2],[1],[Define if SSE2 support should be compiled in])
+  use_sse2=yes
+  CPPFLAGS="$CPPFLAGS -DUSE_SSE2=1"
+else
+  AC_MSG_RESULT(no)
+fi
+
 AC_MSG_CHECKING([whether to reduce exports])
 if test x$use_reduce_exports = xyes; then
   AC_MSG_RESULT([yes])
@@ -1223,6 +1239,7 @@ AM_CONDITIONAL([ENABLE_QT],[test x$bitcoin_enable_qt = xyes])
 AM_CONDITIONAL([ENABLE_QT_TESTS],[test x$BUILD_TEST_QT = xyes])
 AM_CONDITIONAL([ENABLE_BENCH],[test x$use_bench = xyes])
 AM_CONDITIONAL([USE_QRCODE], [test x$use_qr = xyes])
+AM_CONDITIONAL([USE_SSE2], [test x$use_sse2 = xyes])
 AM_CONDITIONAL([USE_LCOV],[test x$use_lcov = xyes])
 AM_CONDITIONAL([GLIBC_BACK_COMPAT],[test x$use_glibc_compat = xyes])
 AM_CONDITIONAL([HARDEN],[test x$use_hardening = xyes])
@@ -1265,6 +1282,7 @@ AC_SUBST(SSE42_CXXFLAGS)
 AC_SUBST(LIBTOOL_APP_LDFLAGS)
 AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
+AC_SUBST(USE_SSE2)
 AC_SUBST(BOOST_LIBS)
 AC_SUBST(TESTDEFS)
 AC_SUBST(LEVELDB_TARGET_FLAGS)
@@ -1346,6 +1364,7 @@ echo "  with test     = $use_tests"
 echo "  with bench    = $use_bench"
 echo "  with upnp     = $use_upnp"
 echo "  use asm       = $use_asm"
+echo "  scrypt sse2   = $use_sse2"
 echo "  debug enabled = $enable_debug"
 echo "  werror        = $enable_werror"
 echo

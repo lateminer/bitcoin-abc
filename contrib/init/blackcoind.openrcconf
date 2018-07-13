@@ -1,0 +1,33 @@
+# /etc/conf.d/blackcoind: config file for /etc/init.d/blackcoind
+
+# Config file location
+#BLACKCOIND_CONFIGFILE="/etc/blackcoin/blackcoin.conf"
+
+# What directory to write pidfile to?  (created and owned by $BLACKCOIND_USER)
+#BLACKCOIND_PIDDIR="/var/run/blackcoind"
+
+# What filename to give the pidfile
+#BLACKCOIND_PIDFILE="${BLACKCOIND_PIDDIR}/blackcoind.pid"
+
+# Where to write blackcoind data (be mindful that the blockchain is large)
+#BLACKCOIND_DATADIR="/var/lib/blackcoind"
+
+# User and group to own blackcoind process
+#BLACKCOIND_USER="blackcoin"
+#BLACKCOIND_GROUP="blackcoin"
+
+# Path to blackcoind executable
+#BLACKCOIND_BIN="/usr/bin/blackcoind"
+
+# Nice value to run blackcoind under
+#BLACKCOIND_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+BLACKCOIND_OPTS="-disablewallet"
+
+# The timeout in seconds OpenRC will wait for blackcoind to terminate
+# after a SIGTERM has been raised.
+# Note that this will be mapped as argument to start-stop-daemon's
+# '--retry' option, which means you can specify a retry schedule
+# here. For more information see man 8 start-stop-daemon.
+BLACKCOIND_SIGTERM_TIMEOUT=60

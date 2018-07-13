@@ -233,7 +233,7 @@ public:
 
     //! hash modifier of proof-of-stake
     uint256 nStakeModifier;
-    
+
     //! block header
     int32_t nVersion;
     uint256 hashMerkleRoot;
@@ -315,8 +315,6 @@ public:
     }
 
     uint256 GetBlockHash() const { return *phashBlock; }
-
-    uint256 GetBlockPoWHash() const { return GetBlockHeader().GetPoWHash(); }
 
     int64_t GetBlockTime() const { return int64_t(nTime); }
 
