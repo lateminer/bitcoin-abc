@@ -1,4 +1,4 @@
-Blackcoin Lore
+Blackcoin More
 =====================================
 
 https://blackcoin.org
@@ -7,25 +7,25 @@ What is Blackcoin?
 ----------------
 
 Blackcoin is a decentralised digital currency with near-instant transaction speeds and
-negligible transaction fees built upon Proof of Stake 3.0 as introduced by the Blackcoin development team. Blackcoin Lore is the name of open source
+negligible transaction fees built upon Proof of Stake 3.0 as introduced by the Blackcoin development team. Blackcoin More is the name of open source
 software which enables the use of this currency. It takes Blackcoin to the next level by building upon Bitcoin ABC 0.17 to offer performance enhancements,
 wider compatibility with third party services and a more advanced base.
 
 For more information, as well as an immediately useable, binary version of
-the Blackcoin Lore software, see https://github.com/janko33bd/bitcoin-abc/releases.
+the Blackcoin More software, see https://github.com/janko33bd/bitcoin-abc/releases.
 
 License
 -------
 
-Blackcoin Lore is released under the terms of the MIT license. See [COPYING](COPYING) for more
+Blackcoin More is released under the terms of the MIT license. See [COPYING](COPYING) for more
 information or see https://opensource.org/licenses/MIT.
 
 Development Process
 -------------------
 
-The `Blackcoin-Lore` branch is regularly built and tested, but is not guaranteed to be
+The `Blackcoin-More` branch is regularly built and tested, but is not guaranteed to be
 completely stable. [Tags](https://github.com/janko33bd/bitcoin-abc/tags) are created
-regularly to indicate new official, stable release versions of Blackcoin Lore.
+regularly to indicate new official, stable release versions of Blackcoin More.
 
 The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
 

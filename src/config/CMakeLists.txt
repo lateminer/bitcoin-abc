@@ -7,12 +7,12 @@ include(CheckIncludeFiles)
 include(CheckSymbolExists)
 
 # Package informations
-set(PACKAGE_NAME "Blackcoin Lore")
+set(PACKAGE_NAME "Blackcoin More")
 
 # Version
 set(CLIENT_VERSION_MAJOR 0)
 set(CLIENT_VERSION_MINOR 17)
-set(CLIENT_VERSION_REVISION 0)
+set(CLIENT_VERSION_REVISION 3)
 set(CLIENT_VERSION_BUILD 0)
 
 option(CLIENT_VERSION_IS_RELEASE "Build a release version" OFF)

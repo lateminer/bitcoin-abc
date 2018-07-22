@@ -2228,7 +2228,7 @@ Var vänlig och försök igen.</translation>
     </message>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>Blackcoin Lore</translation>
+        <translation>Blackcoin More</translation>
     </message>
     <message>
         <source>The %s developers</source>

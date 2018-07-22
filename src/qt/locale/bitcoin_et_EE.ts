@@ -761,7 +761,7 @@
     </message>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>Blackcoin Lore</translation>
+        <translation>Blackcoin More</translation>
     </message>
     <message>
         <source>Information</source>

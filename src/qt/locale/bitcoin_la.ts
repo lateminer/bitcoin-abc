@@ -769,7 +769,7 @@
     </message>
     <message>
         <source>Bitcoin ABC</source>
-        <translation>Blackcoin Lore</translation>
+        <translation>Blackcoin More</translation>
     </message>
     <message>
         <source>Bind to given address and always listen on it. Use [host]:port notation for IPv6</source>

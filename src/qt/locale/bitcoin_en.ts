@@ -3954,7 +3954,7 @@
     <message>
         <location line="-360"/>
         <source>Bitcoin ABC</source>
-        <translation type="unfinished">Blackcoin Lore</translation>
+        <translation type="unfinished">Blackcoin More</translation>
     </message>
     <message>
         <location line="+1"/>
