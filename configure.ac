@@ -14,10 +14,10 @@ AC_CONFIG_HEADERS([src/config/bitcoin-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([build-aux/m4])
 
-BITCOIN_DAEMON_NAME=lored
-BITCOIN_GUI_NAME=lore-qt
-BITCOIN_CLI_NAME=lore-cli
-BITCOIN_TX_NAME=lore-tx
+BITCOIN_DAEMON_NAME=blackmored
+BITCOIN_GUI_NAME=blackmore-qt
+BITCOIN_CLI_NAME=blackmore-cli
+BITCOIN_TX_NAME=blackmore-tx
 BITCOIN_SEEDER_NAME=blackcoin-seeder
 
 AC_CANONICAL_HOST

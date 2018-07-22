@@ -72,7 +72,7 @@ TESTS =
 BENCHMARKS =
 
 if BUILD_BITCOIND
-  bin_PROGRAMS += lored
+  bin_PROGRAMS += blackmored
 endif
 
 if BUILD_BITCOIN_SEEDER
@@ -80,7 +80,7 @@ if BUILD_BITCOIN_SEEDER
 endif
 
 if BUILD_BITCOIN_UTILS
-  bin_PROGRAMS += lore-cli lore-tx
+  bin_PROGRAMS += blackmore-cli blackmore-tx
 endif
 
 .PHONY: FORCE check-symbols check-security
@@ -194,7 +194,7 @@ obj/build.h: FORCE
 	  "$(abs_top_srcdir)"
 libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 
-# server: shared between lored and lore-qt
+# server: shared between blackmored and blackmore-qt
 libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
@@ -249,7 +249,7 @@ libbitcoin_zmq_a_SOURCES = \
 endif
 
 
-# wallet: shared between lored and lore-qt, but only linked
+# wallet: shared between blackmored and blackmore-qt, but only linked
 # when wallet enabled
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
@@ -328,7 +328,7 @@ libbitcoin_consensus_a_SOURCES = \
   utilstrencodings.h \
   version.h
 
-# common: shared between lored, and lore-qt and non-server tools
+# common: shared between blackmored, and blackmore-qt and non-server tools
 libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
@@ -385,7 +385,7 @@ if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
 endif
 
-# cli: shared between lore-cli and lore-qt
+# cli: shared between blackmore-cli and blackmore-qt
 libbitcoin_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_cli_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_cli_a_SOURCES = \
@@ -409,17 +409,17 @@ libbitcoin_seeder_a_SOURCES = \
 nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
 #
 
-# lored binary #
-lored_SOURCES = bitcoind.cpp
-lored_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-lored_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-lored_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+# blackmored binary #
+blackmored_SOURCES = bitcoind.cpp
+blackmored_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+blackmored_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+blackmored_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-lored_SOURCES += bitcoind-res.rc
+blackmored_SOURCES += bitcoind-res.rc
 endif
 
-lored_LDADD = \
+blackmored_LDADD = \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_COMMON) \
   $(LIBUNIVALUE) \
@@ -433,25 +433,25 @@ lored_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-lored_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
+blackmored_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS)
 
-# lore-cli binary #
-lore_cli_SOURCES = bitcoin-cli.cpp
-lore_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
-lore_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-lore_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+# blackmore-cli binary #
+blackmore_cli_SOURCES = bitcoin-cli.cpp
+blackmore_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
+blackmore_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+blackmore_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-lore_cli_SOURCES += bitcoin-cli-res.rc
+blackmore_cli_SOURCES += bitcoin-cli-res.rc
 endif
 
-lore_cli_LDADD = \
+blackmore_cli_LDADD = \
   $(LIBBITCOIN_CLI) \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-lore_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
+blackmore_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
 #
 
 # blackcoin-seeder binary #
@@ -469,17 +469,17 @@ blackcoin_seeder_LDADD = \
 blackcoin_seeder_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 #
 
-# lore-tx binary #
-lore_tx_SOURCES = bitcoin-tx.cpp
-lore_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-lore_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-lore_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+# blackmore-tx binary #
+blackmore_tx_SOURCES = bitcoin-tx.cpp
+blackmore_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+blackmore_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+blackmore_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-lore_tx_SOURCES += bitcoin-tx-res.rc
+blackmore_tx_SOURCES += bitcoin-tx-res.rc
 endif
 
-lore_tx_LDADD = \
+blackmore_tx_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
@@ -487,7 +487,7 @@ lore_tx_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-lore_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
+blackmore_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 #
 
 # bitcoinconsensus library #
