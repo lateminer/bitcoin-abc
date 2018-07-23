@@ -909,8 +909,8 @@ std::string HelpMessage(HelpMessageMode mode) {
 
 std::string LicenseInfo() {
     const std::string URL_SOURCE_CODE =
-        "<https://github.com/janko33bd/bitcoin-abc>";
-    const std::string URL_WEBSITE = "<https://blackcoin.co>";
+        "<https://gitlab.com/blackcoin/blackcoin-more>";
+    const std::string URL_WEBSITE = "<https://blackcoin.org>";
 
     return CopyrightHolders(
                strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR) +

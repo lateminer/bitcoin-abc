@@ -12,7 +12,7 @@ software which enables the use of this currency. It takes Blackcoin to the next 
 wider compatibility with third party services and a more advanced base.
 
 For more information, as well as an immediately useable, binary version of
-the Blackcoin More software, see https://github.com/janko33bd/bitcoin-abc/releases.
+the Blackcoin More software, see https://blackcoin.org.
 
 License
 -------
@@ -24,7 +24,7 @@ Development Process
 -------------------
 
 The `Blackcoin-More` branch is regularly built and tested, but is not guaranteed to be
-completely stable. [Tags](https://github.com/janko33bd/bitcoin-abc/tags) are created
+completely stable. [Tags](https://gitlab.com/blackcoin/blackcoin-more/tags) are created
 regularly to indicate new official, stable release versions of Blackcoin More.
 
 The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).

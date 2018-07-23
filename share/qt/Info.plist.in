@@ -29,16 +29,16 @@
   <string>????</string>
 
   <key>CFBundleExecutable</key>
-  <string>Lore-Qt</string>
+  <string>Blackmore-Qt</string>
 
   <key>CFBundleName</key>
-  <string>Lore-Qt</string>
+  <string>Blackmore-Qt</string>
 
   <key>LSHasLocalizedDisplayName</key>
   <true/>
 
   <key>CFBundleIdentifier</key>
-  <string>org.blackcoin.Lore-Qt</string>
+  <string>org.blackcoin.Blackmore-Qt</string>
 
   <key>CFBundleURLTypes</key>
   <array>

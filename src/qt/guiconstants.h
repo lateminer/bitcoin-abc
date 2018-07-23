@@ -49,8 +49,8 @@ static const int MAX_URI_LENGTH = 255;
 #define SPINNER_FRAMES 36
 
 #define QAPP_ORG_NAME "Blackcoin"
-#define QAPP_ORG_DOMAIN "blackcoin.co"
-#define QAPP_APP_NAME_DEFAULT "Lore-Qt"
-#define QAPP_APP_NAME_TESTNET "Lore-Qt-testnet"
+#define QAPP_ORG_DOMAIN "blackcoin.org"
+#define QAPP_APP_NAME_DEFAULT "Blackmore-Qt"
+#define QAPP_APP_NAME_TESTNET "Blackmore-Qt-testnet"
 
 #endif // BITCOIN_QT_GUICONSTANTS_H
