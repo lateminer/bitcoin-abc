@@ -192,9 +192,9 @@ private:
     static const uint32_t INVALID_MASK = FAILED_FLAG | FAILED_PARENT_FLAG;
 
     // Proof-of-stake block
-    static const uint32_t BLOCK_PROOF_OF_STAKE = 128,
-    static const uint32_t BLOCK_STAKE_ENTROPY = 256,
-    static const uint32_t BLOCK_STAKE_MODIFIER = 512,
+    static const uint32_t BLOCK_PROOF_OF_STAKE = 128;
+    static const uint32_t BLOCK_STAKE_ENTROPY = 256;
+    static const uint32_t BLOCK_STAKE_MODIFIER = 512;
 
 public:
     explicit BlockStatus() : status(0) {}
@@ -407,7 +407,6 @@ public:
     
     int64_t GetHeaderTimeReceived() const { return nTimeReceived; }
 
-private:
     enum { nMedianTimeSpan = 11 };
 
     int64_t GetMedianTimePast() const {
@@ -425,7 +424,6 @@ private:
         return pbegin[(pend - pbegin) / 2];
     }
 
-public:
     int64_t GetPastTimeLimit() const {
         if (Params().GetConsensus().IsProtocolV2(GetBlockTime()))
             return GetBlockTime();
@@ -434,8 +432,8 @@ public:
     }
 
     bool IsProofOfWork() const { return !IsProofOfStake(); }
-    bool IsProofOfStake() const { return (nStatus & BLOCK_PROOF_OF_STAKE); }
-    void SetProofOfStake() { nStatus |= BLOCK_PROOF_OF_STAKE; }
+    bool IsProofOfStake() const { return BlockValidity(status & BLOCK_PROOF_OF_STAKE); }
+    void SetProofOfStake() { return BlockValidity(status |= BLOCK_PROOF_OF_STAKE); }
 
     std::string ToString() const {
         return strprintf(
