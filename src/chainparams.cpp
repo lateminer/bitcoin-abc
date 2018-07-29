@@ -117,10 +117,10 @@ public:
         */
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000001750056f6ae8e8dd295");
+        consensus.nMinimumChainWork = uint256S("0000000000000000000000000000000000000000000001750056f6ae8e8dd295");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x7f26e07dd94fd906ab9e25873e371fdf7819e259e309b91475b652091c6ad0d6");
+        consensus.defaultAssumeValid = uint256S("7f26e07dd94fd906ab9e25873e371fdf7819e259e309b91475b652091c6ad0d6");
 
         consensus.nProtocolV1RetargetingFixedTime = 1395631999;
         consensus.nProtocolV2Time = 1407053625;
@@ -152,8 +152,8 @@ public:
 
         genesis = CreateGenesisBlock(1393221600, 164482, 0x1e0fffff, 1, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0x000001faef25dec4fbcf906e6242621df2c183bf232f263d0ba5b101911e4563"));
-        assert(genesis.hashMerkleRoot == uint256S("0x12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90"));
+        assert(consensus.hashGenesisBlock == uint256S("000001faef25dec4fbcf906e6242621df2c183bf232f263d0ba5b101911e4563"));
+        assert(genesis.hashMerkleRoot == uint256S("12630d16a97f24b287c8c2594dda5fb98c9e6c70fc61d44191931ea2aa08dc90"));
 
         vSeeds.push_back(CDNSSeedData("vasin.nl", "dnsseed.vasin.nl", true));
 
@@ -247,8 +247,8 @@ public:
 
         genesis = CreateGenesisBlock(1504695029, 17, 0x207fffff, 7, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0xf42eb1d043cb8003e491b48e6404f7c3465df16c04ba9370b8307fad87b21216"));
-        assert(genesis.hashMerkleRoot == uint256S("0xca4884e59066db370e5bf6d368c49d5ec8c7dc1161109f71be5f17c6aeb0e30f"));
+        assert(consensus.hashGenesisBlock == uint256S("f42eb1d043cb8003e491b48e6404f7c3465df16c04ba9370b8307fad87b21216"));
+        assert(genesis.hashMerkleRoot == uint256S("ca4884e59066db370e5bf6d368c49d5ec8c7dc1161109f71be5f17c6aeb0e30f"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
@@ -326,8 +326,8 @@ public:
 
         genesis = CreateGenesisBlock(1504695029, 17, 0x207fffff, 7, Amount(0));
         consensus.hashGenesisBlock = genesis.GetHash();
-        assert(consensus.hashGenesisBlock == uint256S("0xf42eb1d043cb8003e491b48e6404f7c3465df16c04ba9370b8307fad87b21216"));
-        assert(genesis.hashMerkleRoot == uint256S("0xca4884e59066db370e5bf6d368c49d5ec8c7dc1161109f71be5f17c6aeb0e30f"));
+        assert(consensus.hashGenesisBlock == uint256S("f42eb1d043cb8003e491b48e6404f7c3465df16c04ba9370b8307fad87b21216"));
+        assert(genesis.hashMerkleRoot == uint256S("ca4884e59066db370e5bf6d368c49d5ec8c7dc1161109f71be5f17c6aeb0e30f"));
 
         //!< Regtest mode doesn't have any fixed seeds.
         vFixedSeeds.clear();
