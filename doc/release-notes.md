@@ -7,4 +7,4 @@ This release includes the following features and fixes:
  - Remove deprecated `estimatesmartpriority` RPC.
  - Remove support for `-sendfreetransactions`.
  - Remove unstable `estimatesmartfee` RPC.
- - Update berkley DB to 5.3 minimum. Developers should update their build environment accordingly.
+ - Update berkley DB to 6.2 minimum. Developers should update their build environment accordingly.

@@ -79,7 +79,7 @@ install necessary parts of boost:
 
         sudo apt-get install libboost-all-dev
 
-BerkeleyDB 5.3 or later is required for the wallet. This can be installed with:
+BerkeleyDB 6.2 or later is required for the wallet. This can be installed with:
 
         sudo apt-get install libdb-dev
         sudo apt-get install libdb++-dev
