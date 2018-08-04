@@ -422,6 +422,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
     mempool.clear();
 
     // Invalid (pre-p2sh) txn in mempool, template creation fails.
+    std::array<int64_t, CBlockIndex::nMedianTimeSpan> times;
     tx.vin[0].prevout = COutPoint(txFirst[0]->GetId(), 0);
     tx.vin[0].scriptSig = CScript() << OP_1;
     tx.vout[0].nValue = BLOCKSUBSIDY - LOWFEE;
