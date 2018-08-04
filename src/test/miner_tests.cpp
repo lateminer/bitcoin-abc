@@ -422,16 +422,6 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity) {
     mempool.clear();
 
     // Invalid (pre-p2sh) txn in mempool, template creation fails.
-    std::array<int64_t, CBlockIndex::nMedianTimeSpan> times;
-    for (int i = 0; i < CBlockIndex::nMedianTimeSpan; i++) {
-        // Trick the MedianTimePast.
-        times[i] = chainActive.Tip()
-                       ->GetAncestor(chainActive.Tip()->nHeight - i)
-                       ->nTime;
-        chainActive.Tip()->GetAncestor(chainActive.Tip()->nHeight - i)->nTime =
-            P2SH_ACTIVATION_TIME;
-    }
-
     tx.vin[0].prevout = COutPoint(txFirst[0]->GetId(), 0);
     tx.vin[0].scriptSig = CScript() << OP_1;
     tx.vout[0].nValue = BLOCKSUBSIDY - LOWFEE;
