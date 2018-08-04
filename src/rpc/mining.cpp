@@ -999,8 +999,8 @@ static UniValue checkkernel(const Config &config,
             return result;
 
         UniValue oKernel(UniValue::VOBJ);
-        oKernel.push_back(Pair("txid", kernel.hash.GetHex()));
-        oKernel.push_back(Pair("vout", (int64_t)kernel.n));
+        oKernel.push_back(Pair("txid", kernel.GetHash().GetHex()));
+        oKernel.push_back(Pair("vout", (int64_t)kernel.GetN()));
         oKernel.push_back(Pair("time", nTime));
         result.push_back(Pair("kernel", oKernel));
 
