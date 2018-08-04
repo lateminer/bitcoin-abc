@@ -230,6 +230,8 @@ public:
         return BlockStatus((status & ~FAILED_PARENT_FLAG) |
                            (hasFailedParent ? FAILED_PARENT_FLAG : 0));
     }
+    
+    bool isProofOfStake() const { return status & BLOCK_PROOF_OF_STAKE; }
 
     /**
      * Check whether this block index entry is valid up to the passed validity
@@ -434,7 +436,7 @@ public:
     }
 
     bool IsProofOfWork() const { return !IsProofOfStake(); }
-    bool IsProofOfStake() const { return BlockValidity(status & BLOCK_PROOF_OF_STAKE); }
+    bool IsProofOfStake() const { return nStatus.isProofOfStake(); }
     void SetProofOfStake() { return BlockValidity(status |= BLOCK_PROOF_OF_STAKE); }
 
     std::string ToString() const {
