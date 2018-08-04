@@ -232,7 +232,7 @@ public:
     }
     
     bool isProofOfStake() const { return status & BLOCK_PROOF_OF_STAKE; }
-    void setProofOfStake() { status |= BLOCK_PROOF_OF_STAKE); }
+    void setProofOfStake() { status |= BLOCK_PROOF_OF_STAKE; }
 
     /**
      * Check whether this block index entry is valid up to the passed validity
@@ -436,7 +436,7 @@ public:
 
     bool IsProofOfWork() const { return !IsProofOfStake(); }
     bool IsProofOfStake() const { return nStatus.isProofOfStake(); }
-    void SetProofOfStake() { setProofOfStake(); }
+    void SetProofOfStake() { nStatus.setProofOfStake(); }
 
     std::string ToString() const {
         return strprintf(
