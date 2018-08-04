@@ -45,7 +45,6 @@ enum LogFlags : uint32_t {
     QT = (1 << 19),
     LEVELDB = (1 << 20),
     STAKE = (1 << 21),
-    SELECTCOINS = (1 << 22),
     ALL = ~uint32_t(0),
 };
 
