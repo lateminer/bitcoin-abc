@@ -232,6 +232,7 @@ public:
     }
     
     bool isProofOfStake() const { return status & BLOCK_PROOF_OF_STAKE; }
+    void setProofOfStake() { status |= BLOCK_PROOF_OF_STAKE); }
 
     /**
      * Check whether this block index entry is valid up to the passed validity
@@ -409,8 +410,6 @@ public:
     
     int64_t GetHeaderTimeReceived() const { return nTimeReceived; }
 
-    int64_t GetHeaderTimeReceived() const { return nTimeReceived; }
-
     enum { nMedianTimeSpan = 11 };
 
     int64_t GetMedianTimePast() const {
@@ -437,7 +436,7 @@ public:
 
     bool IsProofOfWork() const { return !IsProofOfStake(); }
     bool IsProofOfStake() const { return nStatus.isProofOfStake(); }
-    void SetProofOfStake() { return BlockValidity(status |= BLOCK_PROOF_OF_STAKE); }
+    void SetProofOfStake() { setProofOfStake(); }
 
     std::string ToString() const {
         return strprintf(
