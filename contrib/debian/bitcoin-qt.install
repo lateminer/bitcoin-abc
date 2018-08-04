@@ -1,6 +1,6 @@
-usr/local/bin/blackcoin-qt usr/bin
+usr/local/bin/blackmore-qt usr/bin
 share/pixmaps/blackcoin32.xpm usr/share/pixmaps
 share/pixmaps/blackcoin16.xpm usr/share/pixmaps
 share/pixmaps/blackcoin128.png usr/share/pixmaps
-debian/blackcoin-qt.desktop usr/share/applications
-debian/blackcoin-qt.protocol usr/share/kde4/services/
+debian/blackmore-qt.desktop usr/share/applications
+debian/blackmore-qt.protocol usr/share/kde4/services/
