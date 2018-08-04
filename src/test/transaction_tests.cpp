@@ -399,14 +399,12 @@ BOOST_AUTO_TEST_CASE(test_big_transaction) {
                            << ToByteVector(key.GetPubKey()) << OP_CHECKSIG;
 
     std::vector<SigHashType> sigHashes;
-    sigHashes.emplace_back(SIGHASH_NONE | SIGHASH_FORKID);
-    sigHashes.emplace_back(SIGHASH_SINGLE | SIGHASH_FORKID);
-    sigHashes.emplace_back(SIGHASH_ALL | SIGHASH_FORKID);
-    sigHashes.emplace_back(SIGHASH_NONE | SIGHASH_FORKID |
-                           SIGHASH_ANYONECANPAY);
-    sigHashes.emplace_back(SIGHASH_SINGLE | SIGHASH_FORKID |
-                           SIGHASH_ANYONECANPAY);
-    sigHashes.emplace_back(SIGHASH_ALL | SIGHASH_FORKID | SIGHASH_ANYONECANPAY);
+    sigHashes.emplace_back(SIGHASH_NONE);
+    sigHashes.emplace_back(SIGHASH_SINGLE);
+    sigHashes.emplace_back(SIGHASH_ALL);
+    sigHashes.emplace_back(SIGHASH_NONE | SIGHASH_ANYONECANPAY);
+    sigHashes.emplace_back(SIGHASH_SINGLE | SIGHASH_ANYONECANPAY);
+    sigHashes.emplace_back(SIGHASH_ALL | SIGHASH_ANYONECANPAY);
 
     CMutableTransaction mtx;
     mtx.nVersion = 1;
