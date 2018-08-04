@@ -96,7 +96,7 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits,
     // Calculate hash
     CHashWriter ss(SER_GETHASH, 0);
     ss << nStakeModifier;
-    ss << nBlockFromTime << prevout.hash << prevout.GetN() << nTime;
+    ss << nBlockFromTime << prevout.GetHash() << prevout.GetN() << nTime;
     uint256 hashProofOfStake = ss.GetHash();
 
     // Now check if proof-of-stake hash meets target protocol
@@ -135,7 +135,7 @@ bool CheckProofOfStake(CBlockIndex* pindexPrev, const CTransaction& tx, unsigned
     Coin coinPrev;
 
     if (!view.GetCoin(txin.prevout, coinPrev))
-        return state.DoS(100, error("CheckProofOfStake(): Stake prevout does not exist %s", txin.prevout.hash.ToString()));
+        return state.DoS(100, error("CheckProofOfStake(): Stake prevout does not exist %s", txin.prevout.GetHash().ToString()));
 
     if (pindexPrev->nHeight + 1 - coinPrev.nHeight < Params().GetConsensus().nStakeMinConfirmations)
         return state.DoS(100, error("CheckProofOfStake(): Stake prevout is not mature, expecting %i and only matured to %i", Params().GetConsensus().nStakeMinConfirmations, pindexPrev->nHeight + 1 - coinPrev.nHeight));

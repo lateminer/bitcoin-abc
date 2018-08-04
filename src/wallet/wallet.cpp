@@ -981,7 +981,7 @@ bool CWallet::CreateCoinStake(unsigned int nBits, Amount nTotalFees, CMutableTra
         // Attempt to add more inputs
         // Only add coins of the same key/address as kernel
         if (txNew.vout.size() == 2 && ((pcoin.first->tx->vout[pcoin.second].scriptPubKey == scriptPubKeyKernel || pcoin.first->tx->vout[pcoin.second].scriptPubKey == txNew.vout[1].scriptPubKey))
-            && pcoin.first->GetId() != txNew.vin[0].prevout.hash)
+            && pcoin.first->GetId() != txNew.vin[0].prevout.GetHash())
         {
             // Stop adding more inputs if already too many inputs
             if (txNew.vin.size() >= 10)
@@ -4057,7 +4057,7 @@ void CWallet::DisableTransaction(const CTransaction &tx)
         RemoveFromSpends(hash);
         set<CWalletTx*> setCoins;
         for (const CTxIn &txin : tx.vin) {
-            CWalletTx &coin = mapWallet[txin.prevout.hash];
+            CWalletTx &coin = mapWallet[txin.prevout.GetHash()];
             coin.BindWallet(this);
             NotifyTransactionChanged(this, coin.GetId(), CT_UPDATED);
         }

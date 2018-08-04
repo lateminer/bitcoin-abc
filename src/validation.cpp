@@ -2006,7 +2006,7 @@ static bool ConnectBlock(const Config &config, const CBlock &block,
                      FormatStateMessage(state));
     }
 
-    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.hash : block.GetHash());
+    pindex->nStakeModifier = ComputeStakeModifier(pindex->pprev, block.IsProofOfStake() ? block.vtx[1]->vin[0].prevout.GetHash() : block.GetHash());
 
     // Check difficulty
     if (block.nBits != GetNextTargetRequired(pindex->pprev, &block, block.IsProofOfStake(), config))
