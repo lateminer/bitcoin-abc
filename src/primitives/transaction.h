@@ -37,6 +37,7 @@ class COutPoint {
 private:
     TxId txid;
     uint32_t n;
+    uint256 hash;
 
 public:
     COutPoint() : txid(), n(-1) {}
@@ -54,6 +55,7 @@ public:
 
     const TxId &GetTxId() const { return txid; }
     uint32_t GetN() const { return n; }
+    uint256 GetHash() const { return hash; } 
 
     friend bool operator<(const COutPoint &a, const COutPoint &b) {
         int cmp = a.txid.Compare(b.txid);

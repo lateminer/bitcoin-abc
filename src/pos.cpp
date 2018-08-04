@@ -96,7 +96,7 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits,
     // Calculate hash
     CHashWriter ss(SER_GETHASH, 0);
     ss << nStakeModifier;
-    ss << nBlockFromTime << prevout.hash << prevout.n << nTime;
+    ss << nBlockFromTime << prevout.hash << prevout.GetN() << nTime;
     uint256 hashProofOfStake = ss.GetHash();
 
     // Now check if proof-of-stake hash meets target protocol
@@ -106,7 +106,7 @@ bool CheckStakeKernelHash(const CBlockIndex* pindexPrev, unsigned int nBits,
     if (gArgs.IsArgSet("-debug")) {
         LogPrintf("%s: check modifier=%s nBlockFromTime=%u nPrevout=%u nTime=%u hashProof=%s\n", __func__, 
             nStakeModifier.GetHex().c_str(),
-            nBlockFromTime, prevout.n, nTime,
+            nBlockFromTime, prevout.GetN(), nTime,
             hashProofOfStake.ToString());
     }
 
