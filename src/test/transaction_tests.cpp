@@ -452,7 +452,6 @@ BOOST_AUTO_TEST_CASE(test_big_transaction) {
         CTxOut out;
         out.nValue = Amount(1000);
         out.scriptPubKey = scriptPubKey;
-        coins.emplace_back(std::move(out), 1, false);
     }
 
     for (size_t i = 0; i < mtx.vin.size(); i++) {
