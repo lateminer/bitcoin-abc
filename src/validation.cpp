@@ -1950,7 +1950,7 @@ static uint32_t GetBlockScriptFlags(const Config &config,
     flags |= SCRIPT_VERIFY_DERSIG;
 
     // Start enforcing CHECKLOCKTIMEVERIFY (BIP65) since protocol v3
-    if (pindex->GetBlockTime() > consensusparams.nProtocolV3Time) {
+    if (pChainTip->GetBlockTime() > consensusparams.nProtocolV3Time) {
         flags |= SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY;
         flags |= SCRIPT_VERIFY_NULLDUMMY;
     }
