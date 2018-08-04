@@ -50,12 +50,7 @@ BOOST_AUTO_TEST_CASE(sighash_construction_test) {
                         bool isNewDefined =
                             newBaseType != BaseSigHashType::UNSUPPORTED;
                         CheckSigHashType(t.withBaseType(newBaseType),
-                    }
-
-                    for (uint32_t newForkValue : forkValues) {
-                        CheckSigHashType(t.withForkValue(newForkValue),
-                                         baseType, isDefined, newForkValue,
-                                         hasForkId, hasAnyoneCanPay);
+                                         newBaseType, isNewDefined, hasAnyoneCanPay);
                     }
                 }
             }
