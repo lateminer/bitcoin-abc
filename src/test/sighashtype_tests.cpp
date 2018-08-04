@@ -21,13 +21,11 @@ static void CheckSigHashType(SigHashType t, BaseSigHashType baseType,
 
 BOOST_AUTO_TEST_CASE(sighash_construction_test) {
     // Check default values.
-    CheckSigHashType(SigHashType(), BaseSigHashType::ALL, true, 0, false,
-                     false);
+    CheckSigHashType(SigHashType(), BaseSigHashType::ALL, true, false);
 
     // Check all possible permutations.
     std::set<BaseSigHashType> baseTypes{
-        BaseSigHashType::UNSUPPORTED, BaseSigHashType::ALL,
-        BaseSigHashType::NONE, BaseSigHashType::SINGLE};
+        BaseSigHashType::UNSUPPORTED, BaseSigHashType::SINGLE};
     std::set<bool> anyoneCanPayFlagValues{false, true};
 
     for (BaseSigHashType baseType : baseTypes) {
@@ -54,8 +52,6 @@ BOOST_AUTO_TEST_CASE(sighash_construction_test) {
                     }
                 }
             }
-        }
-    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
